@@ -17,7 +17,8 @@ import {
     Layers, 
     Search,
     X,
-    Loader2
+    Loader2,
+    LogOut
 } from 'lucide-react';
 
 import JournalStoryView from '../components/JournalStoryView';
@@ -29,7 +30,7 @@ import './JournalPage.css';
 import '../styles/vizja-ui-system.css';
 
 export const JournalPage: React.FC = () => {
-    const { user, loading: authLoading } = useAuth();
+    const { user, loading: authLoading, signOut } = useAuth();
 
     const [activeTab, setActiveTab] = useState<'story' | 'shared'>('story');
     const [project, setProject] = useState<Project | null>(null);
@@ -131,6 +132,18 @@ export const JournalPage: React.FC = () => {
                         </button>
                     )}
                 </div>
+
+                {user && (
+                    <button
+                        type="button"
+                        className="yolofuck-top-signout-btn"
+                        onClick={() => signOut()}
+                        title="Sign out of yolofuck"
+                    >
+                        <LogOut size={14} />
+                        <span>Sign out</span>
+                    </button>
+                )}
             </header>
 
             {/* Main Content Area */}

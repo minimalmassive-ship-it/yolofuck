@@ -7,11 +7,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
     console.error('Missing Supabase credentials in environment variables');
 }
 
-// In-memory lock function to bypass Web Locks API timeouts on parallel queries
-const noOpLock = async <R>(_name: string, _acquireTimeout: number, fn: () => Promise<R>): Promise<R> => {
-    return await fn();
-};
-
 export const supabase = createClient(
     supabaseUrl || '',
     supabaseAnonKey || '',
@@ -22,7 +17,6 @@ export const supabase = createClient(
             detectSessionInUrl: true,
             storageKey: 'yolofuck-auth-token',
             storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-            lock: noOpLock
         }
     }
 );
@@ -37,7 +31,6 @@ export const supabasePublic = createClient(
             autoRefreshToken: false,
             detectSessionInUrl: false,
             storageKey: 'yolofuck.public.auth.token',
-            lock: noOpLock
         }
     }
 );

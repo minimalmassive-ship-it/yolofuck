@@ -1,9 +1,9 @@
 :root {
   --text: #94a3b8;
   --text-h: #f8fafc;
-  --bg: #0a0a10;
-  --border: #1e1e28;
-  --code-bg: #14141c;
+  --bg: #000000;
+  --border: #21262d;
+  --code-bg: #0d1117;
   --accent: #10b981;
   --accent-bg: rgba(16, 185, 129, 0.12);
   --accent-border: rgba(16, 185, 129, 0.35);
@@ -14,7 +14,7 @@
   font-family: var(--sans);
   color-scheme: dark;
   color: var(--text);
-  background: var(--bg);
+  background: #000000;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -31,5 +31,5 @@ html, body, #root {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background: #0a0a10;
+  background: #000000;
 }

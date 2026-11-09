@@ -327,7 +327,7 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
         }
     }, [user?.id, recordedClips, isRecording, isSaving, projectId, transcription, liveWord, onClipSaved, journalConfig.localStorageOnly]);
 
-    // ── 30-Second Limit Watcher ──
+    // ── 30-Second Limit Watcher (Smooth 30ms interval for 0.00 timer precision) ──
     useEffect(() => {
         if (isRecording) {
             timerIntervalRef.current = setInterval(() => {
@@ -345,7 +345,7 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
                         handleSave();
                     }, 200);
                 }
-            }, 100);
+            }, 30);
         } else {
             setCurrentTakeMs(0);
             if (timerIntervalRef.current) {
@@ -437,8 +437,14 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
 
     const portal = (
         <div className="yolofuck-recorder-fullscreen">
-            {/* Viewport: 9:16 vertical shorts full screen container */}
-            <div className="yolofuck-recorder-viewport">
+            {/* Viewport: 9:16 vertical shorts full screen container (Tap anywhere to record) */}
+            <div
+                className={`yolofuck-recorder-viewport ${isRecording ? 'is-recording-active' : ''}`}
+                onPointerDown={handleRecordPointerDown}
+                onPointerUp={handleRecordPointerUp}
+                onPointerLeave={handleRecordPointerLeave}
+                onPointerCancel={handleRecordPointerLeave}
+            >
                 {cameraReady ? (
                     <video
                         ref={videoRef}
@@ -452,17 +458,38 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
                         }}
                     />
                 ) : (
-                    <div className="yolofuck-camera-error">
-                        <Video size={48} color="#666" />
-                        <span>{error || 'Initializing 9:16 camera...'}</span>
+                    <div className="yolofuck-camera-error" onPointerDown={(e) => e.stopPropagation()}>
+                        <Video size={48} color="#64748b" />
+                        <span style={{ textAlign: 'center', maxWidth: '280px', lineHeight: 1.5 }}>
+                            {error || 'Initializing 9:16 camera...'}
+                        </span>
+                        {error && (
+                            <button
+                                type="button"
+                                className="yolofuck-camera-retry-btn"
+                                onClick={() => initCamera(activeFacingMode, selectedDeviceId)}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onPointerUp={(e) => e.stopPropagation()}
+                            >
+                                Retry Camera
+                            </button>
+                        )}
+                    </div>
+                )}
+
+                {/* ── Active Recording Badge ── */}
+                {isRecording && (
+                    <div className="yolofuck-recording-live-tag">
+                        <span className="yolofuck-recording-live-dot" />
+                        Recording
                     </div>
                 )}
 
                 {/* ── Top Bar Controls ── */}
                 <div className="yolofuck-recorder-topbar">
-                    {/* Left: Orange timestamp pill */}
-                    <div className="yolofuck-timer-pill">
-                        {formatSessionTime(totalSessionDurationMs)} / 00:30
+                    {/* Left: Stopwatch showing elapsed seconds from 0.00 without 's' */}
+                    <div className="yolofuck-timer-pill" onPointerDown={(e) => e.stopPropagation()}>
+                        {(totalSessionDurationMs / 1000).toFixed(2)}
                     </div>
 
                     {/* Middle: Front / Back Camera Flip Button */}
@@ -470,6 +497,8 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
                         type="button"
                         className="yolofuck-flip-btn"
                         onClick={handleFlipCamera}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onPointerUp={(e) => e.stopPropagation()}
                         title={`Switch to ${activeFacingMode === 'user' ? 'Back' : 'Front'} Camera`}
                         disabled={isRecording}
                     >
@@ -477,9 +506,9 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
                         <span>{activeFacingMode === 'user' ? 'Front' : 'Back'}</span>
                     </button>
 
-                    {/* Right: Orange 30s left indicator (No X here) */}
-                    <div className="yolofuck-remaining-pill">
-                        {Math.max(0, Math.ceil(remainingMs / 1000))}s left
+                    {/* Right: Number of takes recorded in this session */}
+                    <div className="yolofuck-remaining-pill" onPointerDown={(e) => e.stopPropagation()}>
+                        {recordedClips.length} {recordedClips.length === 1 ? 'take' : 'takes'}
                     </div>
                 </div>
 
@@ -492,51 +521,39 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
                     </div>
                 )}
 
-                {/* ── Bottom Control Bar Pill ── */}
+                {/* ── Bottom Controls (No pill background, clean floating icons) ── */}
                 <div className="yolofuck-bottom-controls-wrap">
-                    <div className="yolofuck-controls-pill">
-                        {/* 1. Left: Exit button */}
-                        <button
-                            type="button"
-                            className="yolofuck-ctrl-exit"
-                            onClick={handleClose}
-                            title="Exit without saving"
-                        >
-                            <X size={24} strokeWidth={2.2} />
-                            <span>Exit</span>
-                        </button>
+                    {/* Left: Minimalist exit X button without text */}
+                    <button
+                        type="button"
+                        className="yolofuck-ctrl-exit"
+                        onClick={handleClose}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onPointerUp={(e) => e.stopPropagation()}
+                        title="Exit"
+                    >
+                        <X size={26} strokeWidth={2.5} />
+                    </button>
 
-                        {/* 2. Middle: RED PLUS button (Exactly in the middle) */}
-                        <button
-                            type="button"
-                            className="yolofuck-ctrl-plus"
-                            onClick={handleSave}
-                            disabled={isSaving || recordedClips.length === 0}
-                            title="Save clips to Daily Journal"
-                        >
-                            {isSaving ? (
-                                <div className="yolofuck-saving-spinner" />
-                            ) : (
-                                <Plus size={32} strokeWidth={3} />
-                            )}
-                        </button>
+                    {/* Center: Red Plus button to save session into Daily Journal */}
+                    <button
+                        type="button"
+                        className="yolofuck-ctrl-plus"
+                        onClick={handleSave}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onPointerUp={(e) => e.stopPropagation()}
+                        disabled={isSaving || recordedClips.length === 0}
+                        title="Save session to Daily Journal"
+                    >
+                        {isSaving ? (
+                            <div className="yolofuck-saving-spinner" />
+                        ) : (
+                            <Plus size={34} strokeWidth={3} />
+                        )}
+                    </button>
 
-                        {/* 3. Right: Hold-To-Record Button */}
-                        <button
-                            type="button"
-                            className={`yolofuck-ctrl-record ${isRecording ? 'recording' : ''}`}
-                            onPointerDown={handleRecordPointerDown}
-                            onPointerUp={handleRecordPointerUp}
-                            onPointerLeave={handleRecordPointerLeave}
-                            onPointerCancel={handleRecordPointerLeave}
-                            disabled={remainingMs <= 0 || isSaving}
-                            title="Hold to record"
-                        >
-                            <span className="yolofuck-record-text">
-                                {isRecording ? 'Recording' : 'Record'}
-                            </span>
-                        </button>
-                    </div>
+                    {/* Right spacer to balance the flex container so Plus stays perfectly centered */}
+                    <div className="yolofuck-ctrl-spacer" />
                 </div>
             </div>
         </div>

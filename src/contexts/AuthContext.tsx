@@ -1,9 +1,7 @@
 /**
  * AuthContext.tsx — yolofuck
  * 
- * Frictionless authentication and persistent identity for yolofuck Journal.
- * Automatically provides an instant, persistent device identity so users can
- * use the journal immediately without any login hurdles.
+ * Supabase authentication and user profile management for yolofuck Journal.
  * Strictly NO purple/pink colors.
  */
 
@@ -37,59 +35,21 @@ interface AuthContextType {
     dismissWelcome: () => void;
     showPasswordResetModal: boolean;
     closePasswordResetModal: () => void;
+    signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
+    signUpWithEmail: (email: string, password: string, username?: string) => Promise<{ error: Error | null }>;
     signOut: () => Promise<void>;
     refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const DEVICE_USER_KEY = 'yolofuck_device_user_id';
-function getOrCreateDeviceUserId(): string {
-    let id = localStorage.getItem(DEVICE_USER_KEY);
-    if (!id) {
-        id = `usr_${Math.random().toString(36).substring(2, 10)}${Date.now().toString(36)}`;
-        localStorage.setItem(DEVICE_USER_KEY, id);
-    }
-    return id;
-}
-
-function createLocalDeviceUser(): { user: User; profile: Profile } {
-    const deviceId = getOrCreateDeviceUserId();
-    const user = {
-        id: deviceId,
-        app_metadata: {},
-        user_metadata: {
-            username: 'Journal',
-            full_name: 'Journal'
-        },
-        aud: 'authenticated',
-        created_at: new Date().toISOString(),
-        email: 'local@yolofuck.com'
-    } as unknown as User;
-
-    const profile: Profile = {
-        id: deviceId,
-        username: 'Journal',
-        role: 'user',
-        created_at: new Date().toISOString()
-    };
-
-    return { user, profile };
-}
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const localFallback = useMemo(() => createLocalDeviceUser(), []);
-    const [user, setUser] = useState<User | null>(localFallback.user);
-    const [profile, setProfile] = useState<Profile | null>(localFallback.profile);
-    const [loading, setLoading] = useState(false);
+    const [user, setUser] = useState<User | null>(null);
+    const [profile, setProfile] = useState<Profile | null>(null);
+    const [loading, setLoading] = useState(true);
     const [showWelcomeModal, setShowWelcomeModal] = useState(false);
     const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
     const mounted = useRef(true);
-    const userRef = useRef<User | null>(localFallback.user);
-
-    useEffect(() => {
-        userRef.current = user;
-    }, [user]);
 
     useEffect(() => {
         mounted.current = true;
@@ -158,6 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUser(currentUser);
 
                 let profileData = await fetchProfile(currentUser.id);
+
                 if (!profileData && isActive) {
                     try {
                         const fallbackUsername = currentUser.user_metadata?.username ||
@@ -188,10 +149,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
                 await ensureJournalProject(currentUser.id);
             } else {
-                // Persistent instant device session
-                const fallback = createLocalDeviceUser();
-                setUser(fallback.user);
-                setProfile(fallback.profile);
+                setUser(null);
+                setProfile(null);
             }
 
             if (isActive) setLoading(false);
@@ -211,15 +170,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
     }, [fetchProfile, ensureJournalProject]);
 
+    const signInWithEmail = useCallback(async (email: string, password: string) => {
+        try {
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) return { error };
+            return { error: null };
+        } catch (err: any) {
+            return { error: err };
+        }
+    }, []);
+
+    const signUpWithEmail = useCallback(async (email: string, password: string, username?: string) => {
+        try {
+            const { data, error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        username: username || email.split('@')[0],
+                        full_name: username || email.split('@')[0],
+                    }
+                }
+            });
+            if (error) return { error };
+            if (data.user) {
+                // If auto-signed in, ensure profile
+                try {
+                    await supabase.from('profiles').upsert({
+                        id: data.user.id,
+                        username: username || email.split('@')[0],
+                        role: 'user',
+                        created_at: new Date().toISOString(),
+                    });
+                } catch {}
+            }
+            return { error: null };
+        } catch (err: any) {
+            return { error: err };
+        }
+    }, []);
+
     const signOut = useCallback(async () => {
         try {
             await supabase.auth.signOut();
         } catch (e) {
             console.error('[Auth] Error signing out:', e);
         }
-        const fallback = createLocalDeviceUser();
-        setUser(fallback.user);
-        setProfile(fallback.profile);
+        setUser(null);
+        setProfile(null);
     }, []);
 
     const dismissWelcome = useCallback(() => setShowWelcomeModal(false), []);
@@ -236,9 +234,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         dismissWelcome,
         showPasswordResetModal,
         closePasswordResetModal,
+        signInWithEmail,
+        signUpWithEmail,
         signOut,
         refreshProfile,
-    }), [user, profile, loading, showWelcomeModal, dismissWelcome, showPasswordResetModal, closePasswordResetModal, signOut, refreshProfile]);
+    }), [user, profile, loading, showWelcomeModal, dismissWelcome, showPasswordResetModal, closePasswordResetModal, signInWithEmail, signUpWithEmail, signOut, refreshProfile]);
 
     return (
         <AuthContext.Provider value={value}>

@@ -12,7 +12,7 @@
   height: 100vh;
   height: 100dvh;
   width: 100vw;
-  background: #0a0b12;
+  background: #000000;
   color: #f1f5f9;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   overflow: hidden;
@@ -20,15 +20,16 @@
   position: relative;
 }
 
-/* ── Top Bar: Search Bar Only ── */
+/* ── Top Bar: Search Bar & Sign Out ── */
 .yolofuck-top-bar {
   height: 52px;
   display: flex;
   align-items: center;
-  padding: 0 10px;
-  background: #0b0c14;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  gap: 8px;
+  padding: 0 12px;
+  background: #000000;
+  border-bottom: 1px solid #21262d;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
   z-index: 30;
   flex-shrink: 0;
   transition: transform 0.25s ease, opacity 0.25s ease;
@@ -41,16 +42,39 @@
 }
 
 .yolofuck-search-pill {
-  width: 100%;
+  flex: 1;
   height: 38px;
   border-radius: 19px;
-  background: #12131d;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.5), inset -1px -1px 3px rgba(255, 255, 255, 0.03);
+  background: #0d1117;
+  border: 1px solid #21262d;
+  box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   padding: 0 14px;
   gap: 10px;
+}
+
+.yolofuck-top-signout-btn {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 19px;
+  background: #0d1117;
+  border: 1px solid #21262d;
+  color: #8b949e;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.yolofuck-top-signout-btn:hover {
+  background: #161b22;
+  border-color: #30363d;
+  color: #f0f6fc;
 }
 
 .yolofuck-search-input {
@@ -93,7 +117,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding-bottom: 58px;
-  background: #0a0b12;
+  background: #000000;
   position: relative;
   -webkit-overflow-scrolling: touch;
 }
@@ -116,9 +140,9 @@
   left: 0;
   right: 0;
   height: 56px;
-  background: #0d0e17;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.6);
+  background: #000000;
+  border-top: 1px solid #21262d;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.8);
   display: flex;
   align-items: stretch;
   justify-content: space-around;

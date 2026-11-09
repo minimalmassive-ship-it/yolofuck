@@ -1,0 +1,349 @@
+/**
+ * LandingPage.css — yolofuck
+ * High-conversion Neumorphic Dark Landing Page with 1-Screen Auth
+ * Strictly NO purple/violet hues.
+ */
+
+.yolofuck-landing-root {
+    min-height: 100vh;
+    min-height: 100dvh;
+    width: 100vw;
+    background: #000000;
+    color: #f0f6fc;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    user-select: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ── Top Header Bar ── */
+.yolofuck-landing-header {
+    height: 64px;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #000000;
+    border-bottom: 1px solid #21262d;
+    z-index: 20;
+}
+
+.yolofuck-brand-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.yolofuck-brand-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.8);
+    animation: yolofuckPulseDot 2s infinite ease-in-out;
+}
+
+@keyframes yolofuckPulseDot {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.3); opacity: 0.7; }
+}
+
+.yolofuck-brand-logo-text {
+    font-size: 19px;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    color: #ffffff;
+}
+
+.yolofuck-brand-tag {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #10b981;
+}
+
+/* ── Main Hero Container ── */
+.yolofuck-landing-hero {
+    flex: 1;
+    max-width: 1180px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 48px 24px 64px;
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 48px;
+    align-items: center;
+}
+
+@media (max-width: 900px) {
+    .yolofuck-landing-hero {
+        grid-template-columns: 1fr;
+        gap: 36px;
+        padding: 32px 16px 48px;
+    }
+}
+
+/* ── Left Column: Value Proposition ── */
+.yolofuck-hero-left {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.yolofuck-hero-badge {
+    align-self: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    font-size: 12px;
+    font-weight: 700;
+    color: #ff9900;
+    letter-spacing: 0.5px;
+}
+
+.yolofuck-hero-title {
+    font-size: 42px;
+    font-weight: 900;
+    line-height: 1.15;
+    letter-spacing: -0.5px;
+    color: #f0f6fc;
+    margin: 0;
+}
+
+@media (max-width: 600px) {
+    .yolofuck-hero-title {
+        font-size: 32px;
+    }
+}
+
+.yolofuck-hero-title span {
+    color: #10b981;
+    text-shadow: 0 0 24px rgba(16, 185, 129, 0.35);
+}
+
+.yolofuck-hero-description {
+    font-size: 16px;
+    line-height: 1.6;
+    color: #8b949e;
+    margin: 0;
+}
+
+/* Feature Grid */
+.yolofuck-feature-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 8px;
+}
+
+.yolofuck-feat-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px;
+    border-radius: 14px;
+    background: #0d1117;
+    border: 1px solid #21262d;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.yolofuck-feat-card:hover {
+    border-color: #30363d;
+    transform: translateY(-1px);
+}
+
+.yolofuck-feat-icon-wrap {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #10b981;
+    flex-shrink: 0;
+}
+
+.yolofuck-feat-body h4 {
+    margin: 0 0 4px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #f0f6fc;
+}
+
+.yolofuck-feat-body p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #8b949e;
+}
+
+/* ── Right Column: 1-Screen Auth Card ── */
+.yolofuck-auth-card {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 20px;
+    padding: 28px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+@media (max-width: 600px) {
+    .yolofuck-auth-card {
+        padding: 22px 18px;
+    }
+}
+
+/* Tab Switcher */
+.yolofuck-auth-tabs {
+    display: flex;
+    background: #161b22;
+    padding: 4px;
+    border-radius: 12px;
+    border: 1px solid #21262d;
+    gap: 4px;
+}
+
+.yolofuck-auth-tab-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: transparent;
+    border: none;
+    color: #8b949e;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.yolofuck-auth-tab-btn.active {
+    background: #21262d;
+    color: #f0f6fc;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.yolofuck-auth-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: #f0f6fc;
+    margin: 0;
+}
+
+.yolofuck-auth-subtitle {
+    font-size: 13px;
+    color: #8b949e;
+    margin: 4px 0 0;
+}
+
+.yolofuck-auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.yolofuck-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.yolofuck-form-field label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #8b949e;
+}
+
+.yolofuck-form-input {
+    width: 100%;
+    height: 42px;
+    border-radius: 10px;
+    background: #161b22;
+    border: 1px solid #30363d;
+    color: #f0f6fc;
+    font-size: 14px;
+    padding: 0 14px;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.yolofuck-form-input:focus {
+    border-color: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
+}
+
+.yolofuck-form-input::placeholder {
+    color: #484f58;
+    font-size: 13px;
+}
+
+.yolofuck-auth-error {
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: #f87171;
+    font-size: 12px;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.yolofuck-auth-submit-btn {
+    width: 100%;
+    height: 44px;
+    border-radius: 12px;
+    background: #10b981;
+    border: none;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    margin-top: 4px;
+}
+
+.yolofuck-auth-submit-btn:hover:not(:disabled) {
+    background: #059669;
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+    transform: translateY(-1px);
+}
+
+.yolofuck-auth-submit-btn:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.yolofuck-auth-submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.yolofuck-auth-footer-note {
+    font-size: 11px;
+    color: #484f58;
+    text-align: center;
+    line-height: 1.4;
+    margin: 4px 0 0;
+}
