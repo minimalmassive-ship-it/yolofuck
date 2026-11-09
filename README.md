@@ -1,32 +1,48 @@
-# React + TypeScript + Vite
+# yolofuck — Daily Video Journal
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A modern, frictionless video journal for daily short-form takes in 9:16 format with background voice transcription and spoken word search.
 
-Currently, two official plugins are available:
+## Highlights
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **9:16 Video Shorts Grid**: Daily timeline where today is at the top, past days stacked below. Videos during each day are laid out horizontally in chronological sequence (oldest to newest, left to right).
+- **Spoken Word Search**: Microphone is always active in the background transcribing voice to text. Videos are searchable by any word spoken in the take (e.g. "pizza", "meeting", "workout").
+- **Full Screen 9:16 Viewfinder**: Immersive camera recorder with zero frame clutter, orange timestamp indicators, front/back camera switch, and live floating caption feedback.
+- **Hold-To-Record (30s Max)**: Press and hold to capture takes, click the center red plus icon at any time to save and review in the daily journal story.
+- **Neumorphic Dark UI**: Custom dark slate, gunmetal, and emerald green design system with zero purple hues.
+- **Local & Cloud Sync**: IndexedDB offline fallback with Supabase storage and database synchronization.
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Framework**: React 19, Vite, TypeScript
+- **Styling**: Vanilla CSS (Neumorphic Dark Design System)
+- **Backend**: Supabase (PostgreSQL, Storage Buckets: `recordings`, `idea-videos`, `idea-images`)
+- **Speech Engine**: Web Speech API with Groq / Deepgram cloud fallback
 
-## Expanding the Oxlint configuration
+## Setup & Local Development
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Configure `.env`:
+   ```bash
+   cp .env.example .env
+   # Fill in VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_GROQ_API_KEY
+   ```
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
+4. Build for production:
+   ```bash
+   npm run build
+   ```
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+## Database Migration
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+The full SQL schema is located in `supabase/migrations/001_initial_schema.sql`. Paste it directly into your Supabase SQL Editor to set up all tables and storage policies in one click.
+
+## Deployment to Vercel
+
+The project includes `vercel.json` configured for Single Page Application rewrites and secure headers.
+Connect your GitHub repository to Vercel and assign the custom domain `yolofuck.com`.
