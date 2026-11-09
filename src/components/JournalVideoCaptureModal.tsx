@@ -15,7 +15,6 @@ import ReactDOM from 'react-dom';
 import { Plus, X, Video, FlipHorizontal } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { saveClip, syncDailyVideoEntry, getLocalDateISO } from '../lib/journalStoryService';
-import { unifiedVoiceEngine } from '../lib/unifiedVoiceEngine';
 import {
     getMediaSettingsFromProfile,
     buildMediaRecorderOptions,
@@ -118,10 +117,14 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
         const candidateConstraints: MediaStreamConstraints[] = [
             {
                 audio: {
-                    echoCancellation: false,
-                    noiseSuppression: false,
-                    autoGainControl: false,
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
                 },
+                video: buildVideoConstraints(journalConfig.resolution, facing, devId || undefined),
+            },
+            {
+                audio: true,
                 video: buildVideoConstraints(journalConfig.resolution, facing, devId || undefined),
             },
             {
@@ -129,12 +132,6 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
                 video: {
                     facingMode: facing,
                     aspectRatio: { ideal: 9 / 16 },
-                },
-            },
-            {
-                audio: true,
-                video: {
-                    facingMode: facing,
                 },
             },
             {
@@ -197,7 +194,7 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
         };
     }, []);
 
-    // Ensure video element plays
+    // Ensure video element plays viewfinder
     useEffect(() => {
         if (cameraReady && videoRef.current && streamRef.current) {
             videoRef.current.srcObject = streamRef.current;
@@ -218,84 +215,6 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
         await initCamera(nextFacing, nextDevId);
     }, [activeFacingMode, isRecording, availableLenses, initCamera]);
 
-    // ── Live Speech Transcription (Always On in Background) ──
-    useEffect(() => {
-        let isCancelled = false;
-
-        const startListening = async () => {
-            try {
-                const uSettings = safeJsonParse(profile?.settings);
-                const cachedSettings = safeJsonParse(localStorage.getItem('ideanitor_settings_cache'));
-                const rawEngine = (cachedSettings?.transcription_engine || uSettings?.transcription_engine || '') as string;
-                let engine = (rawEngine === 'deepgram' ? 'deepgram' : rawEngine === 'browser' ? 'browser' : rawEngine === 'groq' ? 'groq' : (rawEngine === 'local' || rawEngine === 'local_pro') ? 'local' : 'default') as any;
-                const chosenLanguage = uSettings?.default_language || 'en-US';
-                const dgLanguage = chosenLanguage.includes('-') ? chosenLanguage.split('-')[0] : chosenLanguage;
-                const dgKey = uSettings?.deepgram_api_key || cachedSettings?.deepgram_api_key || '';
-                const customKey = uSettings?.transcription_api_key || uSettings?.custom_api_key || cachedSettings?.custom_api_key || '';
-
-                if (engine === 'groq' && !customKey) engine = 'default';
-                if (engine === 'deepgram' && !dgKey) engine = 'default';
-
-                const hasLiveAudioTrack = Boolean(streamRef.current?.getAudioTracks().some(t => t.readyState === 'live'));
-                const streamToUse = hasLiveAudioTrack ? streamRef.current! : undefined;
-
-                const startWithFallback = async (chosenEng: any) => {
-                    await unifiedVoiceEngine.startSession({
-                        engine: chosenEng,
-                        language: dgLanguage,
-                        fullLanguage: chosenLanguage,
-                        deepgramApiKey: dgKey,
-                        customApiKey: customKey,
-                        existingStream: streamToUse,
-                        onResult: (res) => {
-                            if (isCancelled) return;
-                            if (res.isFinal) {
-                                setTranscription(prev => (prev ? prev + ' ' : '') + res.text.trim());
-                                setLiveWord('');
-                            } else {
-                                setLiveWord(res.text);
-                            }
-                        },
-                        onError: () => {
-                            if (chosenEng !== 'browser' && !isCancelled) {
-                                startWithFallback('browser').catch(() => {});
-                            }
-                        }
-                    });
-                };
-
-                await startWithFallback(engine);
-            } catch {
-                if (!isCancelled) {
-                    try {
-                        await unifiedVoiceEngine.startSession({
-                            engine: 'browser',
-                            language: 'en',
-                            fullLanguage: 'en-US',
-                            onResult: (res) => {
-                                if (isCancelled) return;
-                                if (res.isFinal) {
-                                    setTranscription(prev => (prev ? prev + ' ' : '') + res.text.trim());
-                                    setLiveWord('');
-                                } else {
-                                    setLiveWord(res.text);
-                                }
-                            }
-                        });
-                    } catch {}
-                }
-            }
-        };
-
-        startListening();
-
-        return () => {
-            isCancelled = true;
-            unifiedVoiceEngine.stopSession();
-            setLiveWord('');
-        };
-    }, [user, profile]);
-
     // ── Close / Exit Without Saving ──
     const handleClose = () => {
         if (recorderRef.current && recorderRef.current.state === 'recording') {
@@ -305,7 +224,6 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
             streamRef.current.getTracks().forEach(t => t.stop());
             streamRef.current = null;
         }
-        unifiedVoiceEngine.stopSession();
         onClose();
     };
 
@@ -396,9 +314,8 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
                 await syncDailyVideoEntry(user.id, projectId, getLocalDateISO());
             }
 
-            // Dispatch global event and open daily story session
+            // Dispatch global event to refresh the journal grid
             window.dispatchEvent(new CustomEvent('journal_clip_saved', { detail: { date: getLocalDateISO() } }));
-            window.dispatchEvent(new CustomEvent('journal_open_story_date', { detail: { date: getLocalDateISO() } }));
 
             onClipSaved?.();
             handleClose();

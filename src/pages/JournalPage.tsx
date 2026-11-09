@@ -1,11 +1,11 @@
 /**
  * JournalPage.tsx — yolofuck
  * 
- * Standalone Video Journal application.
- * Frictionless instant access: no login barriers.
- * Daily video timeline compiler, TikTok-style playback, live audio transcription,
- * and community shared stories in a Neumorphic Dark interface.
- * Strictly NO purple/violet colors.
+ * Standalone Video Journal application:
+ * - Top bar: Clean full-width search bar only (no brand logos, no status badges).
+ * - Bottom bar: Fixed 3-button dock with [Journal] on left, [Shared] in center, [Record] on right.
+ * - Neumorphic dark styling with neon emerald (#10b981).
+ * - Strictly NO purple/violet hues.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -15,13 +15,14 @@ import {
     Video, 
     Share2, 
     Layers, 
+    Search,
+    X,
     Loader2
 } from 'lucide-react';
 
 import JournalStoryView from '../components/JournalStoryView';
 import { JournalSharedGrid } from '../components/JournalSharedGrid';
 import JournalVideoCaptureModal from '../components/JournalVideoCaptureModal';
-import { MobileJournalButton } from '../components/MobileJournalButton';
 import type { Project } from '../types';
 
 import './JournalPage.css';
@@ -35,8 +36,9 @@ export const JournalPage: React.FC = () => {
     const [loadingProject, setLoadingProject] = useState(false);
     const [showCaptureModal, setShowCaptureModal] = useState(false);
     const [isPlayerActive, setIsPlayerActive] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
-    // 1. Listen for video player state to hide header in fullscreen story mode
+    // Listen for video player state to hide bars in fullscreen story mode
     useEffect(() => {
         const handlePlayerState = (e: any) => {
             setIsPlayerActive(Boolean(e.detail?.isOpen));
@@ -45,7 +47,7 @@ export const JournalPage: React.FC = () => {
         return () => window.removeEventListener('journal_video_player_state', handlePlayerState);
     }, []);
 
-    // 2. Fetch or bind the user's Journal project
+    // Fetch or bind the user's Journal project
     useEffect(() => {
         let isMounted = true;
 
@@ -53,7 +55,6 @@ export const JournalPage: React.FC = () => {
             if (!user) return;
 
             try {
-                // Look for project with system_type = 'journal'
                 let { data: proj } = await supabase
                     .from('projects')
                     .select('*')
@@ -109,74 +110,79 @@ export const JournalPage: React.FC = () => {
 
     return (
         <div className="yolofuck-root">
-            {/* Top Navigation Bar */}
-            <header className={`yolofuck-header ${isPlayerActive ? 'hidden-player-active' : ''}`}>
-                <div className="yolofuck-brand" onClick={() => setActiveTab('story')}>
-                    <div className="yolofuck-logo-badge">
-                        <Video size={20} color="#10b981" />
-                    </div>
-                    <div className="yolofuck-title-group">
-                        <span className="yolofuck-title">yolofuck</span>
-                        <span className="yolofuck-subtitle">Daily Journal</span>
-                    </div>
-                </div>
-
-                {/* Tab Switcher */}
-                <div className="yolofuck-nav-tabs">
-                    <button 
-                        className={`yolofuck-tab-button ${activeTab === 'story' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('story')}
-                    >
-                        <Layers size={16} />
-                        <span>My Story</span>
-                    </button>
-                    <button 
-                        className={`yolofuck-tab-button ${activeTab === 'shared' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('shared')}
-                    >
-                        <Share2 size={16} />
-                        <span>Shared Stories</span>
-                    </button>
-                </div>
-
-                {/* Right Action Buttons */}
-                <div className="yolofuck-actions">
-                    <div className="yolofuck-status-badge">
-                        <span className="yolofuck-status-dot" />
-                        <span>Online</span>
-                    </div>
-
-                    <button 
-                        className="yolofuck-record-cta"
-                        onClick={() => setShowCaptureModal(true)}
-                        title="Record new video clip"
-                    >
-                        <span className="yolofuck-rec-pulse" />
-                        <Video size={16} />
-                        <span>Record Clip</span>
-                    </button>
+            {/* Top Bar: Search Bar Only */}
+            <header className={`yolofuck-top-bar ${isPlayerActive ? 'hidden-player-active' : ''}`}>
+                <div className="yolofuck-search-pill">
+                    <Search size={16} color="#10b981" />
+                    <input 
+                        type="text" 
+                        className="yolofuck-search-input"
+                        placeholder="Search spoken words in videos..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    {searchQuery && (
+                        <button 
+                            className="yolofuck-search-clear" 
+                            onClick={() => setSearchQuery('')} 
+                            title="Clear search"
+                        >
+                            <X size={14} />
+                        </button>
+                    )}
                 </div>
             </header>
 
-            {/* Main Content Area — Instant Access */}
+            {/* Main Content Area */}
             <main className="yolofuck-content">
                 {authLoading || loadingProject ? (
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', color: '#94a3b8' }}>
+                    <div className="yolofuck-loading-wrap">
                         <Loader2 size={24} className="vizja-spin" color="#10b981" />
-                        <span style={{ fontSize: '14px', fontWeight: 500 }}>Loading yolofuck journal...</span>
+                        <span>Loading yolofuck journal...</span>
                     </div>
                 ) : activeTab === 'story' ? (
-                    <JournalStoryView projectId={project?.id || null} />
+                    <JournalStoryView 
+                        projectId={project?.id || null} 
+                        searchQuery={searchQuery}
+                        onSearchChange={setSearchQuery}
+                    />
                 ) : (
                     <JournalSharedGrid projectId={project?.id || null} />
                 )}
             </main>
 
-            {/* Floating Mobile Record Button */}
+            {/* Bottom Dock Navigation Bar: Journal, Shared, Record */}
             {!isPlayerActive && (
-                <div className="yolofuck-mobile-fab">
-                    <MobileJournalButton onClick={() => setShowCaptureModal(true)} />
-                </div>
+                <nav className="yolofuck-bottom-nav">
+                    <button 
+                        type="button"
+                        className={`yolofuck-bottom-nav-btn ${activeTab === 'story' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('story')}
+                    >
+                        <Layers size={19} />
+                        <span>Journal</span>
+                    </button>
+
+                    <button 
+                        type="button"
+                        className={`yolofuck-bottom-nav-btn ${activeTab === 'shared' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('shared')}
+                    >
+                        <Share2 size={19} />
+                        <span>Shared</span>
+                    </button>
+
+                    <button 
+                        type="button"
+                        className="yolofuck-bottom-record-btn"
+                        onClick={() => setShowCaptureModal(true)}
+                        title="Record Take"
+                    >
+                        <span className="yolofuck-rec-dot" />
+                        <Video size={19} />
+                        <span>Record</span>
+                    </button>
+                </nav>
             )}
 
             {/* Video Capture Modal */}

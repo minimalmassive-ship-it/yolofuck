@@ -2,43 +2,35 @@
  * JournalStoryView.tsx — yolofuck
  * 
  * Video Shorts Daily Grid:
- * - 100% focused on 9:16 video shorts
- * - Current day at the top, past days listed in rows below
- * - Within each day, videos are placed horizontally from oldest to newest (left to right)
- * - Search by spoken words in the background transcription
- * - Full-screen daily story player when clicking any take or "Play Story"
- * - Strictly NO purple/violet colors.
+ * - Square videos (80px x 80px, border-radius: 0) arranged in a tight 2px grid.
+ * - Current day at the top, past days listed below.
+ * - Horizontal sequence from oldest to newest (left to right).
+ * - Vertical sideways date strip on the left (e.g. 09-11-2026).
+ * - Subheader between searchbar and Today's row: [Play Story], take count & duration, [Share].
+ * - Single click on a film: toggles in-place loop playback.
+ * - Long press (1.5s): opens full-screen sequential daily story player.
+ * - Drag/scroll: smooth navigation in all directions without triggering story.
+ * - Strictly NO purple/violet hues.
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
-    Search, 
     Play, 
     Pause, 
     X, 
     Trash2, 
     Volume2, 
     VolumeX, 
-    RotateCcw, 
     Repeat, 
     Share2, 
     Video, 
-    Calendar, 
-    Clock, 
-    Maximize2, 
-    Minimize2,
-    Film,
     Sparkles
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
     getLocalDateISO,
     fetchAllUserClips,
-    fetchClipsByDate,
     deleteClip,
-    checkIsDailyStoryPublished,
-    publishDailyStory,
-    unpublishDailyStory,
     type JournalClip,
 } from '../lib/journalStoryService';
 import { getAllLocalJournalRecordings } from '../lib/journalLocalStorage';
@@ -46,25 +38,19 @@ import { JournalShareCommandCenter } from './JournalShareCommandCenter';
 import './JournalStoryView.css';
 
 interface JournalStoryViewProps {
-    projectId: string | null;
+    projectId?: string | null;
+    searchQuery?: string;
+    onSearchChange?: (q: string) => void;
 }
 
-function formatDateLabel(dateStr: string): string {
-    const today = getLocalDateISO();
-    if (dateStr === today) return 'Today';
-    
-    const d = new Date(dateStr + 'T00:00:00');
-    const todayDate = new Date(today + 'T00:00:00');
-    const diffDays = Math.round((todayDate.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 1) return 'Yesterday';
-    
-    return d.toLocaleDateString(undefined, { 
-        weekday: 'short', 
-        month: 'short', 
-        day: 'numeric',
-        year: d.getFullYear() !== todayDate.getFullYear() ? 'numeric' : undefined 
-    });
+/** Formats YYYY-MM-DD into DD-MM-YYYY */
+function formatVerticalDate(dateStr: string): string {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return dateStr;
 }
 
 function formatDuration(ms: number): string {
@@ -74,24 +60,20 @@ function formatDuration(ms: number): string {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
 }
 
-function formatClipTime(isoString: string): string {
-    try {
-        const d = new Date(isoString);
-        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch {
-        return '';
-    }
-}
-
-export const JournalStoryView: React.FC<JournalStoryViewProps> = ({ projectId: _projectId }) => {
+export const JournalStoryView: React.FC<JournalStoryViewProps> = ({ 
+    projectId: _projectId, 
+    searchQuery = '' 
+}) => {
     const { user } = useAuth();
 
     // Data states
     const [allClips, setAllClips] = useState<JournalClip[]>([]);
     const [loading, setLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState('');
 
-    // Active Player states
+    // In-line single-clip looping state
+    const [loopingClipId, setLoopingClipId] = useState<string | null>(null);
+
+    // Full-screen daily story player states
     const [showVideoPlayer, setShowVideoPlayer] = useState(false);
     const [activeStoryDate, setActiveStoryDate] = useState<string>(getLocalDateISO());
     const [currentClipIndex, setCurrentClipIndex] = useState(0);
@@ -100,14 +82,17 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({ projectId: _
     const [isLooping, setIsLooping] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [currentClipDuration, setCurrentClipDuration] = useState(0);
-    const [isFullscreen, setIsFullscreen] = useState(false);
 
     // Share Modal state
     const [showShareModal, setShowShareModal] = useState(false);
     const [lockedShareDate, setLockedShareDate] = useState<string | null>(null);
 
     const videoRef = useRef<HTMLVideoElement>(null);
-    const playerContainerRef = useRef<HTMLDivElement>(null);
+
+    // Pointer gesture trackers for distinguishing drag vs click vs 1.5s long-press
+    const pointerStartRef = useRef<{ x: number; y: number; time: number; clipId: string; date: string; index: number } | null>(null);
+    const longPressTimerRef = useRef<any>(null);
+    const isLongPressTriggeredRef = useRef(false);
 
     // ── Load Clips from Supabase & Local IndexedDB ──
     const loadAllClips = useCallback(async () => {
@@ -169,24 +154,11 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({ projectId: _
             }
         };
 
-        const handleOpenDate = (e: any) => {
-            if (e.detail?.date) {
-                setActiveStoryDate(e.detail.date);
-                setCurrentClipIndex(0);
-                setShowVideoPlayer(true);
-            }
-        };
-
         window.addEventListener('journal_clip_saved', handleSaved);
-        window.addEventListener('journal_open_story_date', handleOpenDate);
-
-        return () => {
-            window.removeEventListener('journal_clip_saved', handleSaved);
-            window.removeEventListener('journal_open_story_date', handleOpenDate);
-        };
+        return () => window.removeEventListener('journal_clip_saved', handleSaved);
     }, [loadAllClips]);
 
-    // Notify parent when player state changes (to hide/show header)
+    // Notify parent when player state changes (to hide/show top and bottom bars)
     useEffect(() => {
         window.dispatchEvent(new CustomEvent('journal_video_player_state', {
             detail: { isOpen: showVideoPlayer }
@@ -230,7 +202,12 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({ projectId: _
         return entries;
     }, [allClips, searchQuery]);
 
-    // Active day clips for video player
+    const todayDate = getLocalDateISO();
+    const todayEntry = groupedDays.find(([d]) => d === todayDate);
+    const todayClips = todayEntry ? todayEntry[1] : [];
+    const todayTotalMs = todayClips.reduce((acc, c) => acc + (c.duration_ms || 0), 0);
+
+    // Active day clips for full-screen video player
     const activeDayClips = useMemo(() => {
         const found = groupedDays.find(([d]) => d === activeStoryDate);
         return found ? found[1] : [];
@@ -238,21 +215,22 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({ projectId: _
 
     const activeClip = activeDayClips[currentClipIndex] || null;
 
-    // ── Playback Handlers ──
-    const handleStartDayPlayer = (date: string, clipIdx = 0) => {
+    // ── Start Full-screen Story Player ──
+    const handleStartDayPlayer = useCallback((date: string, clipIdx = 0) => {
+        setLoopingClipId(null);
         setActiveStoryDate(date);
         setCurrentClipIndex(clipIdx);
         setShowVideoPlayer(true);
         setIsPlaying(true);
-    };
+    }, []);
 
-    const handleClosePlayer = () => {
+    const handleClosePlayer = useCallback(() => {
         setShowVideoPlayer(false);
         setIsPlaying(false);
         if (videoRef.current) {
             videoRef.current.pause();
         }
-    };
+    }, []);
 
     const handleNextClip = useCallback(() => {
         if (currentClipIndex < activeDayClips.length - 1) {
@@ -275,27 +253,120 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({ projectId: _
 
     const handleDeleteTake = async (clipId: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!window.confirm('Delete this video take from your day?')) return;
+        if (!window.confirm('Delete this video take?')) return;
 
         try {
             await deleteClip(clipId);
             setAllClips(prev => prev.filter(c => c.id !== clipId));
+            if (loopingClipId === clipId) setLoopingClipId(null);
         } catch (err) {
             console.error('[JournalStoryView] Delete take error:', err);
         }
     };
 
-    // Video playback effect
+    // Video playback effect for Fullscreen Story Player
     useEffect(() => {
         if (!showVideoPlayer || !activeClip || !videoRef.current) return;
 
         videoRef.current.src = activeClip.clip_url;
         videoRef.current.currentTime = 0;
+        videoRef.current.muted = isMuted;
 
         if (isPlaying) {
-            videoRef.current.play().catch(() => {});
+            videoRef.current.play().catch(err => {
+                console.warn('[Player] Autoplay prevented:', err);
+            });
         }
     }, [showVideoPlayer, activeClip]);
+
+    const togglePlayerPlay = useCallback(() => {
+        if (!videoRef.current) return;
+        if (videoRef.current.paused) {
+            videoRef.current.muted = isMuted;
+            videoRef.current.play().then(() => {
+                setIsPlaying(true);
+            }).catch(err => {
+                console.error('[Player] Play failed:', err);
+            });
+        } else {
+            videoRef.current.pause();
+            setIsPlaying(false);
+        }
+    }, [isMuted]);
+
+    // ── Gesture Handlers for Video Squares: Click vs Drag vs 1.5s Long Press ──
+    const handleSquarePointerDown = (e: React.PointerEvent, clip: JournalClip, date: string, index: number) => {
+        isLongPressTriggeredRef.current = false;
+        pointerStartRef.current = {
+            x: e.clientX,
+            y: e.clientY,
+            time: Date.now(),
+            clipId: clip.id,
+            date,
+            index
+        };
+
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+        }
+
+        // 1.5-second Long-Press Timer
+        longPressTimerRef.current = setTimeout(() => {
+            isLongPressTriggeredRef.current = true;
+            if (navigator.vibrate) {
+                try { navigator.vibrate(60); } catch {}
+            }
+            // Trigger full-screen daily story player for this day!
+            handleStartDayPlayer(date, index);
+        }, 1500);
+    };
+
+    const handleSquarePointerMove = (e: React.PointerEvent) => {
+        if (!pointerStartRef.current) return;
+        const dx = Math.abs(e.clientX - pointerStartRef.current.x);
+        const dy = Math.abs(e.clientY - pointerStartRef.current.y);
+
+        // Cancel long-press if user moves/scrolls finger > 8px
+        if (dx > 8 || dy > 8) {
+            if (longPressTimerRef.current) {
+                clearTimeout(longPressTimerRef.current);
+                longPressTimerRef.current = null;
+            }
+        }
+    };
+
+    const handleSquarePointerUp = (e: React.PointerEvent, clip: JournalClip) => {
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+
+        if (isLongPressTriggeredRef.current) {
+            isLongPressTriggeredRef.current = false;
+            pointerStartRef.current = null;
+            return;
+        }
+
+        if (!pointerStartRef.current) return;
+        const dx = Math.abs(e.clientX - pointerStartRef.current.x);
+        const dy = Math.abs(e.clientY - pointerStartRef.current.y);
+        pointerStartRef.current = null;
+
+        // If dragged, it was a scroll gesture, do not toggle loop
+        if (dx > 8 || dy > 8) return;
+
+        // Single Click: Toggle in-place video loop!
+        setLoopingClipId(prev => prev === clip.id ? null : clip.id);
+    };
+
+    const handleSquarePointerCancel = () => {
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+        isLongPressTriggeredRef.current = false;
+        pointerStartRef.current = null;
+    };
 
     return (
         <div className={`yolofuck-storyview-root ${showVideoPlayer ? 'player-active' : ''}`}>
@@ -303,8 +374,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({ projectId: _
                 1. FULL-SCREEN 9:16 VIDEO PLAYER VIEW
                ══════════════════════════════════════════════════════════ */}
             {showVideoPlayer && activeClip ? (
-                <div className="yolofuck-player-container" ref={playerContainerRef}>
-                    {/* 9:16 Vertical Video Canvas */}
+                <div className="yolofuck-player-container">
                     <div className="yolofuck-player-canvas">
                         <video
                             ref={videoRef}
@@ -318,7 +388,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({ projectId: _
                                 }
                             }}
                             onEnded={handleNextClip}
-                            onClick={() => setIsPlaying(prev => !prev)}
+                            onClick={togglePlayerPlay}
                         />
 
                         {/* Top Overlay Bars (Segmented progress for all takes in this day) */}
@@ -349,7 +419,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({ projectId: _
                         <div className="yolofuck-player-header">
                             <div className="yolofuck-player-meta">
                                 <span className="yolofuck-player-date">
-                                    {formatDateLabel(activeStoryDate)}
+                                    {formatVerticalDate(activeStoryDate)}
                                 </span>
                                 <span className="yolofuck-player-take-badge">
                                     Take {currentClipIndex + 1} of {activeDayClips.length}
@@ -365,9 +435,9 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({ projectId: _
                             </button>
                         </div>
 
-                        {/* Center Play/Pause Indicator if paused */}
+                        {/* Center Play Splash when paused */}
                         {!isPlaying && (
-                            <div className="yolofuck-player-pause-splash" onClick={() => setIsPlaying(true)}>
+                            <div className="yolofuck-player-pause-splash" onClick={togglePlayerPlay}>
                                 <Play size={54} fill="#ffffff" color="#ffffff" />
                             </div>
                         )}
@@ -385,7 +455,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({ projectId: _
 
                             <button
                                 className="yolofuck-player-icon-btn"
-                                onClick={() => setIsPlaying(prev => !prev)}
+                                onClick={togglePlayerPlay}
                                 title={isPlaying ? 'Pause' : 'Play'}
                             >
                                 {isPlaying ? <Pause size={20} /> : <Play size={20} fill="#ffffff" />}
@@ -402,7 +472,11 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({ projectId: _
 
                             <button
                                 className="yolofuck-player-icon-btn"
-                                onClick={() => setIsMuted(prev => !prev)}
+                                onClick={() => {
+                                    const nextMuted = !isMuted;
+                                    setIsMuted(nextMuted);
+                                    if (videoRef.current) videoRef.current.muted = nextMuted;
+                                }}
                                 title={isMuted ? 'Unmute' : 'Mute'}
                             >
                                 {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
@@ -431,167 +505,146 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({ projectId: _
                 </div>
             ) : (
                 /* ══════════════════════════════════════════════════════════
-                    2. MAIN FEED: DAILY 9:16 VIDEO SHORTS GRID
+                    2. MAIN FEED: TIGHT SQUARE VIDEO SHORTS MATRIX
                    ══════════════════════════════════════════════════════════ */
-                <div className="yolofuck-grid-scrollview">
-                    {/* Spoken Word Search Bar */}
-                    <div className="yolofuck-search-header-container">
-                        <div className="yolofuck-search-pill">
-                            <Search size={18} color="#10b981" />
-                            <input
-                                type="text"
-                                className="yolofuck-search-input"
-                                placeholder="Search spoken words in videos (e.g. 'pizza', 'workout', 'meeting')..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                            {searchQuery && (
-                                <button 
-                                    className="yolofuck-search-clear"
-                                    onClick={() => setSearchQuery('')}
-                                    title="Clear search"
-                                >
-                                    <X size={15} />
-                                </button>
-                            )}
+                <div className="yolofuck-matrix-container">
+                    {/* Sub-Header Strip (Placed under searchbar, above Today's row) */}
+                    <div className="yolofuck-today-strip-bar">
+                        <button
+                            type="button"
+                            className="yolofuck-today-play-btn"
+                            onClick={() => handleStartDayPlayer(todayDate, 0)}
+                            disabled={todayClips.length === 0}
+                            title="Play today's story in sequence"
+                        >
+                            <Play size={13} fill="#ffffff" />
+                            <span>Play Story</span>
+                        </button>
+
+                        <div className="yolofuck-today-summary-badge">
+                            <span>{todayClips.length} {todayClips.length === 1 ? 'take' : 'takes'}</span>
+                            {todayTotalMs > 0 && <span className="yolofuck-summary-dot">·</span>}
+                            {todayTotalMs > 0 && <span>{formatDuration(todayTotalMs)}</span>}
                         </div>
 
-                        {searchQuery && (
-                            <div className="yolofuck-search-feedback">
-                                <Sparkles size={14} color="#10b981" />
-                                <span>
-                                    Filtered by spoken word: "{searchQuery}"
-                                </span>
-                            </div>
-                        )}
+                        <button
+                            type="button"
+                            className="yolofuck-today-share-btn"
+                            onClick={() => {
+                                setLockedShareDate(todayDate);
+                                setShowShareModal(true);
+                            }}
+                            disabled={todayClips.length === 0}
+                            title="Share today's story"
+                        >
+                            <Share2 size={13} />
+                            <span>Share</span>
+                        </button>
                     </div>
+
+                    {/* Filter info feedback if search query is active */}
+                    {searchQuery && (
+                        <div className="yolofuck-search-feedback-strip">
+                            <Sparkles size={13} color="#10b981" />
+                            <span>Filtered by spoken words: "{searchQuery}"</span>
+                        </div>
+                    )}
 
                     {/* Loading State */}
                     {loading && (
                         <div className="yolofuck-feed-loading">
-                            <span>Loading daily video shorts...</span>
+                            <span>Loading video shorts grid...</span>
                         </div>
                     )}
 
-                    {/* List of Days (Today first, then past days in rows) */}
+                    {/* Matrix Grid: Day rows stacked vertically with 2px gap */}
                     {!loading && (
-                        <div className="yolofuck-days-wrapper">
+                        <div className="yolofuck-grid-rows-list">
                             {groupedDays.map(([date, clips]) => {
-                                const isToday = date === getLocalDateISO();
-                                const totalMs = clips.reduce((acc, c) => acc + (c.duration_ms || 0), 0);
+                                const formattedDate = formatVerticalDate(date);
 
                                 return (
-                                    <div key={date} className="yolofuck-day-row-card">
-                                        {/* Day Row Header */}
-                                        <div className="yolofuck-day-header">
-                                            <div className="yolofuck-day-header-left">
-                                                <h3 className="yolofuck-day-title">
-                                                    {formatDateLabel(date)}
-                                                </h3>
-                                                <span className="yolofuck-day-date-sub">
-                                                    {date}
-                                                </span>
-                                                <span className="yolofuck-day-count-badge">
-                                                    {clips.length} {clips.length === 1 ? 'take' : 'takes'}
-                                                    {totalMs > 0 ? ` · ${formatDuration(totalMs)}` : ''}
-                                                </span>
-                                            </div>
-
-                                            {clips.length > 0 && (
-                                                <div className="yolofuck-day-actions">
-                                                    <button
-                                                        type="button"
-                                                        className="yolofuck-day-btn play"
-                                                        onClick={() => handleStartDayPlayer(date, 0)}
-                                                        title="Play compiled daily story"
-                                                    >
-                                                        <Play size={14} fill="#ffffff" />
-                                                        <span>Play Story</span>
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className="yolofuck-day-btn share"
-                                                        onClick={() => {
-                                                            setLockedShareDate(date);
-                                                            setShowShareModal(true);
-                                                        }}
-                                                        title="Share Day"
-                                                    >
-                                                        <Share2 size={14} />
-                                                    </button>
-                                                </div>
-                                            )}
+                                    <div key={date} className="yolofuck-grid-day-row">
+                                        {/* Vertical Sideways Date Label on the Far Left */}
+                                        <div 
+                                            className="yolofuck-vertical-date-strip"
+                                            title={`Date: ${formattedDate}`}
+                                        >
+                                            <span className="yolofuck-vertical-date-text">
+                                                {formattedDate}
+                                            </span>
                                         </div>
 
-                                        {/* Horizontal Strip of 9:16 Video Shorts (Oldest to Newest: Left to Right) */}
-                                        <div className="yolofuck-shorts-strip">
+                                        {/* Horizontal Strip of Square Films (2px gap, oldest to newest) */}
+                                        <div className="yolofuck-films-horizontal-strip">
                                             {clips.length === 0 ? (
-                                                <div className="yolofuck-empty-day-box">
-                                                    <Video size={36} color="#64748b" />
-                                                    <p>
-                                                        {isToday 
-                                                            ? 'No video takes recorded yet today. Click Record Clip above to start!' 
-                                                            : 'No video clips recorded on this date.'}
-                                                    </p>
+                                                <div className="yolofuck-empty-row-box">
+                                                    <Video size={18} color="#475569" />
+                                                    <span>No takes recorded</span>
                                                 </div>
                                             ) : (
-                                                clips.map((clip, idx) => (
-                                                    <div 
-                                                        key={clip.id}
-                                                        className="yolofuck-short-card"
-                                                        onClick={() => handleStartDayPlayer(date, idx)}
-                                                        title={`Take ${idx + 1} — Click to play`}
-                                                    >
-                                                        {/* Video Thumbnail or preview */}
-                                                        {clip.thumbnail_url ? (
-                                                            <img 
-                                                                src={clip.thumbnail_url} 
-                                                                alt={`Take ${idx + 1}`} 
-                                                                className="yolofuck-short-media" 
-                                                            />
-                                                        ) : (
-                                                            <video
-                                                                src={clip.clip_url}
-                                                                className="yolofuck-short-media"
-                                                                preload="metadata"
-                                                                muted
-                                                            />
-                                                        )}
+                                                clips.map((clip, idx) => {
+                                                    const isLoopingThis = loopingClipId === clip.id;
 
-                                                        {/* Top Badges */}
-                                                        <div className="yolofuck-short-top-bar">
-                                                            <span className="yolofuck-take-index-pill">
-                                                                Take {idx + 1}
-                                                            </span>
-                                                            <button
-                                                                type="button"
-                                                                className="yolofuck-short-delete-btn"
-                                                                onClick={(e) => handleDeleteTake(clip.id, e)}
-                                                                title="Delete take"
-                                                            >
-                                                                <Trash2 size={13} />
-                                                            </button>
-                                                        </div>
+                                                    return (
+                                                        <div 
+                                                            key={clip.id}
+                                                            className={`yolofuck-film-square ${isLoopingThis ? 'is-looping' : ''}`}
+                                                            onPointerDown={(e) => handleSquarePointerDown(e, clip, date, idx)}
+                                                            onPointerMove={handleSquarePointerMove}
+                                                            onPointerUp={(e) => handleSquarePointerUp(e, clip)}
+                                                            onPointerCancel={handleSquarePointerCancel}
+                                                            title={`Take ${idx + 1} — Tap to loop, hold 1.5s to play full story`}
+                                                        >
+                                                            {isLoopingThis ? (
+                                                                <video
+                                                                    src={clip.clip_url}
+                                                                    autoPlay
+                                                                    loop
+                                                                    playsInline
+                                                                    muted={false}
+                                                                    className="yolofuck-square-media"
+                                                                />
+                                                            ) : clip.thumbnail_url ? (
+                                                                <img 
+                                                                    src={clip.thumbnail_url} 
+                                                                    alt={`Take ${idx + 1}`} 
+                                                                    className="yolofuck-square-media" 
+                                                                />
+                                                            ) : (
+                                                                <video
+                                                                    src={clip.clip_url}
+                                                                    className="yolofuck-square-media"
+                                                                    preload="metadata"
+                                                                    muted
+                                                                />
+                                                            )}
 
-                                                        {/* Hover Play Splash */}
-                                                        <div className="yolofuck-short-hover-overlay">
-                                                            <div className="yolofuck-hover-play-icon">
-                                                                <Play size={24} fill="#ffffff" />
+                                                            {/* Micro Take Badge */}
+                                                            <div className="yolofuck-square-overlay">
+                                                                <span className="yolofuck-square-take-idx">
+                                                                    {idx + 1}
+                                                                </span>
+
+                                                                <button
+                                                                    type="button"
+                                                                    className="yolofuck-square-delete-btn"
+                                                                    onClick={(e) => handleDeleteTake(clip.id, e)}
+                                                                    title="Delete Take"
+                                                                >
+                                                                    <Trash2 size={11} />
+                                                                </button>
                                                             </div>
-                                                        </div>
 
-                                                        {/* Bottom Info Bar */}
-                                                        <div className="yolofuck-short-bottom-bar">
-                                                            <span className="yolofuck-short-time">
-                                                                <Clock size={11} />
-                                                                {formatClipTime(clip.created_at)}
-                                                            </span>
-                                                            <span className="yolofuck-short-duration">
-                                                                {formatDuration(clip.duration_ms)}
-                                                            </span>
+                                                            {/* In-place Loop Indicator */}
+                                                            {isLoopingThis && (
+                                                                <div className="yolofuck-square-loop-badge">
+                                                                    <Repeat size={10} />
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    </div>
-                                                ))
+                                                    );
+                                                })
                                             )}
                                         </div>
                                     </div>
@@ -603,13 +656,13 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({ projectId: _
             )}
 
             {/* Share Command Center Modal */}
-            {showShareModal && (
+            {showShareModal && lockedShareDate && (
                 <JournalShareCommandCenter
-                    date={lockedShareDate || activeStoryDate}
-                    clips={activeDayClips}
-                    projectId={_projectId}
-                    userId={user?.id || ''}
-                    username={user?.user_metadata?.username || 'User'}
+                    date={lockedShareDate}
+                    clips={groupedDays.find(([d]) => d === lockedShareDate)?.[1] || []}
+                    projectId={null}
+                    userId={user?.id || 'local_user'}
+                    username={user?.user_metadata?.username || 'Journal'}
                     onClose={() => {
                         setShowShareModal(false);
                         setLockedShareDate(null);
