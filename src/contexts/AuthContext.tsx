@@ -1,8 +1,10 @@
 /**
  * AuthContext.tsx — yolofuck
  * 
- * Simplified auth context for the standalone Journal app.
- * Handles Supabase auth session, profile fetching, and sign out.
+ * Frictionless authentication and persistent identity for yolofuck Journal.
+ * Automatically provides an instant, persistent device identity so users can
+ * use the journal immediately without any login hurdles.
+ * Strictly NO purple/pink colors.
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -41,19 +43,49 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function isEmailVerified(user: User | null): boolean {
-    if (!user) return false;
-    return !!user.email_confirmed_at || !!user.confirmed_at;
+const DEVICE_USER_KEY = 'yolofuck_device_user_id';
+function getOrCreateDeviceUserId(): string {
+    let id = localStorage.getItem(DEVICE_USER_KEY);
+    if (!id) {
+        id = `usr_${Math.random().toString(36).substring(2, 10)}${Date.now().toString(36)}`;
+        localStorage.setItem(DEVICE_USER_KEY, id);
+    }
+    return id;
+}
+
+function createLocalDeviceUser(): { user: User; profile: Profile } {
+    const deviceId = getOrCreateDeviceUserId();
+    const user = {
+        id: deviceId,
+        app_metadata: {},
+        user_metadata: {
+            username: 'Journal',
+            full_name: 'Journal'
+        },
+        aud: 'authenticated',
+        created_at: new Date().toISOString(),
+        email: 'local@yolofuck.com'
+    } as unknown as User;
+
+    const profile: Profile = {
+        id: deviceId,
+        username: 'Journal',
+        role: 'user',
+        created_at: new Date().toISOString()
+    };
+
+    return { user, profile };
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [user, setUser] = useState<User | null>(null);
-    const [profile, setProfile] = useState<Profile | null>(null);
-    const [loading, setLoading] = useState(true);
+    const localFallback = useMemo(() => createLocalDeviceUser(), []);
+    const [user, setUser] = useState<User | null>(localFallback.user);
+    const [profile, setProfile] = useState<Profile | null>(localFallback.profile);
+    const [loading, setLoading] = useState(false);
     const [showWelcomeModal, setShowWelcomeModal] = useState(false);
     const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
     const mounted = useRef(true);
-    const userRef = useRef<User | null>(null);
+    const userRef = useRef<User | null>(localFallback.user);
 
     useEffect(() => {
         userRef.current = user;
@@ -73,12 +105,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 .maybeSingle();
 
             if (error) {
-                console.error('[Auth] Profile fetch error:', error);
                 return null;
             }
             return data as Profile | null;
-        } catch (err) {
-            console.error('[Auth] Profile fetch exception:', err);
+        } catch {
             return null;
         }
     }, []);
@@ -91,7 +121,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }, [user, fetchProfile]);
 
-    // Ensure the user has a Journal project
     const ensureJournalProject = useCallback(async (userId: string) => {
         try {
             const { data: existing } = await supabase
@@ -105,15 +134,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 await supabase.from('projects').insert({
                     name: 'Journal',
                     user_id: userId,
-                    color: '#ec4899',
-                    description: '',
+                    color: '#10b981',
+                    description: 'Daily video journal',
                     is_public: false,
                     is_system: true,
                     system_type: 'journal'
                 });
             }
         } catch (e) {
-            console.error('[Auth] ensureJournalProject failed:', e);
+            console.warn('[Auth] ensureJournalProject note:', e);
         }
     }, []);
 
@@ -124,19 +153,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!isActive) return;
 
             const currentUser = session?.user ?? null;
-            console.log(`[Auth] Event: ${_event} | User: ${currentUser?.id || 'none'}`);
 
             if (currentUser) {
                 setUser(currentUser);
 
                 let profileData = await fetchProfile(currentUser.id);
                 if (!profileData && isActive) {
-                    // Auto-create profile if missing
                     try {
                         const fallbackUsername = currentUser.user_metadata?.username ||
                             currentUser.user_metadata?.full_name ||
                             currentUser.email?.split('@')[0] ||
-                            `user_${currentUser.id.slice(0, 8)}`;
+                            'Journal';
 
                         const { data: newProfile } = await supabase
                             .from('profiles')
@@ -159,24 +186,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setProfile(profileData);
                 }
 
-                // Ensure Journal project exists
                 await ensureJournalProject(currentUser.id);
-
-                // Show welcome modal for first-time users
-                if (!currentUser.user_metadata?.yolofuck_welcomed) {
-                    setShowWelcomeModal(true);
-                }
             } else {
-                setUser(null);
-                setProfile(null);
+                // Persistent instant device session
+                const fallback = createLocalDeviceUser();
+                setUser(fallback.user);
+                setProfile(fallback.profile);
             }
 
             if (isActive) setLoading(false);
         };
 
-        // Initial session check
         supabase.auth.getSession().then(({ data: { session } }) => {
-            handleAuthChange('INITIAL_SESSION', session);
+            if (isActive) {
+                handleAuthChange('INITIAL', session);
+            }
         });
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
@@ -187,57 +211,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
     }, [fetchProfile, ensureJournalProject]);
 
-    const signOut = async () => {
-        setUser(null);
-        setProfile(null);
-
+    const signOut = useCallback(async () => {
         try {
             await supabase.auth.signOut();
-        } catch (err) {
-            console.error('[Auth] Supabase signOut error:', err);
-        } finally {
-            localStorage.clear();
-            sessionStorage.clear();
-            window.location.href = '/';
+        } catch (e) {
+            console.error('[Auth] Error signing out:', e);
         }
-    };
-
-    const isAdmin = useMemo(() =>
-        profile?.role === 'admin',
-        [profile?.role]);
-
-    const emailConfirmed = useMemo(() => isEmailVerified(user), [user]);
-
-    const needsUsername = useMemo(() =>
-        !!user && !!profile && (
-            profile.username?.startsWith('user_') && profile.username?.length === 13
-        ),
-        [user, profile]);
-
-    const dismissWelcome = useCallback(async () => {
-        setShowWelcomeModal(false);
-        if (userRef.current) {
-            await supabase.auth.updateUser({ data: { yolofuck_welcomed: true } });
-        }
+        const fallback = createLocalDeviceUser();
+        setUser(fallback.user);
+        setProfile(fallback.profile);
     }, []);
 
-    const contextValue = useMemo(() => ({
+    const dismissWelcome = useCallback(() => setShowWelcomeModal(false), []);
+    const closePasswordResetModal = useCallback(() => setShowPasswordResetModal(false), []);
+
+    const value = useMemo(() => ({
         user,
         profile,
-        isAdmin,
-        emailConfirmed,
-        needsUsername,
+        isAdmin: profile?.role === 'admin',
+        emailConfirmed: true,
+        needsUsername: false,
         loading,
         showWelcomeModal,
         dismissWelcome,
         showPasswordResetModal,
-        closePasswordResetModal: () => setShowPasswordResetModal(false),
+        closePasswordResetModal,
         signOut,
-        refreshProfile
-    }), [user, profile, isAdmin, emailConfirmed, needsUsername, loading, showWelcomeModal, showPasswordResetModal, signOut, refreshProfile, dismissWelcome]);
+        refreshProfile,
+    }), [user, profile, loading, showWelcomeModal, dismissWelcome, showPasswordResetModal, closePasswordResetModal, signOut, refreshProfile]);
 
     return (
-        <AuthContext.Provider value={contextValue}>
+        <AuthContext.Provider value={value}>
             {children}
         </AuthContext.Provider>
     );
@@ -245,7 +249,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
     const context = useContext(AuthContext);
-    if (context === undefined) {
+    if (!context) {
         throw new Error('useAuth must be used within an AuthProvider');
     }
     return context;

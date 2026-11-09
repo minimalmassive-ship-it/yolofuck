@@ -16,7 +16,7 @@ export interface LocalJournalEntry {
     createdAt: string;
 }
 
-const DB_NAME = 'ideanite_local_storage';
+const DB_NAME = 'yolofuck_local_storage';
 const STORE_NAME = 'journal_recordings';
 const DB_VERSION = 1;
 
@@ -125,7 +125,7 @@ export async function deleteLocalJournalRecording(id: string): Promise<void> {
 /**
  * Triggers a browser direct download for the video file to device storage.
  */
-export function downloadLocalJournalRecording(blob: Blob, filename = `Ideanite_Journal_${Date.now()}.webm`): void {
+export function downloadLocalJournalRecording(blob: Blob, filename = `yolofuck_Journal_${Date.now()}.webm`): void {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

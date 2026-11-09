@@ -1249,8 +1249,8 @@ const JournalStoryView: React.FC<JournalStoryViewProps> = ({ projectId }) => {
                                             onClick={handleToggleFullscreen}
                                             title="Exit Fullscreen"
                                         >
-                                            <Minimize2 size={26} strokeWidth={1.5} color="#6366F1" />
-                                            <span className="journal-story-ctrl-label" style={{ color: '#6366F1' }}>
+                                            <Minimize2 size={26} strokeWidth={1.5} color="#10b981" />
+                                            <span className="journal-story-ctrl-label" style={{ color: '#10b981' }}>
                                                 Full Screen
                                             </span>
                                         </button>
