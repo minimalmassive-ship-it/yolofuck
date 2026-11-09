@@ -169,6 +169,25 @@ export async function fetchClipsByDate(
     return data || [];
 }
 
+/** Fetch all clips for a user across all dates, sorted by date DESC and clip_order ASC */
+export async function fetchAllUserClips(
+    userId: string
+): Promise<JournalClip[]> {
+    const { data, error } = await supabase
+        .from('journal_clips')
+        .select('*')
+        .eq('user_id', userId)
+        .order('clip_date', { ascending: false })
+        .order('clip_order', { ascending: true })
+        .order('created_at', { ascending: true });
+
+    if (error) {
+        console.warn('[JournalStory] fetchAllUserClips error:', error);
+        return [];
+    }
+    return data || [];
+}
+
 // ── Save Operations ────────────────────────────────────────────────────────
 
 /** Capture a frame from video URL and upload as public thumbnail JPEG to storage */

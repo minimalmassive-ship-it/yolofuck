@@ -358,10 +358,14 @@ export function buildVideoConstraints(
     facingMode: 'user' | 'environment' = 'user',
     deviceId?: string,
 ): MediaTrackConstraints {
+    // 9:16 vertical shorts ratio for yolofuck
+    const targetHeight = resolution >= 1080 ? 1920 : 1280;
+    const targetWidth = resolution >= 1080 ? 1080 : 720;
+
     const constraints: MediaTrackConstraints = {
-        width: { ideal: resolution },
-        height: { ideal: resolution },
-        aspectRatio: { ideal: 1 },
+        width: { ideal: targetWidth },
+        height: { ideal: targetHeight },
+        aspectRatio: { ideal: 9 / 16 },
     };
 
     if (deviceId) {
