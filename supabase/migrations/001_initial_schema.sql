@@ -2,12 +2,13 @@
 -- yolofuck Database Schema — Supabase Initial Migration
 -- Tables: profiles, projects, journal_entries, journal_clips, ideas
 -- Storage: recordings, idea-images, idea-videos
+-- Designed for friction-free 9:16 video shorts journaling (supports device users & anon)
 -- ============================================================================
 
 -- 1. PROFILES TABLE
 CREATE TABLE IF NOT EXISTS public.profiles (
-    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    username TEXT UNIQUE,
+    id TEXT PRIMARY KEY,
+    username TEXT,
     full_name TEXT,
     display_name TEXT,
     avatar_url TEXT,
@@ -23,75 +24,61 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 -- Enable RLS
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
 CREATE POLICY "Public profiles are viewable by everyone" 
     ON public.profiles FOR SELECT USING (true);
 
-CREATE POLICY "Users can insert their own profile" 
-    ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+DROP POLICY IF EXISTS "Anyone can insert profile" ON public.profiles;
+CREATE POLICY "Anyone can insert profile" 
+    ON public.profiles FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Users can update their own profile" 
-    ON public.profiles FOR UPDATE USING (auth.uid() = id);
-
--- Auto create profile on auth signup
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS trigger AS $$
-BEGIN
-    INSERT INTO public.profiles (id, username, full_name, avatar_url)
-    VALUES (
-        new.id,
-        COALESCE(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)),
-        COALESCE(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
-        new.raw_user_meta_data->>'avatar_url'
-    )
-    ON CONFLICT (id) DO NOTHING;
-    RETURN new;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-    AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+DROP POLICY IF EXISTS "Anyone can update profile" ON public.profiles;
+CREATE POLICY "Anyone can update profile" 
+    ON public.profiles FOR UPDATE USING (true);
 
 
 -- 2. PROJECTS TABLE
 CREATE TABLE IF NOT EXISTS public.projects (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL,
     name TEXT NOT NULL,
-    color TEXT DEFAULT '#a78bfa',
     description TEXT,
+    color TEXT DEFAULT '#10b981',
     is_public BOOLEAN NOT NULL DEFAULT false,
     is_system BOOLEAN NOT NULL DEFAULT false,
     system_type TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+    tags TEXT[] DEFAULT ARRAY[]::TEXT[],
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
+
+CREATE INDEX IF NOT EXISTS idx_projects_user_id ON public.projects(user_id);
 
 ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view own or public projects" 
-    ON public.projects FOR SELECT 
-    USING (auth.uid() = user_id OR is_public = true);
+DROP POLICY IF EXISTS "Projects viewable by owner or public" ON public.projects;
+CREATE POLICY "Projects viewable by owner or public" 
+    ON public.projects FOR SELECT USING (true);
 
-CREATE POLICY "Users can create own projects" 
-    ON public.projects FOR INSERT 
-    WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert projects" ON public.projects;
+CREATE POLICY "Users can insert projects" 
+    ON public.projects FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Users can update own projects" 
-    ON public.projects FOR UPDATE 
-    USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update projects" ON public.projects;
+CREATE POLICY "Users can update projects" 
+    ON public.projects FOR UPDATE USING (true);
 
-CREATE POLICY "Users can delete own projects" 
-    ON public.projects FOR DELETE 
-    USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete projects" ON public.projects;
+CREATE POLICY "Users can delete projects" 
+    ON public.projects FOR DELETE USING (true);
 
 
--- 3. JOURNAL ENTRIES TABLE (Compiled Daily Story)
+-- 3. JOURNAL ENTRIES TABLE (Daily Journal Records)
 CREATE TABLE IF NOT EXISTS public.journal_entries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL,
     project_id UUID REFERENCES public.projects(id) ON DELETE SET NULL,
-    entry_type TEXT NOT NULL DEFAULT 'video' CHECK (entry_type IN ('text', 'image', 'video')),
+    entry_type TEXT NOT NULL DEFAULT 'video',
     content TEXT,
     video_url TEXT,
     thumbnail_url TEXT,
@@ -112,27 +99,27 @@ CREATE INDEX IF NOT EXISTS idx_journal_entries_public
 
 ALTER TABLE public.journal_entries ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Public entries viewable by all, private only by owner" 
-    ON public.journal_entries FOR SELECT 
-    USING (auth.uid() = user_id OR is_public = true);
+DROP POLICY IF EXISTS "Journal entries select policy" ON public.journal_entries;
+CREATE POLICY "Journal entries select policy" 
+    ON public.journal_entries FOR SELECT USING (true);
 
-CREATE POLICY "Users can insert own journal entries" 
-    ON public.journal_entries FOR INSERT 
-    WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Journal entries insert policy" ON public.journal_entries;
+CREATE POLICY "Journal entries insert policy" 
+    ON public.journal_entries FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Users can update own journal entries" 
-    ON public.journal_entries FOR UPDATE 
-    USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Journal entries update policy" ON public.journal_entries;
+CREATE POLICY "Journal entries update policy" 
+    ON public.journal_entries FOR UPDATE USING (true);
 
-CREATE POLICY "Users can delete own journal entries" 
-    ON public.journal_entries FOR DELETE 
-    USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Journal entries delete policy" ON public.journal_entries;
+CREATE POLICY "Journal entries delete policy" 
+    ON public.journal_entries FOR DELETE USING (true);
 
 
--- 4. JOURNAL CLIPS TABLE (Individual Video Clips Taken Throughout The Day)
+-- 4. JOURNAL CLIPS TABLE (Individual 9:16 Video Shorts Clips)
 CREATE TABLE IF NOT EXISTS public.journal_clips (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL,
     project_id UUID REFERENCES public.projects(id) ON DELETE SET NULL,
     clip_url TEXT NOT NULL,
     thumbnail_url TEXT,
@@ -149,27 +136,27 @@ CREATE INDEX IF NOT EXISTS idx_journal_clips_user_date
 
 ALTER TABLE public.journal_clips ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view own journal clips" 
-    ON public.journal_clips FOR SELECT 
-    USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Journal clips select policy" ON public.journal_clips;
+CREATE POLICY "Journal clips select policy" 
+    ON public.journal_clips FOR SELECT USING (true);
 
-CREATE POLICY "Users can insert own clips" 
-    ON public.journal_clips FOR INSERT 
-    WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Journal clips insert policy" ON public.journal_clips;
+CREATE POLICY "Journal clips insert policy" 
+    ON public.journal_clips FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Users can update own clips" 
-    ON public.journal_clips FOR UPDATE 
-    USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Journal clips update policy" ON public.journal_clips;
+CREATE POLICY "Journal clips update policy" 
+    ON public.journal_clips FOR UPDATE USING (true);
 
-CREATE POLICY "Users can delete own clips" 
-    ON public.journal_clips FOR DELETE 
-    USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Journal clips delete policy" ON public.journal_clips;
+CREATE POLICY "Journal clips delete policy" 
+    ON public.journal_clips FOR DELETE USING (true);
 
 
 -- 5. IDEAS TABLE (Shared/Published Story cards)
 CREATE TABLE IF NOT EXISTS public.ideas (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL,
     project_id UUID REFERENCES public.projects(id) ON DELETE SET NULL,
     folder_id UUID,
     title TEXT,
@@ -193,25 +180,24 @@ CREATE INDEX IF NOT EXISTS idx_ideas_slug ON public.ideas(slug);
 
 ALTER TABLE public.ideas ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Public ideas viewable by all, private only by owner" 
-    ON public.ideas FOR SELECT 
-    USING (auth.uid() = user_id OR is_public = true);
+DROP POLICY IF EXISTS "Ideas select policy" ON public.ideas;
+CREATE POLICY "Ideas select policy" 
+    ON public.ideas FOR SELECT USING (true);
 
-CREATE POLICY "Users can insert own ideas" 
-    ON public.ideas FOR INSERT 
-    WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Ideas insert policy" ON public.ideas;
+CREATE POLICY "Ideas insert policy" 
+    ON public.ideas FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Users can update own ideas" 
-    ON public.ideas FOR UPDATE 
-    USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Ideas update policy" ON public.ideas;
+CREATE POLICY "Ideas update policy" 
+    ON public.ideas FOR UPDATE USING (true);
 
-CREATE POLICY "Users can delete own ideas" 
-    ON public.ideas FOR DELETE 
-    USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Ideas delete policy" ON public.ideas;
+CREATE POLICY "Ideas delete policy" 
+    ON public.ideas FOR DELETE USING (true);
 
 
 -- 6. STORAGE BUCKETS SETUP
--- Insert storage buckets if not present
 INSERT INTO storage.buckets (id, name, public)
 VALUES 
     ('recordings', 'recordings', true),
@@ -219,28 +205,23 @@ VALUES
     ('idea-videos', 'idea-videos', true)
 ON CONFLICT (id) DO UPDATE SET public = true;
 
--- Storage Policies
+-- Storage Policies (allowing public read and friction-free video uploads)
+DROP POLICY IF EXISTS "Public Access for recordings" ON storage.objects;
 CREATE POLICY "Public Access for recordings"
     ON storage.objects FOR SELECT
     USING (bucket_id IN ('recordings', 'idea-images', 'idea-videos'));
 
-CREATE POLICY "Authenticated users can upload recordings"
+DROP POLICY IF EXISTS "Public upload for recordings" ON storage.objects;
+CREATE POLICY "Public upload for recordings"
     ON storage.objects FOR INSERT
-    WITH CHECK (
-        bucket_id IN ('recordings', 'idea-images', 'idea-videos') 
-        AND auth.role() = 'authenticated'
-    );
+    WITH CHECK (bucket_id IN ('recordings', 'idea-images', 'idea-videos'));
 
-CREATE POLICY "Users can update own recordings"
+DROP POLICY IF EXISTS "Public update for recordings" ON storage.objects;
+CREATE POLICY "Public update for recordings"
     ON storage.objects FOR UPDATE
-    USING (
-        bucket_id IN ('recordings', 'idea-images', 'idea-videos') 
-        AND auth.uid()::text = (storage.foldername(name))[1]
-    );
+    USING (bucket_id IN ('recordings', 'idea-images', 'idea-videos'));
 
-CREATE POLICY "Users can delete own recordings"
+DROP POLICY IF EXISTS "Public delete for recordings" ON storage.objects;
+CREATE POLICY "Public delete for recordings"
     ON storage.objects FOR DELETE
-    USING (
-        bucket_id IN ('recordings', 'idea-images', 'idea-videos') 
-        AND auth.uid()::text = (storage.foldername(name))[1]
-    );
+    USING (bucket_id IN ('recordings', 'idea-images', 'idea-videos'));
