@@ -1,0 +1,500 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { 
+    Settings, Lock, Users, Globe, Trash2, Copy, Check, EyeOff, RotateCcw, 
+    Video, Calendar, AlertTriangle, X, Share2, Loader2, ExternalLink
+} from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
+import { 
+    fetchUserSharedDailyStories, updateDailyStoryVisibility, 
+    stopDailyStorySharing, resumeDailyStorySharing, deleteDailyStoryShare 
+} from '../lib/journalStoryService';
+import './JournalSharedGrid.css';
+
+interface JournalSharedGridProps {
+    projectId?: string | null;
+}
+
+export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId }) => {
+    const { user } = useAuth();
+    const [stories, setStories] = useState<any[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
+    const [openMenuStoryId, setOpenMenuStoryId] = useState<string | null>(null);
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
+    const [deleteConfirmStory, setDeleteConfirmStory] = useState<any | null>(null);
+    const [isActionLoading, setIsActionLoading] = useState<boolean>(false);
+    const [copiedStoryId, setCopiedStoryId] = useState<string | null>(null);
+
+    const toastTimerRef = useRef<any>(null);
+
+    const showToast = (msg: string) => {
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        setToastMessage(msg);
+        toastTimerRef.current = setTimeout(() => setToastMessage(null), 2500);
+    };
+
+    const loadStories = useCallback(async () => {
+        if (!user?.id) {
+            setLoading(false);
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const data = await fetchUserSharedDailyStories(user.id);
+            setStories(data || []);
+        } catch (err) {
+            console.error('[JournalSharedGrid] loadStories error:', err);
+        } finally {
+            setLoading(false);
+        }
+    }, [user?.id]);
+
+    useEffect(() => {
+        loadStories();
+    }, [loadStories]);
+
+    // Close gear dropdown menu on click outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (!target.closest('.shared-story-gear-wrapper')) {
+                setOpenMenuStoryId(null);
+            }
+        };
+
+        window.addEventListener('mousedown', handleClickOutside);
+        return () => window.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Format date title
+    const formatDate = (dateStr: string) => {
+        try {
+            if (!dateStr) return 'Daily Story';
+            const d = new Date(dateStr + 'T00:00:00');
+            if (isNaN(d.getTime())) return dateStr;
+            return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+        } catch {
+            return dateStr;
+        }
+    };
+
+    const getStoryDate = (story: any): string => {
+        return (story.provenance_log as any)?.date || (story.created_at ? story.created_at.split('T')[0] : '');
+    };
+
+    const getShareUrl = (story: any): string => {
+        const origin = typeof window !== 'undefined' && window.location ? window.location.origin : '';
+        const slug = story.slug || story.id;
+        return origin ? `${origin}/story/${slug}` : `/story/${slug}`;
+    };
+
+    const handleCopyLink = async (story: any, e?: React.MouseEvent) => {
+        if (e) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+        try {
+            const url = getShareUrl(story);
+            await navigator.clipboard.writeText(url);
+            setCopiedStoryId(story.id);
+            showToast('Link copied to clipboard!');
+            setTimeout(() => setCopiedStoryId(null), 2000);
+        } catch {
+            showToast('Failed to copy link');
+        }
+    };
+
+    const handleChangeVisibility = async (story: any, newVis: 'private' | 'network' | 'public') => {
+        if (!user?.id) return;
+        setIsActionLoading(true);
+        try {
+            const storyDate = getStoryDate(story);
+            const res = await updateDailyStoryVisibility(user.id, storyDate, newVis);
+            if (res.success) {
+                setStories(prev => prev.map(s => s.id === story.id ? { 
+                    ...s, 
+                    visibility: newVis, 
+                    is_public: newVis === 'public',
+                    allow_link_access: true,
+                    provenance_log: { ...(s.provenance_log || {}), is_stopped: false }
+                } : s));
+
+                if (newVis === 'private') {
+                    showToast('Set to Private (Link only)');
+                    await handleCopyLink(story);
+                } else if (newVis === 'network') {
+                    showToast('Visible to your Network on Home Page');
+                } else {
+                    showToast('Visible Publicly on Home Page');
+                }
+            } else {
+                showToast('Failed to update visibility');
+            }
+        } catch (err) {
+            console.error('[JournalSharedGrid] change visibility error:', err);
+            showToast('Error updating visibility');
+        } finally {
+            setIsActionLoading(false);
+            setOpenMenuStoryId(null);
+        }
+    };
+
+    const handleToggleStopSharing = async (story: any) => {
+        if (!user?.id) return;
+        setIsActionLoading(true);
+        const storyDate = getStoryDate(story);
+        const isCurrentlyStopped = story.visibility === 'stopped' || (story.provenance_log as any)?.is_stopped === true;
+
+        try {
+            if (isCurrentlyStopped) {
+                // Resume sharing as private
+                const ok = await resumeDailyStorySharing(user.id, storyDate, story.id, 'private');
+                if (ok) {
+                    setStories(prev => prev.map(s => s.id === story.id ? {
+                        ...s,
+                        visibility: 'private',
+                        is_public: false,
+                        allow_link_access: true,
+                        provenance_log: { ...(s.provenance_log || {}), is_stopped: false }
+                    } : s));
+                    showToast('Sharing resumed as Private (Link active)');
+                } else {
+                    showToast('Failed to resume sharing');
+                }
+            } else {
+                // Stop sharing immediately
+                const ok = await stopDailyStorySharing(user.id, storyDate, story.id);
+                if (ok) {
+                    setStories(prev => prev.map(s => s.id === story.id ? {
+                        ...s,
+                        visibility: 'stopped',
+                        is_public: false,
+                        allow_link_access: false,
+                        provenance_log: { ...(s.provenance_log || {}), is_stopped: true }
+                    } : s));
+                    showToast('Sharing stopped. Link deactivated.');
+                } else {
+                    showToast('Failed to stop sharing');
+                }
+            }
+        } catch (err) {
+            console.error('[JournalSharedGrid] toggle stop error:', err);
+            showToast('Error modifying sharing state');
+        } finally {
+            setIsActionLoading(false);
+            setOpenMenuStoryId(null);
+        }
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!user?.id || !deleteConfirmStory) return;
+        setIsActionLoading(true);
+        const storyDate = getStoryDate(deleteConfirmStory);
+
+        try {
+            const ok = await deleteDailyStoryShare(user.id, storyDate, deleteConfirmStory.id);
+            if (ok) {
+                setStories(prev => prev.filter(s => s.id !== deleteConfirmStory.id));
+                showToast('Shared story deleted permanently');
+            } else {
+                showToast('Failed to delete shared story');
+            }
+        } catch (err) {
+            console.error('[JournalSharedGrid] delete error:', err);
+            showToast('Error deleting story');
+        } finally {
+            setIsActionLoading(false);
+            setDeleteConfirmStory(null);
+            setOpenMenuStoryId(null);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="shared-grid-loading-container">
+                <Loader2 className="animate-spin" size={28} color="#efede3" />
+                <span>Loading shared daily stories...</span>
+            </div>
+        );
+    }
+
+    return (
+        <div className="shared-stories-tab-container">
+            {/* Toast Feedback */}
+            {toastMessage && (
+                <div className="shared-grid-toast">
+                    {toastMessage}
+                </div>
+            )}
+
+            {/* Header info */}
+            <div className="shared-grid-header">
+                <div className="shared-grid-header-info">
+                    <h2>Shared Daily Stories</h2>
+                    <p>Manage your shared stories, configure privacy, and control link access in real time.</p>
+                </div>
+                <div className="shared-grid-header-count">
+                    <span>{stories.length} {stories.length === 1 ? 'Story' : 'Stories'}</span>
+                </div>
+            </div>
+
+            {/* Empty State */}
+            {stories.length === 0 ? (
+                <div className="shared-grid-empty-state">
+                    <div className="shared-empty-icon-box">
+                        <Share2 size={32} color="#a1a1aa" />
+                    </div>
+                    <h3>No Shared Stories Yet</h3>
+                    <p>When you click "Share Story" in your daily journal, your created links and shared stories will appear here.</p>
+                </div>
+            ) : (
+                <div className="shared-stories-grid">
+                    {stories.map(story => {
+                        const storyDate = getStoryDate(story);
+                        const isStopped = story.visibility === 'stopped' || (story.provenance_log as any)?.is_stopped === true;
+                        const clips = (story.provenance_log as any)?.clips || [];
+                        const takesCount = (story.provenance_log as any)?.takes_count || clips.length || 1;
+                        const thumbnail = story.thumbnail_url || (clips[0]?.thumbnail_url) || null;
+                        const previewVideoUrl = story.video_url || (clips[0]?.clip_url) || null;
+                        const shareUrl = getShareUrl(story);
+
+                        return (
+                            <div 
+                                key={story.id} 
+                                className={`shared-story-card ${isStopped ? 'is-stopped' : ''}`}
+                            >
+                                {/* Card Header with Date and Gear Menu */}
+                                <div className="shared-story-card-header">
+                                    <div className="shared-story-date-badge">
+                                        <Calendar size={13} />
+                                        <span>{formatDate(storyDate)}</span>
+                                    </div>
+
+                                    {/* Gear Menu */}
+                                    <div className="shared-story-gear-wrapper">
+                                        <button 
+                                            type="button" 
+                                            className={`shared-story-gear-btn ${openMenuStoryId === story.id ? 'active' : ''}`}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setOpenMenuStoryId(openMenuStoryId === story.id ? null : story.id);
+                                            }}
+                                            title="Sharing options"
+                                        >
+                                            <Settings size={15} />
+                                        </button>
+
+                                        {openMenuStoryId === story.id && (
+                                            <div className="shared-story-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                                                <div className="shared-dropdown-section-title">Privacy Setting</div>
+                                                
+                                                <button 
+                                                    type="button" 
+                                                    className={`shared-dropdown-item ${story.visibility === 'private' && !isStopped ? 'selected' : ''}`}
+                                                    onClick={() => handleChangeVisibility(story, 'private')}
+                                                >
+                                                    <Lock size={14} />
+                                                    <div className="shared-dropdown-item-labels">
+                                                        <span>Private (Copy Link)</span>
+                                                        <small>Only people with link</small>
+                                                    </div>
+                                                    {story.visibility === 'private' && !isStopped && <Check size={14} color="#4ade80" className="check-icon" />}
+                                                </button>
+
+                                                <button 
+                                                    type="button" 
+                                                    className={`shared-dropdown-item ${story.visibility === 'network' && !isStopped ? 'selected' : ''}`}
+                                                    onClick={() => handleChangeVisibility(story, 'network')}
+                                                >
+                                                    <Users size={14} />
+                                                    <div className="shared-dropdown-item-labels">
+                                                        <span>Network</span>
+                                                        <small>Visible to your network on Home</small>
+                                                    </div>
+                                                    {story.visibility === 'network' && !isStopped && <Check size={14} color="#4ade80" className="check-icon" />}
+                                                </button>
+
+                                                <button 
+                                                    type="button" 
+                                                    className={`shared-dropdown-item ${story.visibility === 'public' && !isStopped ? 'selected' : ''}`}
+                                                    onClick={() => handleChangeVisibility(story, 'public')}
+                                                >
+                                                    <Globe size={14} />
+                                                    <div className="shared-dropdown-item-labels">
+                                                        <span>Public</span>
+                                                        <small>Visible to all users on Home</small>
+                                                    </div>
+                                                    {story.visibility === 'public' && !isStopped && <Check size={14} color="#4ade80" className="check-icon" />}
+                                                </button>
+
+                                                <div className="shared-dropdown-divider" />
+
+                                                {/* Stop Sharing / Resume Sharing */}
+                                                <button 
+                                                    type="button" 
+                                                    className={`shared-dropdown-item warning ${isStopped ? 'resume' : ''}`}
+                                                    onClick={() => handleToggleStopSharing(story)}
+                                                >
+                                                    {isStopped ? (
+                                                        <>
+                                                            <RotateCcw size={14} />
+                                                            <span>Resume Sharing</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <EyeOff size={14} />
+                                                            <span>Stop Sharing</span>
+                                                        </>
+                                                    )}
+                                                </button>
+
+                                                {/* Delete */}
+                                                <button 
+                                                    type="button" 
+                                                    className="shared-dropdown-item danger"
+                                                    onClick={() => {
+                                                        setDeleteConfirmStory(story);
+                                                        setOpenMenuStoryId(null);
+                                                    }}
+                                                >
+                                                    <Trash2 size={14} color="#f87171" />
+                                                    <span>Delete</span>
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Media Preview */}
+                                <div className="shared-story-media-preview">
+                                    {thumbnail ? (
+                                        <img src={thumbnail} alt={story.title} className="shared-story-thumb-img" />
+                                    ) : previewVideoUrl ? (
+                                        <video src={previewVideoUrl} className="shared-story-thumb-video" preload="metadata" />
+                                    ) : (
+                                        <div className="shared-story-placeholder">
+                                            <Video size={28} color="#555" />
+                                        </div>
+                                    )}
+
+                                    {/* Takes Pill */}
+                                    <div className="shared-story-takes-pill">
+                                        {takesCount} {takesCount === 1 ? 'Take' : 'Takes'}
+                                    </div>
+
+                                    {/* Stopped Overlay */}
+                                    {isStopped && (
+                                        <div className="shared-story-stopped-overlay">
+                                            <EyeOff size={22} color="#f87171" />
+                                            <span>Sharing Stopped</span>
+                                            <small>Link Deactivated</small>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Card Footer & Status Badges */}
+                                <div className="shared-story-card-footer">
+                                    <div className="shared-story-status-row">
+                                        {isStopped ? (
+                                            <span className="shared-status-badge stopped">
+                                                <EyeOff size={11} />
+                                                <span>Stopped</span>
+                                            </span>
+                                        ) : story.visibility === 'network' ? (
+                                            <span className="shared-status-badge network">
+                                                <Users size={11} />
+                                                <span>Network</span>
+                                            </span>
+                                        ) : story.visibility === 'public' ? (
+                                            <span className="shared-status-badge public">
+                                                <Globe size={11} />
+                                                <span>Public</span>
+                                            </span>
+                                        ) : (
+                                            <span className="shared-status-badge private">
+                                                <Lock size={11} />
+                                                <span>Private (Link)</span>
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Action row with Copy Link & External Open */}
+                                    <div className="shared-story-link-actions">
+                                        <button 
+                                            type="button" 
+                                            className={`shared-card-copy-btn ${copiedStoryId === story.id ? 'copied' : ''}`}
+                                            onClick={(e) => handleCopyLink(story, e)}
+                                            disabled={isStopped}
+                                            title={isStopped ? "Sharing is stopped" : "Copy shareable link"}
+                                        >
+                                            {copiedStoryId === story.id ? <Check size={12} /> : <Copy size={12} />}
+                                            <span>{copiedStoryId === story.id ? 'Copied' : 'Copy Link'}</span>
+                                        </button>
+
+                                        <a 
+                                            href={isStopped ? undefined : shareUrl} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className={`shared-card-open-link ${isStopped ? 'disabled' : ''}`}
+                                            title="Open story page"
+                                            onClick={(e) => isStopped && e.preventDefault()}
+                                        >
+                                            <ExternalLink size={14} />
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* Permanent Delete Confirmation Dialog */}
+            {deleteConfirmStory && (
+                <div className="shared-delete-dialog-backdrop" onClick={() => setDeleteConfirmStory(null)}>
+                    <div className="shared-delete-dialog" onClick={(e) => e.stopPropagation()}>
+                        <div className="shared-delete-dialog-header">
+                            <div className="shared-delete-icon-box">
+                                <AlertTriangle size={20} color="#f87171" />
+                            </div>
+                            <h3>Delete Shared Story?</h3>
+                            <button 
+                                className="shared-delete-close-btn"
+                                onClick={() => setDeleteConfirmStory(null)}
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        <p className="shared-delete-desc">
+                            Are you sure you want to delete this shared story? 
+                            The link will be <strong>permanently deactivated</strong>, and it will be completely removed from your Shared list and the Home Page.
+                        </p>
+
+                        <div className="shared-delete-actions">
+                            <button 
+                                type="button" 
+                                className="shared-delete-cancel-btn"
+                                onClick={() => setDeleteConfirmStory(null)}
+                                disabled={isActionLoading}
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                type="button" 
+                                className="shared-delete-confirm-btn"
+                                onClick={handleConfirmDelete}
+                                disabled={isActionLoading}
+                            >
+                                {isActionLoading ? 'Deleting...' : 'Delete Permanently'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default JournalSharedGrid;

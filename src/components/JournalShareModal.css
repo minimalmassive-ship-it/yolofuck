@@ -1,0 +1,489 @@
+/* ── Journal Share Modal ── */
+
+.journal-share-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: rgba(4, 4, 8, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: journalModalFadeIn 0.2s ease-out;
+}
+
+@keyframes journalModalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.journal-share-modal-window {
+    position: relative;
+    width: 100%;
+    max-width: 540px;
+    height: 100vh;
+    max-height: 100vh;
+    background: #0B0B0E;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 65px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 70px);
+    box-sizing: border-box;
+}
+
+@media (min-width: 861px) {
+    .journal-share-modal-backdrop {
+        padding: 24px;
+    }
+    .journal-share-modal-window {
+        max-height: 88vh;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 24px;
+        padding-top: 16px;
+        padding-bottom: 24px;
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.85), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    }
+}
+
+/* Toast */
+.journal-share-toast {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 72px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(26, 26, 38, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #efede3;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    z-index: 100000;
+    pointer-events: none;
+    animation: journalToastPop 0.25s ease-out;
+}
+
+@keyframes journalToastPop {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -10px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+/* Desktop Header */
+.journal-share-desktop-header {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px 8px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@media (min-width: 861px) {
+    .journal-share-desktop-header {
+        display: flex;
+    }
+}
+
+.journal-share-desktop-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: none;
+    color: #c0c0c8;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.journal-share-desktop-back-btn:hover {
+    color: #ffffff;
+}
+
+.journal-share-desktop-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #efede3;
+}
+
+/* Body */
+.journal-share-body {
+    display: flex;
+    flex-direction: column;
+    padding: 16px 20px;
+    gap: 16px;
+    flex: 1 1 auto;
+}
+
+/* Share Destinations & Link */
+.journal-share-destinations-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.journal-share-link-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #141418;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 4px 6px 4px 12px;
+    box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.journal-share-link-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #e2e8f0;
+    font-size: 12px;
+    font-family: monospace;
+    outline: none;
+    user-select: all;
+    text-overflow: ellipsis;
+}
+
+.journal-share-copy-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #2b2b3a, #1c1c27);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: -1px -1px 3px rgba(255, 255, 255, 0.04), 2px 2px 6px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+}
+
+.journal-share-copy-btn:hover {
+    background: linear-gradient(135deg, #38384a, #252535);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.journal-share-copy-btn.copied {
+    background: #10b981;
+    border-color: #10b981;
+    color: #ffffff;
+}
+
+/* Social Apps Grid */
+.journal-share-apps-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.journal-share-app-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 4px;
+    border-radius: 12px;
+    background: #15151c;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #c4c4cf;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: -2px -2px 5px rgba(255, 255, 255, 0.03), 2px 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.journal-share-app-btn:hover {
+    background: #1d1d28;
+    color: #ffffff;
+    transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.journal-share-app-btn.whatsapp:hover {
+    color: #25d366;
+}
+
+.journal-share-app-btn.facebook:hover {
+    color: #1877f2;
+}
+
+.journal-share-app-btn.twitter:hover {
+    color: #1da1f2;
+}
+
+/* Visibility Card (Matching Project Page Design) */
+.journal-share-visibility-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: #181818;
+    padding: 16px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: inset 4px 4px 14px rgba(0, 0, 0, 0.85), inset -4px -4px 14px rgba(255, 255, 255, 0.03), 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.journal-share-visibility-header {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.journal-share-visibility-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #efede3;
+    letter-spacing: -0.2px;
+}
+
+.journal-share-visibility-sub {
+    font-size: 11px;
+    color: #888892;
+    line-height: 1.3;
+}
+
+.journal-share-visibility-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.journal-share-visibility-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.journal-share-visibility-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.journal-share-visibility-item.active {
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(255, 255, 255, 0.22);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+
+.journal-share-vis-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #a0a0aa;
+    flex-shrink: 0;
+}
+
+.journal-share-visibility-item.active .journal-share-vis-icon {
+    color: #ffffff;
+}
+
+.journal-share-vis-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+}
+
+.journal-share-vis-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #d1d5db;
+}
+
+.journal-share-visibility-item.active .journal-share-vis-label {
+    color: #ffffff;
+}
+
+.journal-share-vis-desc {
+    font-size: 11px;
+    color: #71717a;
+    line-height: 1.25;
+}
+
+.journal-share-vis-check {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+/* Confirmation Dialog */
+.journal-confirm-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 100010;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    animation: journalModalFadeIn 0.15s ease-out;
+}
+
+.journal-confirm-dialog {
+    width: 100%;
+    max-width: 400px;
+    background: #141419;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.9), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.journal-confirm-dialog-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.journal-confirm-icon-box {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.journal-confirm-dialog-header h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #efede3;
+    flex: 1;
+}
+
+.journal-confirm-close-btn {
+    background: transparent;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.journal-confirm-close-btn:hover {
+    color: #ffffff;
+}
+
+.journal-confirm-desc {
+    margin: 0;
+    font-size: 13px;
+    color: #a1a1aa;
+    line-height: 1.45;
+}
+
+.journal-confirm-desc strong {
+    color: #efede3;
+}
+
+.journal-confirm-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.journal-confirm-cancel-btn {
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #CBD5E1;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.journal-confirm-cancel-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+.journal-confirm-accept-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.journal-confirm-accept-btn:hover {
+    background: linear-gradient(135deg, #1d4ed8, #1e40af);
+}
+
+.journal-confirm-accept-btn:disabled,
+.journal-confirm-cancel-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Bottom Video Preview */
+.journal-share-bottom-video-section {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin-top: auto;
+}
+
+.journal-share-player-container {
+    position: relative;
+    width: 100%;
+    max-width: 360px;
+    aspect-ratio: 1 / 1;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #000000;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8);
+}
+
+.journal-share-preview-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}

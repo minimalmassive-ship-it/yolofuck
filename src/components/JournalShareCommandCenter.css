@@ -1,0 +1,396 @@
+/**
+ * JournalShareCommandCenter.css
+ * Desktop integrated Share Command Center for Daily Story.
+ * Follows the Ideanite Neumorphic Dark design system.
+ */
+
+.journal-share-command-center {
+    flex-shrink: 0;
+    height: 126px;
+    padding: 8px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-sizing: border-box;
+    background: #181818;
+    position: relative;
+    z-index: 10;
+}
+
+/* Toast */
+.journal-share-toast {
+    position: absolute;
+    top: 6px;
+    right: 14px;
+    background: rgba(20, 20, 28, 0.95);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #efede3;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+    z-index: 50;
+    animation: journalFadeSlide 0.2s ease forwards;
+}
+
+@keyframes journalFadeSlide {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Row 1: Link & Visibility ────────────────────────────────────────── */
+.journal-share-row-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.journal-share-act-btn {
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.journal-share-act-btn.activate {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.2));
+    border: 1px solid rgba(52, 211, 153, 0.45);
+    color: #34d399;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+}
+
+.journal-share-act-btn.activate:hover {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.35), rgba(5, 150, 105, 0.3));
+    border-color: rgba(52, 211, 153, 0.7);
+    color: #6ee7b7;
+    box-shadow: 0 0 12px rgba(52, 211, 153, 0.4);
+}
+
+.journal-share-act-btn.disable {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.18), rgba(185, 28, 28, 0.15));
+    border: 1px solid rgba(248, 113, 113, 0.4);
+    color: #fca5a5;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
+}
+
+.journal-share-act-btn.disable:hover {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.28), rgba(185, 28, 28, 0.25));
+    border-color: rgba(248, 113, 113, 0.65);
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.35);
+}
+
+.journal-share-input-wrap {
+    flex: 1;
+    min-width: 0;
+    height: 30px;
+    background: #14141c;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.6), inset -1px -1px 3px rgba(255, 255, 255, 0.03);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    box-sizing: border-box;
+}
+
+.journal-share-input-wrap.inactive {
+    opacity: 0.65;
+}
+
+.journal-share-url-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #efede3;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.journal-share-url-input::placeholder {
+    color: #777;
+    font-style: italic;
+    font-family: 'Inter', sans-serif;
+}
+
+.journal-share-btn-copy {
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 8px;
+    background: linear-gradient(145deg, #1f1f2a, #15151e);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: -2px -2px 5px rgba(255, 255, 255, 0.03), 2px 2px 6px rgba(0, 0, 0, 0.5);
+    color: #efede3;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.journal-share-btn-copy:hover:not(.disabled) {
+    border-color: rgba(255, 255, 255, 0.25);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.journal-share-btn-copy.copied {
+    border-color: rgba(16, 185, 129, 0.5);
+    color: #10b981;
+}
+
+.journal-share-btn-copy.disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+    color: #777;
+    box-shadow: none;
+}
+
+/* Visibility Segmented Control */
+.journal-share-vis-pills {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: #121218;
+    padding: 2px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    flex-shrink: 0;
+}
+
+.journal-share-vis-pill {
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 6px;
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.journal-share-vis-pill:hover:not(.active) {
+    color: #bbb;
+}
+
+.journal-share-vis-pill.active {
+    background: linear-gradient(145deg, #242432, #1a1a24);
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.journal-share-vis-pill.network.active {
+    background: rgba(163, 230, 53, 0.15);
+    border: 1px solid rgba(163, 230, 53, 0.4);
+    color: #bef264;
+}
+
+.journal-share-vis-pill.public.active {
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    color: #93c5fd;
+}
+
+/* ── Rows 2 & 3: Apps & Messengers ──────────────────────────────────── */
+.journal-share-row-apps {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 26px;
+}
+
+.journal-share-row-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #666;
+    width: 105px;
+    flex-shrink: 0;
+    letter-spacing: 0.3px;
+}
+
+.journal-share-icons-flex {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.journal-share-icons-flex::-webkit-scrollbar {
+    display: none;
+}
+
+.journal-share-app-pill {
+    height: 24px;
+    padding: 0 10px;
+    border-radius: 6px;
+    background: #15151c;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    color: #b5b5c0;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+    box-shadow: -1px -1px 3px rgba(255, 255, 255, 0.02), 1px 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.journal-share-app-pill:hover {
+    background: #1e1e2a;
+    color: #ffffff;
+    transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Brand Hover Colors */
+.journal-share-app-pill.whatsapp:hover { color: #25d366; border-color: rgba(37, 211, 102, 0.4); }
+.journal-share-app-pill.messenger:hover { color: #0084ff; border-color: rgba(0, 132, 255, 0.4); }
+.journal-share-app-pill.telegram:hover { color: #229ed9; border-color: rgba(34, 158, 217, 0.4); }
+.journal-share-app-pill.email:hover { color: #ea4335; border-color: rgba(234, 67, 53, 0.4); }
+.journal-share-app-pill.more:hover { color: #a78bfa; border-color: rgba(167, 139, 250, 0.4); }
+
+.journal-share-app-pill.facebook:hover { color: #1877f2; border-color: rgba(24, 119, 242, 0.4); }
+.journal-share-app-pill.twitter:hover { color: #1da1f2; border-color: rgba(29, 161, 242, 0.4); }
+.journal-share-app-pill.youtube:hover { color: #ff0000; border-color: rgba(255, 0, 0, 0.4); }
+.journal-share-app-pill.instagram:hover { color: #e1306c; border-color: rgba(225, 48, 108, 0.4); }
+.journal-share-app-pill.linkedin:hover { color: #0077b5; border-color: rgba(0, 119, 181, 0.4); }
+
+/* Confirmation Dialog */
+.journal-confirm-dialog-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100000;
+    padding: 16px;
+    animation: journalOverlayFade 0.2s ease forwards;
+}
+
+@keyframes journalOverlayFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.journal-confirm-dialog-card {
+    width: 100%;
+    max-width: 440px;
+    background: #181818;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 18px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 12px;
+    box-shadow:
+        -6px -6px 20px rgba(255, 255, 255, 0.03),
+        8px 8px 30px rgba(0, 0, 0, 0.9),
+        inset 1px 1px 1px rgba(255, 255, 255, 0.15);
+    animation: journalCardPop 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes journalCardPop {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.journal-confirm-dialog-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.journal-confirm-dialog-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #efede3;
+}
+
+.journal-confirm-dialog-body {
+    margin: 0;
+    font-size: 12px;
+    color: #9999a5;
+    line-height: 1.5;
+}
+
+.journal-confirm-dialog-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    margin-top: 8px;
+}
+
+.journal-confirm-dialog-btn {
+    flex: 1;
+    height: 38px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s ease;
+}
+
+.journal-confirm-dialog-btn.cancel {
+    background: #1e1e28;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #aaa;
+}
+
+.journal-confirm-dialog-btn.cancel:hover {
+    background: #252532;
+    color: #fff;
+}
+
+.journal-confirm-dialog-btn.confirm.network {
+    background: linear-gradient(135deg, rgba(163, 230, 53, 0.3), rgba(132, 204, 22, 0.25));
+    border: 1px solid rgba(163, 230, 53, 0.5);
+    color: #bef264;
+}
+
+.journal-confirm-dialog-btn.confirm.public {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(37, 99, 235, 0.25));
+    border: 1px solid rgba(59, 130, 246, 0.5);
+    color: #93c5fd;
+}

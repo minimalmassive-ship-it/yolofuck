@@ -1,0 +1,2534 @@
+/* =====================================================
+   IDEANITE VIZJA - TRUE GRID SYSTEM
+   Perfect Block Alignment Like OP-1 Synthesizer
+   ===================================================== */
+
+/* Extracted design tokens for yolofuck */
+
+:root {
+    /* Grid System - EVERYTHING aligns to this */
+    --grid-unit: 56px;
+    /* Base block size */
+    --grid-gap: 2px;
+    /* Uniform gap between ALL blocks */
+
+    /* Colors - DARK THEME UPDATE */
+    --bg-body: var(--skin-main-bg);
+    /* Dark Gray Background (Matches Sidebars) */
+    --block-base: var(--skin-main-bg);
+    /* Dark Gray blocks */
+    --block-medium: var(--skin-main-bg);
+    /* Text/Recessed items */
+    --gap-color: var(--skin-main-bg);
+    /* Match Background to hide gaps/lines */
+
+    /* Glassmorphism 2025 - Dark Theme */
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-blur: 25px;
+    --dark-gradient: linear-gradient(180deg, #121218 0%, #0f1214 50%, #050508 100%);
+
+    /* Accent Colors */
+    --accent-red: #C1272D;
+    --accent-coral: #FF7F6E;
+    --accent-teal: #1B5E6B;
+    --accent-blue: #4A9FB8;
+    --accent-yellow: #FFD700;
+    --accent-sage: #A8B8A8;
+
+    /* Default Skin Fallbacks - CRITICAL for consistency */
+    --skin-main-bg: #0f1214;
+    --skin-sidebar-bg: #0f1214;
+    --skin-sidebar-icon: #FFF200;
+    --skin-tab-outline: #C1272D;
+    --skin-sidebar-link: #90E0EF;
+    --skin-text-main: #E1DED2;
+    --skin-search-outline: rgba(255, 255, 255, 0.2);
+    --skin-icon-size-logo: 44px;
+    --skin-icon-size-topbar: 32px;
+    --skin-icon-size-sidebar: 26px;
+    --skin-icon-size-dots: 14;
+
+    /* Font Fallbacks */
+    --skin-font-sidebar: 'Inter', sans-serif;
+    --skin-font-topbar: 'Inter', sans-serif;
+    --skin-font-terminal: 'Roboto Mono', 'Fira Code', Consolas, monospace;
+    --skin-font-tab: 'Inter', sans-serif;
+    --skin-font-heading: 'Montserrat', sans-serif;
+    --skin-font-body: 'Inter', sans-serif;
+    --skin-font-search: 'Inter', sans-serif;
+
+    /* Size Fallbacks */
+    --skin-size-sidebar: 14px;
+    --skin-size-topbar: 13px;
+    --skin-size-terminal: 12px;
+    --skin-size-tab: 18px;
+    --skin-size-heading: 24px;
+    --skin-size-body: 14px;
+
+
+    /* Sidebar and Layout widths */
+    --sidebar-width: 200px;
+    /* Reduced from fixed grid blocks to percentage */
+    --notif-width: var(--sidebar-width);
+    /* Notification matches sidebar (5 blocks) */
+
+    /* Enhanced 3D Shadows - OP-1 Hardware Style */
+    /* UPDATED: Tight shadows to prevent gap bleed */
+    --shadow-raised:
+        0 1px 0 rgba(255, 255, 255, 0.5),
+        /* Top highlight */
+        0 1px 2px rgba(0, 0, 0, 0.2),
+        /* Main shadow - Tight blur */
+        0 1px 3px rgba(0, 0, 0, 0.12),
+        /* Subtle depth */
+        inset 0 -1px 2px rgba(0, 0, 0, 0.1),
+        /* Bottom bevel */
+        inset 0 1px 1px rgba(255, 255, 255, 0.4);
+    /* Top bevel */
+
+    --shadow-pressed:
+        inset 0 1px 3px rgba(0, 0, 0, 0.3),
+        /* Pressed depth - Tighter */
+        inset 0 1px 2px rgba(0, 0, 0, 0.15),
+        /* Deep shadow */
+        inset 0 -1px 1px rgba(255, 255, 255, 0.1);
+    /* Bottom highlight */
+
+    --shadow-hover:
+        0 1px 0 rgba(255, 255, 255, 0.6),
+        /* Stronger highlight */
+        0 1px 3px rgba(0, 0, 0, 0.25),
+        /* Lifted shadow - Tight */
+        0 2px 6px rgba(0, 0, 0, 0.15),
+        /* Deeper depth */
+        inset 0 -1px 2px rgba(0, 0, 0, 0.15),
+        /* Bottom bevel */
+        inset 0 1px 2px rgba(255, 255, 255, 0.5);
+    /* Top bevel */
+
+    --shadow-deep:
+        0 1px 0 rgba(255, 255, 255, 0.4),
+        0 1px 3px rgba(0, 0, 0, 0.25),
+        0 2px 6px rgba(0, 0, 0, 0.15),
+        inset 0 -1px 2px rgba(0, 0, 0, 0.1),
+        inset 0 1px 2px rgba(255, 255, 255, 0.4);
+}
+
+/* =====================================================
+   GLOBAL RESET
+   ===================================================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    background: var(--skin-main-bg);
+    color: #e0e0e0;
+    overflow: hidden;
+    position: relative;
+}
+
+/* =====================================================
+   APP CONTAINER - FULL VIEWPORT GRID
+   ===================================================== */
+
+.vizja-app {
+    width: 100vw;
+    height: 100dvh; /* Upgraded to dynamic vh to fix mobile address bar clipping globally */
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    background: var(--skin-main-bg);
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+/* =====================================================
+   TOP BAR - SINGLE ROW GRID
+   ===================================================== */
+
+/* =====================================================
+   TOPBAR - TWO ROW GRID
+   ===================================================== */
+
+.vizja-topbar {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr;
+    /* Single column for full-width bars */
+    grid-template-rows: 40px 60px;
+    /* Row 1: Tab Bar (40px), Row 2: Top Bar (60px) */
+    gap: 0;
+    /* No gap - tabs sit behind top bar */
+    height: auto;
+    z-index: 100;
+    margin-bottom: 0px;
+    /* Gap below topbar */
+    background: #0f1214;
+    overflow: visible;
+    /* Ensure ::after shadow is visible outside */
+}
+
+/* GRADIENT SHADOW BELOW TOPBAR - CASTING ONTO WORKSPACE */
+.vizja-topbar::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    height: 30px;
+    /* Shadow falls onto lower parts */
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0) 100%);
+    pointer-events: none;
+    z-index: 5;
+    /* Below content (10), so only impacts background/gaps */
+}
+
+/* Second row spans columns with specific layout */
+.topbar-second-row {
+    grid-column: 1 / 4;
+    /* Span first 3 columns */
+}
+
+.topbar-add-idea {
+    grid-column: 4 / 5;
+    /* Last column (15% width) */
+    grid-row: 2;
+    /* Second row */
+}
+
+.topbar-second-row-item {
+    grid-column: 1;
+    grid-row: 2;
+    /* Second row */
+    width: auto;
+    min-width: fit-content;
+    padding: 0 20px;
+    /* More padding for text blocks */
+    white-space: nowrap;
+    /* Prevent text wrapping */
+}
+
+/* User info block (authenticated) - now 15% width */
+.user-info-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0 16px;
+    width: 100%;
+    /* Fill the 15% column */
+}
+
+.user-email {
+    font-size: 11px;
+    font-weight: 600;
+    color: #2A2A2A;
+    text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+.user-status {
+    font-size: 9px;
+    font-weight: 500;
+    color: var(--accent-sage);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+}
+
+/* Profile picture block */
+.profile-pic-block {
+    width: var(--grid-unit);
+    height: var(--grid-unit);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: #E1DED2;
+    background: linear-gradient(145deg,
+            var(--accent-teal) 0%,
+            #155561 100%);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Search with Category Dropdown */
+.search-with-category {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0;
+}
+
+.category-dropdown {
+    position: relative;
+    border-right: 1px solid rgba(0, 0, 0, 0.2);
+    padding: 0 12px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    min-width: 140px;
+    /* Wider dropdown */
+}
+
+.category-btn {
+    background: transparent;
+    border: none;
+    color: #2A2A2A;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+
+.category-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.block, a, button, [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+}
+
+.category-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    background: var(--block-base);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-raised);
+    min-width: 160px;
+    z-index: 9999;
+    /* On top of everything */
+    overflow: hidden;
+}
+
+.category-item {
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #2A2A2A;
+    cursor: pointer;
+    transition: background 0.15s;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.category-item:hover {
+    background: rgba(0, 0, 0, 0.08);
+}
+
+.search-with-category input {
+    flex: 1;
+    padding: 0 16px;
+}
+
+/* =====================================================
+   MAIN CONTENT - TWO COLUMN GRID
+   ===================================================== */
+
+.vizja-main {
+    display: grid;
+    grid-template-columns: var(--sidebar-width) 1fr;
+    grid-template-rows: minmax(0, 1fr);
+    /* Sidebar (Fixed 5-block) + Content */
+    gap: 0;
+    flex: 1;
+    min-height: 0;
+    /* Fill grid row minus bottom dock offset if active */
+    /* Squeeze horizontally when right sidebar terminal open */
+    overflow: hidden;
+    transition: grid-template-columns 0.6s cubic-bezier(0.25, 1, 0.5, 1),
+        height 0.15s ease,
+        padding-right 0.6s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+.vizja-main.vizja-main-authenticated {
+    padding-right: 0px !important;
+}
+
+body.ideanitor-sidebar .vizja-main.vizja-main-authenticated {
+    padding-right: calc(var(--ideanitor-sidebar-width, 380px) + 20px) !important;
+}
+
+body.ideanitor-sidebar .ideas-page-wrapper,
+body.ideanitor-sidebar .my-ideas-workspace,
+body.ideanitor-sidebar .project-detail-content,
+body.ideanitor-sidebar .packs-page-container,
+body.ideanitor-sidebar .collections-page-container,
+body.ideanitor-sidebar .projects-page-container,
+body.ideanitor-sidebar .ideas-page-container {
+    padding-right: 0px !important;
+    margin-right: 0px !important;
+}
+
+@media (max-width: 860px) {
+    body.ideanitor-sidebar .vizja-main.vizja-main-authenticated {
+        padding-right: 0 !important;
+    }
+}
+
+/* === FULLY COLLAPSED STATE === */
+/* Reverted in v6.5: Site TopBar should remain visible above terminal */
+/* body.sidebar-collapsed .vizja-topbar {
+    display: none !important;
+} */
+
+body.sidebar-collapsed .vizja-main,
+body.sidebar-collapsed .vizja-main-authenticated {
+    grid-template-columns: 0px 1fr !important;
+    gap: 0 !important;
+}
+
+body.sidebar-collapsed .vizja-sidebar {
+    width: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateX(-40px);
+    overflow: hidden;
+    padding-left: 0 !important;
+}
+
+body.sidebar-collapsed .vizja-sidebar span,
+body.sidebar-collapsed .vizja-sidebar .sidebar-profile-info {
+    display: none !important;
+    opacity: 0 !important;
+}
+
+/* === FULLY EXPANDED STATE === */
+body.sidebar-expanded .vizja-main,
+body.sidebar-expanded .vizja-main-authenticated {
+    grid-template-columns: var(--sidebar-width) 1fr !important;
+}
+
+
+body.sidebar-expanded .vizja-sidebar {
+    width: var(--sidebar-width) !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+}
+
+body.sidebar-expanded .vizja-sidebar span {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+body.sidebar-expanded .vizja-sidebar .sidebar-profile-info {
+    display: flex !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Sidebar half collapse via body class for 3-state sync */
+body.sidebar-half .vizja-main,
+body.sidebar-half .vizja-main-authenticated {
+    grid-template-columns: 64px 1fr !important;
+}
+
+@media (max-width: 860px) {
+    body.sidebar-expanded .vizja-main,
+    body.sidebar-expanded .vizja-main-authenticated,
+    body.sidebar-half .vizja-main,
+    body.sidebar-half .vizja-main-authenticated {
+        grid-template-columns: 0px 1fr !important; /* PREVENT INVISIBLE SQUEEZE ON MOBILE */
+    }
+}
+
+body.sidebar-half .vizja-sidebar {
+    width: 64px !important;
+    height: 100%;
+    z-index: 9500;
+    position: relative;
+    overflow-y: scroll !important;
+    overflow-x: hidden !important;
+    direction: rtl !important; /* Left scrollbar */
+    transition: width 0.6s cubic-bezier(0.25, 1, 0.5, 1) !important;
+    background: var(--skin-sidebar-bg, #181818) !important;
+    box-shadow: none !important;
+    pointer-events: auto !important;
+    padding-left: 0px !important;
+}
+
+body.sidebar-half .vizja-sidebar .block {
+    margin: 1.5px auto 1.5px 12px !important;
+    width: 40px !important;
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 0 10px !important;
+    justify-content: flex-start !important;
+    display: flex !important;
+    flex-direction: row !important;
+    border-radius: 6px !important;
+    position: relative;
+    transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1), margin 0.4s cubic-bezier(0.25, 1, 0.5, 1), padding 0.4s cubic-bezier(0.25, 1, 0.5, 1), border-radius 0.4s cubic-bezier(0.25, 1, 0.5, 1), background-color 0.12s ease !important;
+}
+
+body.sidebar-half .vizja-sidebar .sidebar-profile-inner {
+    margin: 1.5px auto 1.5px 12px !important;
+    width: 40px !important;
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 0 10px !important;
+    justify-content: flex-start !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    border-radius: 6px !important;
+    position: relative;
+    box-sizing: border-box !important;
+    transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1), margin 0.4s cubic-bezier(0.25, 1, 0.5, 1), padding 0.4s cubic-bezier(0.25, 1, 0.5, 1), border-radius 0.4s cubic-bezier(0.25, 1, 0.5, 1), background-color 0.12s ease !important;
+}
+
+/* Hover/active expanded state for INDIVIDUAL sidebar blocks and profile */
+@media (hover: hover) and (pointer: fine) {
+    body.sidebar-half .vizja-sidebar .block:hover {
+        width: max-content !important;
+        min-width: calc(var(--sidebar-width) - 27px) !important;
+        padding-right: 14px !important;
+        background-color: var(--skin-sidebar-bg, #181818) !important;
+        box-shadow: inset 0 0 0 100px rgba(255,255,255,0.05), 4px 4px 15px rgba(0,0,0,0.4) !important;
+        z-index: 10000;
+    }
+
+    /* Preserve active border on hover in half mode */
+    body.sidebar-half .vizja-sidebar .block.active:hover {
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09), inset 0 0 0 100px rgba(255,255,255,0.05), 4px 4px 15px rgba(0,0,0,0.4) !important;
+    }
+
+    body.sidebar-half .vizja-sidebar .sidebar-profile-inner:hover {
+        width: max-content !important;
+        min-width: calc(var(--sidebar-width) - 27px) !important;
+        padding-right: 14px !important;
+        background-color: var(--skin-sidebar-bg, #181818) !important;
+        box-shadow: inset 0 0 0 100px rgba(255,255,255,0.05), 4px 4px 15px rgba(0,0,0,0.4) !important;
+        z-index: 10000;
+    }
+
+    /* Combined hover reveal for both nav items and profile info on INDIVIDUAL hover */
+    body.sidebar-half .vizja-sidebar .block:hover span {
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 0.3s 0.1s;
+    }
+
+    /* Profile Visibility in Half Mode on INDIVIDUAL hover */
+    body.sidebar-half .vizja-sidebar .sidebar-profile-inner:hover .sidebar-profile-info {
+        display: flex;
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 0.3s 0.1s;
+    }
+}
+
+body.sidebar-half .vizja-sidebar .block.temp-expanded {
+    width: max-content !important;
+    min-width: calc(var(--sidebar-width) - 27px) !important;
+    padding-right: 14px !important;
+    background-color: var(--skin-sidebar-bg, #181818) !important;
+    box-shadow: inset 0 0 0 100px rgba(255,255,255,0.05), 4px 4px 15px rgba(0,0,0,0.4) !important;
+    z-index: 10000;
+}
+
+body.sidebar-half .vizja-sidebar .block.active.temp-expanded {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09), inset 0 0 0 100px rgba(255,255,255,0.05), 4px 4px 15px rgba(0,0,0,0.4) !important;
+}
+
+body.sidebar-half .vizja-sidebar .sidebar-profile-inner.temp-expanded {
+    width: max-content !important;
+    min-width: calc(var(--sidebar-width) - 27px) !important;
+    padding-right: 14px !important;
+    background-color: var(--skin-sidebar-bg, #181818) !important;
+    box-shadow: inset 0 0 0 100px rgba(255,255,255,0.05), 4px 4px 15px rgba(0,0,0,0.4) !important;
+    z-index: 10000;
+}
+
+/* Initial hidden state in half mode */
+body.sidebar-half .vizja-sidebar .block span {
+    opacity: 0;
+    visibility: hidden;
+    white-space: nowrap;
+    transition: opacity 0.1s;
+}
+
+body.sidebar-half .vizja-sidebar .sidebar-profile-info {
+    display: none;
+    opacity: 0;
+    visibility: hidden;
+    white-space: nowrap;
+}
+
+body.sidebar-half .vizja-sidebar .block.temp-expanded span {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.3s 0.1s;
+}
+
+body.sidebar-half .vizja-sidebar .sidebar-profile-inner.temp-expanded .sidebar-profile-info {
+    display: flex;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.3s 0.1s;
+}
+
+
+
+/* Ensure names are hidden during collapse transition to avoid flicker */
+body.sidebar-collapsed .vizja-sidebar span,
+body.sidebar-collapsed .vizja-sidebar .sidebar-profile-info {
+    opacity: 0 !important;
+    visibility: hidden !important;
+}
+
+
+.vizja-sidebar {
+    transition: width 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1), transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), visibility 0.6s cubic-bezier(0.25, 1, 0.5, 1) !important;
+    background: var(--skin-sidebar-bg, #181818) !important;
+    box-shadow: none !important;
+    border-right: none !important;
+    z-index: 100000 !important; /* v6.9.11: Pillar 1 - Sidebar globally demoted for Top Bar supremacy */
+    -webkit-tap-highlight-color: transparent;
+}
+.vizja-sidebar * {
+    -webkit-tap-highlight-color: transparent;
+}
+
+.vizja-sidebar a,
+.vizja-sidebar button,
+.vizja-sidebar .block,
+.vizja-sidebar .sidebar-profile-inner,
+.vizja-sidebar .sidebar-profile-avatar,
+.vizja-sidebar .sidebar-icon-wrapper {
+    cursor: pointer !important;
+}
+
+/* Two column layout: Left sidebar + Content */
+.vizja-main-authenticated {
+    grid-template-columns: var(--sidebar-width) 1fr;
+    /* Right sidebar column removed */
+    background: var(--skin-main-bg);
+}
+
+/* =====================================================
+   SIDEBAR - VERTICAL STACK
+   ===================================================== */
+
+.sidebar-brand-header {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    height: 40px !important;
+    padding-left: 28.5px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 14px !important;
+    z-index: 100005 !important;
+    pointer-events: auto !important;
+    box-sizing: border-box !important;
+    background: transparent !important;
+    transition: none !important;
+}
+
+@media (max-width: 860px) {
+    .sidebar-brand-header {
+        display: none !important;
+    }
+}
+
+.sidebar-brand-header .topbar-burger-btn,
+.sidebar-brand-header .topbar-burger-btn:hover,
+.sidebar-brand-header .topbar-burger-btn:focus,
+.sidebar-brand-header .topbar-burger-btn:active,
+.sidebar-brand-header .topbar-burger-btn.active {
+    color: #efede3 !important;
+}
+
+body:not(.sidebar-collapsed):not(.sidebar-half) .sidebar-brand-header {
+    width: var(--sidebar-width, 240px) !important;
+    background: var(--skin-sidebar-bg, #181818) !important;
+    height: 40px !important;
+}
+
+body.sidebar-half .sidebar-brand-header {
+    width: 64px !important;
+    background: var(--skin-sidebar-bg, #181818) !important;
+    height: 40px !important;
+}
+
+body.sidebar-collapsed .sidebar-brand-header {
+    width: 48px !important;
+    background: transparent !important;
+    height: 40px !important;
+}
+
+body:not(.sidebar-collapsed):not(.sidebar-half) .sidebar-brand-header::after {
+    content: '';
+    position: absolute;
+    top: 40px;
+    left: 0;
+    width: var(--sidebar-width, 240px);
+    height: 10px;
+    background: var(--skin-sidebar-bg, #181818);
+    pointer-events: none;
+}
+
+body.sidebar-half .sidebar-brand-header::after {
+    content: '';
+    position: absolute;
+    top: 40px;
+    left: 0;
+    width: 64px;
+    height: 10px;
+    background: var(--skin-sidebar-bg, #181818);
+    pointer-events: none;
+}
+
+body.sidebar-half .sidebar-brand-header .topbar-logo-group,
+body.sidebar-collapsed .sidebar-brand-header .topbar-logo-group {
+    display: none !important;
+}
+
+.sidebar-brand-header .topbar-logo-group img.logo-graffiti-img,
+.sidebar-brand-header .topbar-logo-group .logo-graffiti-img,
+.sidebar-brand-header .topbar-logo-group .enterprise-org-logo {
+    height: 22px !important;
+    max-height: 22px !important;
+    max-width: 160px !important;
+    width: auto !important;
+    object-fit: contain !important;
+    transform: none !important;
+    margin: 0 !important;
+    display: block !important;
+}
+
+.sidebar-brand-header .topbar-logo-group .enterprise-org-logo,
+.topbar-logo-group .enterprise-org-logo,
+.enterprise-org-logo {
+    mix-blend-mode: screen !important;
+}
+
+.sidebar-brand-header .topbar-logo-group .enterprise-org-text-logo {
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    color: var(--text-primary, #ffffff) !important;
+    letter-spacing: -0.02em !important;
+    white-space: nowrap !important;
+    line-height: 20px !important;
+    display: inline-block !important;
+}
+
+.vizja-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--skin-sidebar-gap, 0px);
+    /* Remove gaps between links */
+    height: 100%;
+    padding-top: 50px !important; /* Preserves exact previous Y-coordinate of icons now that 40px topbar is removed (40px + 10px = 50px) */
+    padding-left: 0px !important;
+    box-sizing: border-box;
+    overflow-y: scroll !important;
+    overflow-x: hidden !important;
+    direction: rtl !important;
+}
+
+.vizja-sidebar > * {
+    direction: ltr !important;
+}
+
+/* SIDEBAR LINK OVERRIDES - STRIPE DESIGN LANGUAGE */
+/* Wrap icon in a fixed-size 20px container to freeze horizontal/vertical position, while letting the inner SVG/IMG scale from center */
+.sidebar-icon-wrapper {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    flex-shrink: 0;
+    margin: 0;
+}
+
+.sidebar-icon-wrapper svg,
+.sidebar-icon-wrapper img {
+    position: static !important;
+    transform: none !important;
+    width: 18px !important;
+    height: 18px !important;
+    display: block !important;
+    object-fit: contain;
+}
+
+/* Specific static centering for the Left Sidebar */
+.vizja-sidebar .sidebar-icon-wrapper {
+    width: 20px !important;
+    height: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative !important;
+    flex-shrink: 0 !important;
+    margin: 0 !important;
+}
+
+.vizja-sidebar .sidebar-icon-wrapper svg,
+.vizja-sidebar .sidebar-icon-wrapper img {
+    position: static !important;
+    transform: none !important;
+    width: 18px !important;
+    height: 18px !important;
+    display: block !important;
+    object-fit: contain;
+}
+
+.sidebar-profile-inner {
+    padding: 0 10px !important;
+}
+
+.vizja-sidebar-right .block {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0;
+    min-height: 36px;
+    height: 40px;
+    /* Reverted to 40px for 26px icons */
+    padding: 0 10px 0 23px;
+    /* Center axis at 36px (23px + 26/2) */
+    color: #CCCCCC;
+    /* Light Gray (Matching Icon-ish) */
+
+    /* Text Style Update */
+    font-size: var(--skin-size-sidebar, 13px) !important;
+    /* Smaller */
+    text-transform: none;
+    /* Title Case */
+    font-family: var(--skin-font-sidebar, 'Inter'), sans-serif;
+    font-weight: 500;
+    /* Less Bold (Medium) */
+    letter-spacing: 0;
+
+    transition: all 0.1s ease;
+    pointer-events: auto;
+    /* Enable hover for items */
+}
+
+/* LEFT SIDEBAR: STRIPE-STYLE TYPOGRAPHY, ROW HEIGHT, PADDING, MARGINS & ICONS */
+.vizja-sidebar .block {
+    color: #E1DED2 !important;
+    background: transparent !important;
+    border-radius: 6px !important;
+    margin: 1px 8px 1px 12px !important;
+    width: calc(100% - 20px) !important;
+    min-height: 28px !important;
+    height: 28px !important;
+    padding: 0 10px !important;
+    box-shadow: none !important;
+    border: none !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 14px !important;
+    
+    font-size: 14px !important;
+    text-transform: none !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    font-weight: 400 !important;
+    letter-spacing: 0 !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+
+    transition: background 0.12s ease, color 0.12s ease !important;
+    pointer-events: auto;
+    box-sizing: border-box !important;
+}
+
+.vizja-sidebar .block span,
+.vizja-sidebar .nav-label {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    font-weight: 400 !important;
+    font-size: 14px !important;
+    letter-spacing: 0 !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+}
+
+.vizja-sidebar .sidebar-profile-container {
+    width: 100% !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.vizja-sidebar > .sidebar-profile-container:first-child {
+    margin-top: 8px !important;
+}
+
+.vizja-sidebar .sidebar-profile-inner {
+    margin: 1px 8px 1px 12px !important;
+    width: calc(100% - 20px) !important;
+    padding: 0 10px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    border-radius: 6px !important;
+    background: transparent !important;
+    gap: 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    box-sizing: border-box !important;
+    transition: width 0.3s cubic-bezier(0.25, 1, 0.5, 1), margin 0.3s cubic-bezier(0.25, 1, 0.5, 1), padding 0.3s cubic-bezier(0.25, 1, 0.5, 1), border-radius 0.3s cubic-bezier(0.25, 1, 0.5, 1), background 0.12s ease, color 0.12s ease !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .vizja-sidebar .sidebar-profile-inner:hover {
+        background: rgba(255, 255, 255, 0.06) !important;
+        border-radius: 6px !important;
+    }
+
+    .vizja-sidebar-right .block:hover {
+        color: #E1DED2;
+        background: transparent !important;
+        transform: none;
+        /* Remove comic pop */
+    }
+
+    .vizja-sidebar .block:hover {
+        background: rgba(255, 255, 255, 0.06) !important;
+        box-shadow: none !important;
+        border-radius: 6px !important;
+        color: #FFFFFF !important;
+    }
+}
+
+/* 3D SHADED ICONS - LOGO STYLE (Right Sidebar Only) */
+.vizja-sidebar-right .block svg {
+    width: var(--skin-icon-size-sidebar, 26px) !important;
+    height: var(--skin-icon-size-sidebar, 26px) !important;
+    max-width: none !important;
+    max-height: none !important;
+
+    /* PRECISION LINES */
+    stroke: #E0E0E0;
+    /* Off-white/Metallic */
+    stroke-width: 1.8px;
+    /* Thinner, precise lines */
+    stroke-linecap: round;
+    stroke-linejoin: round;
+
+    /* 3D SHADING EFFECT using multiple drop-shadows */
+    /* 1. Inner-like shadow (simulated) */
+    /* 2. Outer dark shadow for depth */
+    filter: drop-shadow(0px 1px 0px rgba(255, 255, 255, 0.5))
+        /* Top highlight */
+        drop-shadow(0px 3px 2px rgba(0, 0, 0, 0.6));
+    /* Bottom depth */
+
+    transition: all 0.2s ease;
+}
+
+/* LEFT SIDEBAR ICONS: crisp, Stripe sizing (18px) */
+.vizja-sidebar .block svg {
+    width: 18px !important;
+    height: 18px !important;
+    max-width: none !important;
+    max-height: none !important;
+    stroke-width: 1.6px !important;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: none !important;
+    transition: none !important;
+    transform: none !important;
+}
+
+.vizja-sidebar-right .block:hover svg {
+    stroke: #FFFFFF;
+    filter: drop-shadow(0px 0px 8px rgba(255, 255, 255, 0.6))
+        /* Glow */
+        drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.8));
+    /* Deep shadow */
+    transform: translateY(-1px);
+    /* Slight lift */
+}
+
+.vizja-sidebar .block:hover svg {
+    filter: none !important;
+    transform: none !important;
+}
+
+/* ACTIVE STATE FOR LEFT SIDEBAR */
+.vizja-sidebar .block.active {
+    background: rgba(255, 255, 255, 0.08) !important;
+    box-shadow: none !important;
+    border-radius: 6px !important;
+    color: #FFFFFF !important;
+}
+
+.vizja-sidebar .block.active svg {
+    filter: none !important;
+    transform: none !important;
+}
+
+/* SIDEBAR EXPAND/COLLAPSE CHEVRON BUTTON - UNIFIED PLUMB LINE */
+.sidebar-chevron-btn {
+    position: absolute !important;
+    left: 146px !important;
+    top: 50% !important;
+    margin-top: -10px !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 3px !important;
+    width: 20px !important;
+    height: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    color: rgba(255, 255, 255, 0.45) !important;
+    border-radius: 4px !important;
+    transition: color 0.15s ease, background-color 0.15s ease !important;
+    line-height: 1 !important;
+    z-index: 5 !important;
+    box-shadow: none !important;
+}
+
+.vizja-sidebar .block:hover .sidebar-chevron-btn {
+    color: rgba(255, 255, 255, 0.75) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.sidebar-chevron-btn:hover {
+    color: #22c55e !important;
+    background: var(--skin-sidebar-bg, #181818) !important;
+    box-shadow: none !important;
+}
+
+.sidebar-chevron-btn:hover .sidebar-chevron,
+.sidebar-chevron-btn:hover svg {
+    color: #22c55e !important;
+    stroke: #22c55e !important;
+}
+
+.sidebar-chevron-btn svg,
+.sidebar-chevron-btn .sidebar-chevron {
+    transform: none !important;
+    filter: none !important;
+}
+
+.sidebar-chevron {
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.15s ease, color 0.15s ease !important;
+    stroke-width: 2px !important;
+    display: block !important;
+}
+
+.sidebar-chevron.expanded {
+    transform: rotate(180deg) !important;
+}
+
+.sidebar-expandable-section {
+    width: 100% !important;
+    position: relative !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* SIDEBAR ACCORDION SUB-ITEMS CONTAINER */
+.sidebar-sub-items-container {
+    display: grid !important;
+    grid-template-rows: 0fr !important;
+    opacity: 0 !important;
+    transition: grid-template-rows 0.24s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+}
+
+.sidebar-sub-items-container:not(.expanded) {
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    overflow: hidden !important;
+}
+
+.sidebar-sub-items-container.expanded {
+    grid-template-rows: 1fr !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    overflow: visible !important;
+}
+
+.sidebar-sub-items-content {
+    min-height: 0 !important;
+    overflow: visible !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Divider spacer between sidebar sections: maintains exact spacing without a line */
+.sidebar-divider-spacer {
+    height: 1px !important;
+    margin: 10.5px 16px !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    flex-shrink: 0 !important;
+}
+
+body.sidebar-half .sidebar-divider-spacer,
+body.sidebar-collapsed .sidebar-divider-spacer {
+    display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* SIDEBAR THEMED COLORS - GLOBAL FOR ALL SIDEBAR ITEMS (Right Sidebar Only) */
+.vizja-sidebar-right .block {
+    color: var(--skin-sidebar-link, #90E0EF) !important;
+    /* Light Blue Text Default */
+}
+
+.vizja-sidebar-right .block svg {
+    stroke: var(--skin-sidebar-icon, #FFF200) !important;
+    /* Yellow Icons Default */
+}
+
+/* Specific item overrides if needed (Keeping structure for future overrides) */
+.vizja-sidebar-right .sidebar-item-explore,
+.vizja-sidebar-right .sidebar-item-trending,
+.vizja-sidebar-right .sidebar-item-shorts,
+.vizja-sidebar-right .sidebar-item-what,
+.vizja-sidebar-right .sidebar-item-system,
+.vizja-sidebar-right .sidebar-item-users,
+.vizja-sidebar-right .sidebar-item-projects,
+.vizja-sidebar-right .sidebar-item-workspaces,
+.vizja-sidebar-right .sidebar-item-teams,
+.vizja-sidebar-right .sidebar-item-ideas,
+.vizja-sidebar-right .sidebar-item-dashboard {
+    color: var(--skin-sidebar-link, #90E0EF) !important;
+}
+
+.vizja-sidebar-right .sidebar-item-explore svg,
+.vizja-sidebar-right .sidebar-item-trending svg,
+.vizja-sidebar-right .sidebar-item-shorts svg,
+.vizja-sidebar-right .sidebar-item-what svg,
+.vizja-sidebar-right .sidebar-item-system svg,
+.vizja-sidebar-right .sidebar-item-users svg,
+.vizja-sidebar-right .sidebar-item-projects svg,
+.vizja-sidebar-right .sidebar-item-workspaces svg,
+.vizja-sidebar-right .sidebar-item-teams svg,
+.vizja-sidebar-right .sidebar-item-ideas svg,
+.vizja-sidebar-right .sidebar-item-dashboard svg {
+    stroke: var(--skin-sidebar-icon, #FFF200) !important;
+}
+
+
+/* LEFT SIDEBAR ALIGNMENT: [ICON] [TEXT] */
+.vizja-sidebar .block {
+    justify-content: flex-start !important;
+    align-items: center !important;
+    flex-direction: row !important;
+    text-align: left;
+    gap: 14px !important;
+}
+
+.vizja-sidebar .block span {
+    margin-right: 0 !important;
+    white-space: nowrap;
+}
+
+/* RIGHT SIDEBAR ALIGNMENT: [TEXT] [ICON] */
+.vizja-sidebar-right .block {
+    justify-content: flex-start !important;
+    align-items: center !important;
+    /* Start of Row-Reverse = Right Side */
+    flex-direction: row-reverse !important;
+    text-align: right;
+    gap: 16px;
+}
+
+/* Right sidebar - all items 1 block high */
+/* Right sidebar container */
+.vizja-sidebar-right {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    height: 100%;
+    padding-top: 10px;
+    overflow-y: visible;
+    /* Allow full expansion */
+}
+
+/* Notifications Display - 3 line ticker */
+.notifications-display {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: linear-gradient(145deg,
+            #B8B8B8 0%,
+            #C0C0C0 30%,
+            var(--block-medium) 70%,
+            #D0D0D0 100%);
+    box-shadow: var(--shadow-pressed);
+    border: 1px solid rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+}
+
+.notification-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 9px;
+    color: #2A2A2A;
+    padding: 2px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    animation: slideUp 0.3s ease-out;
+}
+
+.notification-line:last-child {
+    border-bottom: none;
+}
+
+.notification-text {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 500;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.notification-time {
+    font-size: 8px;
+    color: var(--accent-sage);
+    margin-left: 8px;
+    font-weight: 600;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(10px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Sidebar spacer - pulls bottom items up by being fixed height instead of flexible */
+.sidebar-spacer {
+    flex: 0 0 20px;
+    height: 20px;
+    background: transparent;
+    opacity: 0.5;
+}
+
+/* =====================================================
+   CONTENT AREA - VERTICAL STACK
+   ===================================================== */
+
+.vizja-content {
+    background: var(--bg-body);
+    display: flex;
+    flex-direction: column;
+    gap: var(--grid-gap);
+    overflow-y: auto;
+    height: 100%;
+    min-height: 0; /* CRITICAL: allows flex/grid scroll container to correctly compute scrollHeight */
+    padding: 20px 0 0 0;
+    /* Extra distance to prevent content touching tab bars */
+    position: relative;
+    /* Ensure z-index works */
+    z-index: 10;
+    /* Sit ABOVE the topbar/shadow */
+    min-width: 0; /* Pillar: Ensure grid child can shrink below initial content size */
+    box-sizing: border-box;
+}
+
+/* Natural-scrolling content area utility (v7.9.7) */
+.vizja-content-natural {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow-y: visible !important;
+    display: block !important;
+}
+
+/* =====================================================
+   IDEAS GRID - PERFECT CARD ALIGNMENT
+   ===================================================== */
+
+.vizja-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(calc(var(--grid-unit) * 4), 1fr));
+    grid-auto-rows: calc(var(--grid-unit) * 3 + var(--grid-gap) * 2);
+    /* 3 blocks tall */
+    gap: var(--grid-gap);
+    align-content: start;
+    padding-bottom: 40px;
+}
+
+
+/* =====================================================
+   BASE BLOCK COMPONENT (OP-1 Key Style)
+   ===================================================== */
+
+.block {
+    /* Enhanced 3D gradient for depth - Darker with stronger contrast */
+    /* Enhanced 3D gradient for depth - VERY DARK GRAY THEME */
+    background: linear-gradient(145deg,
+            #353535 0%,
+            /* Top highlight */
+            #2a2a2a 20%,
+            /* Upper surface */
+            #181818 50%,
+            /* Base */
+            #181818 100%
+            /* Bottom shadow */
+        );
+    border-radius: var(--radius-sm);
+    /* Reduced to prevent gap overlap */
+    box-shadow: var(--shadow-raised);
+
+    /* NO BORDERS - gaps provide all visual separation */
+    font-weight: 500;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    color: #DDDDDD;
+
+    cursor: pointer;
+    user-select: none;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 13px;
+    /* Larger font to fit block size */
+    transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Ensure blocks fill their grid cells */
+    width: 100%;
+    height: 100%;
+
+    /* Center content */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    /* Lighter text with subtle shadow */
+    /* Lighter text for dark blocks */
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    color: #DDDDDD;
+    /* Light Gray Font */
+}
+
+/* styled ICONS - Matching Ideanite Logo Style */
+.block svg {
+    stroke: #FFFFFF;
+    /* High contrast white */
+    stroke-width: 2.2px;
+    /* Bolder outline */
+    filter: drop-shadow(0 0 3px rgba(50, 255, 100, 0.4));
+    /* Subtle Neon Green Glow */
+    transition: all 0.2s ease;
+}
+
+/* Default svg size for non-sidebar blocks (retained) */
+/* .block svg ruleset removed as it was empty */
+
+.block:hover svg {
+    stroke: #8AFF8A;
+    /* Neon Green on hover */
+    filter: drop-shadow(0 0 5px rgba(50, 255, 100, 0.8));
+}
+
+/* Pressed/Active State (Pushed In) */
+.block:active {
+    background: linear-gradient(145deg,
+            #151515 0%,
+            #181818 50%,
+            #202020 100%);
+    box-shadow: var(--shadow-pressed);
+}
+
+/* Hover State (Subtle Lift) */
+.block:hover:not(:active) {
+    background: linear-gradient(145deg,
+            #404040 0%,
+            #353535 20%,
+            #303030 50%,
+            #2a2a2a 100%);
+    box-shadow: var(--shadow-hover);
+}
+
+/* =====================================================
+   STATIC BLOCKS (Non-Interactive)
+   ===================================================== */
+
+.block-static {
+    cursor: default !important;
+    pointer-events: none;
+}
+
+.block-static:hover {
+    background: linear-gradient(145deg,
+            #353535 0%,
+            #2a2a2a 20%,
+            #181818 50%,
+            #181818 100%) !important;
+    box-shadow: var(--shadow-raised) !important;
+}
+
+.block-static:active {
+    background: linear-gradient(145deg,
+            #353535 0%,
+            #2a2a2a 20%,
+            #181818 50%,
+            #181818 100%) !important;
+    box-shadow: var(--shadow-raised) !important;
+}
+
+/* =====================================================
+   SPECIALIZED BLOCKS
+   ===================================================== */
+
+/* Recessed (Search Bar) - Dark */
+.block-recessed {
+    background: linear-gradient(145deg,
+            #151515 0%,
+            #181818 30%,
+            #202020 70%,
+            #252525 100%);
+    box-shadow: var(--shadow-pressed);
+    border: none;
+    cursor: text;
+    justify-content: flex-start;
+    padding: 0 16px;
+}
+
+.block-recessed input {
+    background: transparent;
+    border: none;
+    outline: none;
+    width: 100%;
+    color: #E0E0E0;
+    font-size: 13px;
+    font-weight: 500;
+    text-transform: none;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
+}
+
+.block-recessed input::placeholder {
+    color: #888;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* Hero Block */
+/* Hero Block - Dark */
+.block-hero {
+    background: linear-gradient(145deg,
+            #303030 0%,
+            #2a2a2a 20%,
+            #181818 60%,
+            #181818 100%);
+    box-shadow: var(--shadow-deep);
+    border: none;
+    flex-direction: column;
+    justify-content: center;
+    padding: 24px;
+    text-align: left;
+}
+
+.block-hero h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent-yellow);
+    margin: 0 0 8px 0;
+    text-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.8),
+        0 1px 0 rgba(0, 0, 0, 1);
+    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.3));
+}
+
+.block-hero p {
+    font-size: 14px;
+    color: #CCCCCC;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8);
+}
+
+/* Card Block */
+/* Card Block - Dark */
+.block-card {
+    background: linear-gradient(145deg,
+            #2e2e2e 0%,
+            #282828 20%,
+            #181818 60%,
+            #1b1b1b 100%);
+    box-shadow: var(--shadow-deep);
+    border: none;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    padding: 0;
+    overflow: hidden;
+}
+
+.block-card:hover {
+    box-shadow:
+        0 2px 1px rgba(255, 255, 255, 0.1),
+        0 4px 8px rgba(0, 0, 0, 0.5),
+        0 8px 16px rgba(0, 0, 0, 0.4),
+        inset 0 -1px 2px rgba(0, 0, 0, 0.2),
+        inset 0 1px 2px rgba(255, 255, 255, 0.1);
+}
+
+.block-card-image {
+    width: 100%;
+    height: calc(var(--grid-unit) * 2);
+    background: linear-gradient(135deg,
+            #151515 0%,
+            #202020 30%,
+            #252525 70%,
+            #303030 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    color: rgba(255, 255, 255, 0.2);
+    flex-shrink: 0;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.block-card-content {
+    padding: 12px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    justify-content: flex-start;
+}
+
+.block-card-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #E0E0E0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.block-card-meta {
+    font-size: 10px;
+    color: #888;
+    font-weight: 400;
+    text-transform: none;
+}
+
+/* =====================================================
+   ACCENT STYLES
+   ===================================================== */
+
+/* Colored Borders */
+.block-accent-teal {
+    border-left: 4px solid var(--accent-teal);
+}
+
+.block-accent-coral {
+    border-left: 4px solid var(--accent-coral);
+}
+
+.block-accent-yellow {
+    border-left: 4px solid var(--accent-yellow);
+}
+
+.block-accent-blue {
+    border-left: 4px solid var(--accent-blue);
+}
+
+.block-accent-red {
+    border-left: 4px solid var(--accent-red);
+}
+
+.block-accent-sage {
+    border-left: 4px solid var(--accent-sage);
+}
+
+/* Indicator Dots */
+.block-indicator {
+    position: relative;
+}
+
+/* Indicator Dots - REMOVED FOR CLEAN COMIC LOOK */
+.block-indicator::after {
+    display: none;
+}
+
+/* Indicators Hidden */
+.block-indicator-yellow::after,
+.block-indicator-red::after,
+.block-indicator-blue::after,
+.block-indicator-sage::after,
+.block-indicator-coral::after {
+    display: none;
+}
+
+/* CTA Buttons */
+.block-cta-teal {
+    background: linear-gradient(145deg, var(--accent-teal), #155561);
+    color: #E1DED2;
+}
+
+/* =====================================================
+   BUTTON ALIGNMENT
+   ===================================================== */
+
+.block-button {
+    justify-content: flex-start;
+    padding-left: 16px;
+    gap: 8px;
+}
+
+.block-button-center {
+    justify-content: center;
+}
+
+/* =====================================================
+   RESPONSIVE
+   ===================================================== */
+
+
+/* Legacy 768px horizontal sidebar overrides removed to maintain vertical desktop aesthetic v7.0 */
+@media (max-width: 768px) {
+    :root {
+        --grid-unit: 48px;
+    }
+}
+
+/* Global Scrollbar Fix */
+/* Global Scrollbar Fix removed to allow local .vizja-content scrolling */
+
+/* Custom Scrollbar Styling (Premium Vibe) - Excludes sidebar which has dedicated hover reveal */
+:not(.vizja-sidebar)::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+:not(.vizja-sidebar)::-webkit-scrollbar-track {
+    background: #0a0a0f;
+}
+
+:not(.vizja-sidebar)::-webkit-scrollbar-thumb {
+    background: #1e1e2d;
+    border-radius: 4px;
+    border: 2px solid #0a0a0f;
+}
+
+:not(.vizja-sidebar)::-webkit-scrollbar-thumb:hover {
+    background: #2a2a3d;
+}
+
+/* =====================================================
+   NATURAL SCROLL OVERRIDES (v7.9.8)
+   Unlocks the viewport for Group, Idea, and Project pages
+   ===================================================== */
+
+/* Applied to document.body via MainLayout.tsx */
+body.vizja-natural-scroll-root {
+    overflow: auto !important;
+    height: auto !important;
+    min-height: 100dvh !important;
+}
+
+.vizja-natural-scroll-root html {
+    overflow: auto !important;
+    height: auto !important;
+}
+
+.vizja-natural-scroll-root .vizja-app {
+    height: auto !important;
+    min-height: 100dvh !important;
+    overflow: visible !important;
+    width: 100%;
+    overflow-x: clip !important;
+}
+
+.vizja-natural-scroll-root .vizja-main {
+    height: auto !important;
+    min-height: calc(100dvh - 78px) !important;
+    overflow: visible !important;
+    /* Do NOT use display: block; keep the grid layout to prevent side overflow */
+}
+
+.vizja-natural-scroll-root .vizja-content {
+    height: auto !important;
+    overflow: visible !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    /* Slight margin to clear mobile browser bars comfortably */
+    padding-bottom: 40px !important; 
+}
+
+/* Sidebar Stickiness on Mobile/Natural Scroll Screens */
+.vizja-natural-scroll-root .vizja-sidebar {
+    position: sticky !important;
+    top: 0;
+    height: 100dvh !important;
+    z-index: 9500 !important;
+}
+
+/* Immersive Mobile Mode when Ideanitor is Open */
+@media (max-width: 860px) {
+    body.body-ideanitor-open .vizja-topbar-wrapper {
+        z-index: 2500000 !important; /* Above panel (1M) */
+        background: transparent !important;
+        border-bottom: none !important;
+        box-shadow: none !important;
+        pointer-events: none !important;
+    }
+
+    body.body-ideanitor-open .vizja-topbar-wrapper::before,
+    body.body-ideanitor-open .vizja-topbar-wrapper::after {
+        display: none !important;
+        box-shadow: none !important;
+        opacity: 0 !important;
+    }
+
+    /* Hide everything in TopBar except the Right Dots (desktop) and Right Cluster (mobile Ideanitor) */
+    body.body-ideanitor-open .vizja-topbar-wrapper > *:not(.ideanitor-dots-right):not(.topbar-icons-right-cluster) {
+        display: none !important;
+    }
+
+    body.body-ideanitor-open .topbar-tab-group {
+        display: none !important;
+    }
+
+    /* Ensure specific dot visibility - hiding left dots specifically as requested */
+    body.body-ideanitor-open .three-yellow-dots {
+        display: none !important;
+    }
+
+    body.body-ideanitor-open .ideanitor-dots-right,
+    body.body-ideanitor-open .topbar-icons-right-cluster {
+        display: flex !important;
+        pointer-events: auto !important;
+        z-index: 2500001 !important; /* Topmost supremacy */
+    }
+
+    body.body-ideanitor-open .topbar-mobile-ideanitor-btn {
+        display: flex !important;
+        pointer-events: auto !important;
+        z-index: 2500001 !important;
+    }
+}
+
+/* Handle secondary scroll traps in specific layouts if needed */
+.vizja-natural-scroll-root .ideas-page-container,
+.vizja-natural-scroll-root .projects-container,
+.vizja-natural-scroll-root .dual-pane-container,
+.vizja-natural-scroll-root .network-page-wrapper,
+.vizja-natural-scroll-root .network-page-container {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+}
+
+/* Hard reset for content utility mentioned in v7.9.6 */
+.vizja-content-natural {
+    height: auto !important;
+    overflow: visible !important;
+}
+
+/* =====================================================
+   MOBILE SIDEBAR STABILIZATION (v26.1)
+   Ensures sidebar always PUSHES content instead of overlapping.
+   Applied globally for consistent cross-platform behavior.
+   ===================================================== */
+@media (max-width: 860px) {
+    .vizja-main {
+        display: grid !important;
+        grid-template-columns: var(--sidebar-width, 0px) 1fr !important;
+        width: 100% !important;
+        overflow-x: hidden !important;
+    }
+
+    .vizja-sidebar {
+        grid-column: 1 !important;
+        grid-row: 1 !important;
+        /* Occupy space in the grid while allowing transitions */
+        position: relative !important; 
+        width: var(--sidebar-width, 0px) !important;
+        min-width: var(--sidebar-width, 0px) !important;
+        z-index: 90000 !important; /* Below topbar (800k) but above content */
+        visibility: visible !important;
+        transform: none !important;
+        
+        /* Enable vertical scrolling with permanent 4px gutter on the left */
+        overflow-y: scroll !important;
+        overflow-x: hidden !important;
+        direction: rtl !important;
+        padding-left: 2px !important;
+        padding-top: 50px !important;
+        -webkit-overflow-scrolling: touch !important;
+        overscroll-behavior: contain !important;
+    }
+
+    .vizja-sidebar > * {
+        direction: ltr !important;
+    }
+
+    /* Support for natural scroll mode stickiness while maintaining grid space */
+    body.vizja-natural-scroll-root .vizja-sidebar {
+        position: sticky !important;
+        top: 0;
+        height: 100dvh !important;
+    }
+
+    .vizja-content {
+        grid-column: 2 !important;
+        grid-row: 1 !important;
+        width: 100% !important;
+        min-width: 0 !important; /* CRITICAL: Force the 1fr column to actually resize/push */
+        flex: 1 !important;
+    }
+    
+    .vizja-app {
+        padding-bottom: calc(40px + env(safe-area-inset-bottom)) !important;
+    }
+
+    /* Ensure body classes correctly update the width variable for the grid engine */
+    body.sidebar-collapsed {
+        --sidebar-width: 0px !important;
+    }
+    body.sidebar-half {
+        --sidebar-width: 64px !important;
+    }
+    body.sidebar-expanded {
+        --sidebar-width: 320px !important;
+    }
+}
+
+/* =====================================================
+   STATIC BRAND COLORS & HOVER GLOW / RAISE ANIMATIONS
+   ===================================================== */
+
+/* 1. Static colors for icons inside Tab Bar and Left Sidebar (Only when ACTIVE) */
+/* Home (White) */
+.nav-link-home.active svg,
+.sidebar-item-home.active svg {
+    stroke: #FFFFFF !important;
+    color: #FFFFFF !important;
+}
+
+/* Ideas (Yellow) */
+.nav-link-ideas.active svg,
+.sidebar-item-ideas.active svg {
+    stroke: #FFF200 !important;
+    color: #FFF200 !important;
+}
+
+/* Packs / Collections (Orange Sunset) */
+.nav-link-packs.active svg,
+.sidebar-item-packs.active svg,
+.nav-link-collections.active svg,
+.sidebar-item-collections.active svg {
+    stroke: #FF6600 !important;
+    color: #FF6600 !important;
+}
+
+/* Projects / Workspaces (Multi-Color) */
+.nav-link-projects.active svg,
+.sidebar-item-projects.active svg,
+.nav-link-workspaces.active svg,
+.sidebar-item-workspaces.active svg {
+    /* Multi-color squares define their own stroke */
+}
+
+/* Network (Deep Blue) */
+.nav-link-network.active .sidebar-icon-wrapper svg,
+.sidebar-item-network.active .sidebar-icon-wrapper svg {
+    stroke: #00A3FF !important;
+    color: #00A3FF !important;
+}
+
+/* Favorites (Ferrari Red) */
+.sidebar-item-favorites.active svg {
+    stroke: #E32636 !important;
+    color: #E32636 !important;
+}
+
+/* Connect (Teal -> Green) */
+.nav-link-connect.active svg,
+.sidebar-item-connect.active svg {
+    stroke: #00FF00 !important;
+    color: #00FF00 !important;
+}
+
+/* Player (Amber / Orange LED #fbbf24) */
+.nav-link-sampler.active svg .player-outer-circle,
+.nav-link-sampler.active svg .player-center-hole,
+.sidebar-item-player.active svg .player-outer-circle,
+.sidebar-item-player.active svg .player-center-hole {
+    stroke: #fbbf24 !important;
+    color: #fbbf24 !important;
+}
+
+.nav-link-sampler.active svg .player-groove,
+.sidebar-item-player.active svg .player-groove {
+    stroke: #ffffff !important;
+    color: #ffffff !important;
+}
+
+/* 2. Transition properties for SVGs inside tab bar & left sidebar links */
+.nav-icon-link svg,
+.vizja-sidebar .block svg {
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), filter 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* 3. Hover effects (translate translateY and drop-shadow glow from behind) */
+/* Home Hover Glow */
+.nav-link-home:hover svg,
+.sidebar-item-home:hover svg {
+    stroke: #FFFFFF !important;
+    color: #FFFFFF !important;
+    transform: translateY(-2px) !important;
+    filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.4)) !important;
+}
+
+/* Ideas Hover Glow */
+.nav-link-ideas:hover svg,
+.sidebar-item-ideas:hover svg {
+    stroke: #FFF200 !important;
+    color: #FFF200 !important;
+    transform: translateY(-2px) !important;
+    filter: drop-shadow(0 0 3px rgba(255, 242, 0, 0.4)) !important;
+}
+
+/* Packs / Collections Hover Glow */
+.nav-link-packs:hover svg,
+.sidebar-item-packs:hover svg,
+.nav-link-collections:hover svg,
+.sidebar-item-collections:hover svg {
+    stroke: #FF6600 !important;
+    color: #FF6600 !important;
+    transform: translateY(-2px) !important;
+    filter: drop-shadow(0 0 3px rgba(255, 85, 0, 0.4)) !important;
+}
+
+/* Projects / Workspaces Hover Glow (Individual Squares) */
+.nav-link-projects:hover svg,
+.sidebar-item-projects:hover svg,
+.nav-link-workspaces:hover svg,
+.sidebar-item-workspaces:hover svg {
+    transform: translateY(-2px) !important;
+    filter: none !important;
+}
+.nav-link-projects:hover svg rect:nth-of-type(1),
+.sidebar-item-projects:hover svg rect:nth-of-type(1),
+.nav-link-workspaces:hover svg rect:nth-of-type(1),
+.sidebar-item-workspaces:hover svg rect:nth-of-type(1) {
+    stroke: #00FF00 !important;
+    color: #00FF00 !important;
+    filter: drop-shadow(0 0 3px rgba(0, 255, 0, 0.4));
+}
+.nav-link-projects:hover svg rect:nth-of-type(2),
+.sidebar-item-projects:hover svg rect:nth-of-type(2),
+.nav-link-workspaces:hover svg rect:nth-of-type(2),
+.sidebar-item-workspaces:hover svg rect:nth-of-type(2) {
+    stroke: #FFF200 !important;
+    color: #FFF200 !important;
+    filter: drop-shadow(0 0 3px rgba(255, 242, 0, 0.4));
+}
+.nav-link-projects:hover svg rect:nth-of-type(3),
+.sidebar-item-projects:hover svg rect:nth-of-type(3),
+.nav-link-workspaces:hover svg rect:nth-of-type(3),
+.sidebar-item-workspaces:hover svg rect:nth-of-type(3) {
+    stroke: #00A3FF !important;
+    color: #00A3FF !important;
+    filter: drop-shadow(0 0 3px rgba(0, 163, 255, 0.4));
+}
+.nav-link-projects:hover svg rect:nth-of-type(4),
+.sidebar-item-projects:hover svg rect:nth-of-type(4),
+.nav-link-workspaces:hover svg rect:nth-of-type(4),
+.sidebar-item-workspaces:hover svg rect:nth-of-type(4) {
+    stroke: #FF6600 !important;
+    color: #FF6600 !important;
+    filter: drop-shadow(0 0 3px rgba(255, 85, 0, 0.4));
+}
+
+/* Network Hover Glow */
+.nav-link-network:hover .sidebar-icon-wrapper svg,
+.sidebar-item-network:hover .sidebar-icon-wrapper svg {
+    stroke: #00A3FF !important;
+    color: #00A3FF !important;
+    transform: translateY(-2px) !important;
+    filter: drop-shadow(0 0 3px rgba(0, 163, 255, 0.4)) !important;
+}
+
+/* Favorites Hover Glow */
+.sidebar-item-favorites:hover svg {
+    stroke: #E32636 !important;
+    color: #E32636 !important;
+    transform: translateY(-2px) !important;
+    filter: drop-shadow(0 0 3px rgba(227, 38, 54, 0.4)) !important;
+}
+
+/* Connect Hover Glow */
+.nav-link-connect:hover svg,
+.sidebar-item-connect:hover svg {
+    stroke: #00FF00 !important;
+    color: #00FF00 !important;
+    transform: translateY(-2px) !important;
+    filter: drop-shadow(0 0 3px rgba(0, 255, 0, 0.4)) !important;
+}
+
+/* Player Hover Glow */
+.nav-link-sampler:hover svg .player-outer-circle,
+.nav-link-sampler:hover svg .player-center-hole,
+.sidebar-item-player:hover svg .player-outer-circle,
+.sidebar-item-player:hover svg .player-center-hole {
+    stroke: #fbbf24 !important;
+    color: #fbbf24 !important;
+}
+
+.nav-link-sampler:hover svg .player-groove,
+.sidebar-item-player:hover svg .player-groove {
+    stroke: #ffffff !important;
+    color: #ffffff !important;
+}
+
+.nav-link-sampler:hover svg,
+.sidebar-item-player:hover svg {
+    transform: translateY(-2px) !important;
+    filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.4)) !important;
+}
+
+/* All left sidebar text color = Paper White (#E1DED2) */
+.vizja-sidebar,
+.vizja-sidebar .block,
+.vizja-sidebar .block span,
+.vizja-sidebar a,
+.vizja-sidebar .nav-label,
+.vizja-sidebar .pinned-project-item,
+.vizja-sidebar .pinned-project-item span {
+    color: #E1DED2 !important;
+}
+
+/* Pinned Projects & Groups Quick Links Override - Stripe Sub-items Indented Typography */
+.vizja-sidebar .block.pinned-project-item,
+.vizja-sidebar-right .block.pinned-project-item { 
+    margin: 1px 8px 1px 12px !important; 
+    width: calc(100% - 20px) !important;
+    min-height: 28px !important; 
+    height: 28px !important; 
+    padding: 0 10px 0 44px !important; 
+    border-radius: 6px !important; 
+    color: #E1DED2 !important;
+    box-shadow: none !important;
+    border: none !important;
+    display: flex !important;
+    align-items: center !important;
+    cursor: pointer !important;
+    overflow: visible !important;
+    text-decoration: none !important;
+}
+
+.vizja-sidebar .block.pinned-project-item.sidebar-create-idea-btn {
+    padding: 0 10px 0 44px !important;
+    gap: 0 !important;
+}
+
+.vizja-sidebar .sidebar-sub-action-label {
+    display: inline-flex !important;
+    align-items: center !important;
+    width: 100% !important;
+}
+
+.vizja-sidebar .sidebar-sub-name {
+    display: inline-block !important;
+    width: 48px !important;
+    color: #E1DED2 !important;
+}
+
+.vizja-sidebar .sidebar-sub-plus,
+.vizja-sidebar .block.pinned-project-item.sidebar-create-idea-btn .sidebar-sub-plus,
+.vizja-sidebar .block.pinned-project-item.sidebar-create-idea-btn:focus .sidebar-sub-plus,
+.vizja-sidebar .block.pinned-project-item.sidebar-create-idea-btn:active .sidebar-sub-plus {
+    color: #E1DED2 !important;
+    font-weight: 700 !important;
+    font-size: 14px !important;
+    line-height: 1 !important;
+    transition: color 0.12s ease, text-shadow 0.12s ease !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .vizja-sidebar .block.pinned-project-item.sidebar-create-idea-btn:hover .sidebar-sub-plus {
+        color: #22c55e !important;
+        text-shadow: 0 0 10px rgba(34, 197, 94, 0.75) !important;
+    }
+}
+
+.vizja-sidebar .block.pinned-project-item span,
+.vizja-sidebar .block.pinned-project-item .pinned-sub-label,
+.vizja-sidebar-right .block.pinned-project-item span {
+    color: #E1DED2 !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    letter-spacing: 0 !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: ellipsis !important;
+    line-height: normal !important;
+    padding-bottom: 0 !important;
+    display: inline-block !important;
+    transition: color 0.12s ease !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .vizja-sidebar .block.pinned-project-item:hover,
+    .vizja-sidebar-right .block.pinned-project-item:hover {
+        background: rgba(255, 255, 255, 0.05) !important;
+        box-shadow: none !important;
+    }
+    .vizja-sidebar .block.pinned-project-item:hover span,
+    .vizja-sidebar .block.pinned-project-item:hover .pinned-sub-label,
+    .vizja-sidebar-right .block.pinned-project-item:hover span {
+        color: #FFFFFF !important;
+    }
+}
+
+.vizja-sidebar .block.pinned-project-item.active,
+.vizja-sidebar-right .block.pinned-project-item.active {
+    background: rgba(255, 255, 255, 0.08) !important;
+    box-shadow: none !important;
+}
+
+.vizja-sidebar .block.pinned-project-item.active span,
+.vizja-sidebar .block.pinned-project-item.active .pinned-sub-label,
+.vizja-sidebar-right .block.pinned-project-item.active span {
+    color: #FFFFFF !important;
+    font-weight: 500 !important;
+}
+
+/* Active Collections / Packs Icon Animation */
+.nav-link-packs:hover .collection-layer-1 rect,
+.sidebar-item-packs:hover .collection-layer-1 rect,
+.nav-link-packs.active .collection-layer-1 rect,
+.sidebar-item-packs.active .collection-layer-1 rect,
+.nav-link-collections:hover .collection-layer-1 rect,
+.sidebar-item-collections:hover .collection-layer-1 rect,
+.nav-link-collections.active .collection-layer-1 rect,
+.sidebar-item-collections.active .collection-layer-1 rect {
+    transform-origin: center;
+    transform-box: fill-box;
+    animation: isometricSpinLayer 3s cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
+}
+
+.nav-link-packs:hover .collection-layer-2 rect,
+.sidebar-item-packs:hover .collection-layer-2 rect,
+.nav-link-packs.active .collection-layer-2 rect,
+.sidebar-item-packs.active .collection-layer-2 rect,
+.nav-link-collections:hover .collection-layer-2 rect,
+.sidebar-item-collections:hover .collection-layer-2 rect,
+.nav-link-collections.active .collection-layer-2 rect,
+.sidebar-item-collections.active .collection-layer-2 rect {
+    transform-origin: center;
+    transform-box: fill-box;
+    animation: isometricSpinLayer 3s cubic-bezier(0.25, 0.1, 0.25, 1) infinite 0.6s;
+}
+
+.nav-link-packs:hover .collection-layer-3 rect,
+.sidebar-item-packs:hover .collection-layer-3 rect,
+.nav-link-packs.active .collection-layer-3 rect,
+.sidebar-item-packs.active .collection-layer-3 rect,
+.nav-link-collections:hover .collection-layer-3 rect,
+.sidebar-item-collections:hover .collection-layer-3 rect,
+.nav-link-collections.active .collection-layer-3 rect,
+.sidebar-item-collections.active .collection-layer-3 rect {
+    transform-origin: center;
+    transform-box: fill-box;
+    animation: isometricSpinLayer 3s cubic-bezier(0.25, 0.1, 0.25, 1) infinite 1.2s;
+}
+
+@keyframes isometricSpinLayer {
+    0% { transform: rotateZ(0deg); }
+    15% { transform: rotateZ(90deg); }
+    25% { transform: rotateZ(90deg); }
+    100% { transform: rotateZ(90deg); }
+}
+
+/* Active Ideas Icon Animation */
+.nav-link-ideas:hover .ideas-rays,
+.sidebar-item-ideas:hover .ideas-rays,
+.nav-link-ideas.active .ideas-rays,
+.sidebar-item-ideas.active .ideas-rays {
+    transform-origin: center;
+    transform-box: fill-box;
+    animation: spinIdeasRays 6s linear infinite;
+}
+
+@keyframes spinIdeasRays {
+    0% { transform: rotateZ(0deg); }
+    100% { transform: rotateZ(360deg); }
+}
+
+/* Active Projects / Workspaces Icon Animation & Colors */
+.nav-link-projects:hover .project-square-tl,
+.sidebar-item-projects:hover .project-square-tl,
+.nav-link-workspaces:hover .project-square-tl,
+.sidebar-item-workspaces:hover .project-square-tl,
+.nav-link-projects.active .project-square-tl,
+.sidebar-item-projects.active .project-square-tl,
+.nav-link-workspaces.active .project-square-tl,
+.sidebar-item-workspaces.active .project-square-tl,
+.block-indicator.sidebar-item-projects.active .project-square-tl,
+.block-indicator.sidebar-item-projects:hover .project-square-tl,
+.block-indicator.sidebar-item-workspaces.active .project-square-tl,
+.block-indicator.sidebar-item-workspaces:hover .project-square-tl {
+    transform-origin: center;
+    transform-box: fill-box;
+    stroke: #00FF00 !important;
+    animation: explodeRotateTL 2s infinite;
+}
+
+.nav-link-projects:hover .project-square-tr,
+.sidebar-item-projects:hover .project-square-tr,
+.nav-link-workspaces:hover .project-square-tr,
+.sidebar-item-workspaces:hover .project-square-tr,
+.nav-link-projects.active .project-square-tr,
+.sidebar-item-projects.active .project-square-tr,
+.nav-link-workspaces.active .project-square-tr,
+.sidebar-item-workspaces.active .project-square-tr,
+.block-indicator.sidebar-item-projects.active .project-square-tr,
+.block-indicator.sidebar-item-projects:hover .project-square-tr,
+.block-indicator.sidebar-item-workspaces.active .project-square-tr,
+.block-indicator.sidebar-item-workspaces:hover .project-square-tr {
+    transform-origin: center;
+    transform-box: fill-box;
+    stroke: #FFF200 !important;
+    animation: explodeRotateTR 2s infinite;
+}
+
+.nav-link-projects:hover .project-square-br,
+.sidebar-item-projects:hover .project-square-br,
+.nav-link-workspaces:hover .project-square-br,
+.sidebar-item-workspaces:hover .project-square-br,
+.nav-link-projects.active .project-square-br,
+.sidebar-item-projects.active .project-square-br,
+.nav-link-workspaces.active .project-square-br,
+.sidebar-item-workspaces.active .project-square-br,
+.block-indicator.sidebar-item-projects.active .project-square-br,
+.block-indicator.sidebar-item-projects:hover .project-square-br,
+.block-indicator.sidebar-item-workspaces.active .project-square-br,
+.block-indicator.sidebar-item-workspaces:hover .project-square-br {
+    transform-origin: center;
+    transform-box: fill-box;
+    stroke: #FF6600 !important;
+    animation: explodeRotateBR 2s infinite;
+}
+
+.nav-link-projects:hover .project-square-bl,
+.sidebar-item-projects:hover .project-square-bl,
+.nav-link-workspaces:hover .project-square-bl,
+.sidebar-item-workspaces:hover .project-square-bl,
+.nav-link-projects.active .project-square-bl,
+.sidebar-item-projects.active .project-square-bl,
+.nav-link-workspaces.active .project-square-bl,
+.sidebar-item-workspaces.active .project-square-bl,
+.block-indicator.sidebar-item-projects.active .project-square-bl,
+.block-indicator.sidebar-item-projects:hover .project-square-bl,
+.block-indicator.sidebar-item-workspaces.active .project-square-bl,
+.block-indicator.sidebar-item-workspaces:hover .project-square-bl {
+    transform-origin: center;
+    transform-box: fill-box;
+    stroke: #00A3FF !important;
+    animation: explodeRotateBL 2s infinite;
+}
+
+@keyframes explodeRotateTL {
+    0% { transform: translate(0, 0) rotate(0deg); animation-timing-function: ease-in; }
+    12.5% { transform: translate(-1.5px, -1.5px) rotate(45deg); animation-timing-function: ease-out; }
+    25%, 100% { transform: translate(0, 0) rotate(90deg); }
+}
+
+@keyframes explodeRotateTR {
+    0%, 25% { transform: translate(0, 0) rotate(0deg); animation-timing-function: ease-in; }
+    37.5% { transform: translate(1.5px, -1.5px) rotate(45deg); animation-timing-function: ease-out; }
+    50%, 100% { transform: translate(0, 0) rotate(90deg); }
+}
+
+@keyframes explodeRotateBR {
+    0%, 50% { transform: translate(0, 0) rotate(0deg); animation-timing-function: ease-in; }
+    62.5% { transform: translate(1.5px, 1.5px) rotate(45deg); animation-timing-function: ease-out; }
+    75%, 100% { transform: translate(0, 0) rotate(90deg); }
+}
+
+@keyframes explodeRotateBL {
+    0%, 75% { transform: translate(0, 0) rotate(0deg); animation-timing-function: ease-in; }
+    87.5% { transform: translate(-1.5px, 1.5px) rotate(45deg); animation-timing-function: ease-out; }
+    100% { transform: translate(0, 0) rotate(90deg); }
+}
+
+/* Active Network Icon Animation */
+.globe-animated {
+    opacity: 0;
+}
+
+.nav-link-network:hover .globe-static,
+.sidebar-item-network:hover .globe-static,
+.nav-link-network.active .globe-static,
+.sidebar-item-network.active .globe-static {
+    opacity: 0;
+}
+
+.nav-link-network:hover .globe-animated,
+.sidebar-item-network:hover .globe-animated,
+.nav-link-network.active .globe-animated,
+.sidebar-item-network.active .globe-animated {
+    opacity: 1;
+}
+
+.nav-link-network:hover .meridian,
+.sidebar-item-network:hover .meridian,
+.nav-link-network.active .meridian,
+.sidebar-item-network.active .meridian {
+    transform-origin: 12px 12px;
+    transform-box: view-box;
+    animation: spinGlobeMeridian 8s linear infinite;
+}
+
+.nav-link-network:hover .meridian.m1, .sidebar-item-network:hover .meridian.m1, .nav-link-network.active .meridian.m1, .sidebar-item-network.active .meridian.m1 { animation-delay: 0s; }
+.nav-link-network:hover .meridian.m2, .sidebar-item-network:hover .meridian.m2, .nav-link-network.active .meridian.m2, .sidebar-item-network.active .meridian.m2 { animation-delay: -1s; }
+.nav-link-network:hover .meridian.m3, .sidebar-item-network:hover .meridian.m3, .nav-link-network.active .meridian.m3, .sidebar-item-network.active .meridian.m3 { animation-delay: -2s; }
+.nav-link-network:hover .meridian.m4, .sidebar-item-network:hover .meridian.m4, .nav-link-network.active .meridian.m4, .sidebar-item-network.active .meridian.m4 { animation-delay: -3s; }
+.nav-link-network:hover .meridian.m5, .sidebar-item-network:hover .meridian.m5, .nav-link-network.active .meridian.m5, .sidebar-item-network.active .meridian.m5 { animation-delay: -4s; }
+.nav-link-network:hover .meridian.m6, .sidebar-item-network:hover .meridian.m6, .nav-link-network.active .meridian.m6, .sidebar-item-network.active .meridian.m6 { animation-delay: -5s; }
+.nav-link-network:hover .meridian.m7, .sidebar-item-network:hover .meridian.m7, .nav-link-network.active .meridian.m7, .sidebar-item-network.active .meridian.m7 { animation-delay: -6s; }
+.nav-link-network:hover .meridian.m8, .sidebar-item-network:hover .meridian.m8, .nav-link-network.active .meridian.m8, .sidebar-item-network.active .meridian.m8 { animation-delay: -7s; }
+
+@keyframes spinGlobeMeridian {
+    0% { transform: scaleX(1); }
+    50% { transform: scaleX(-1); }
+    100% { transform: scaleX(1); }
+}
+
+/* Connect (Messenger) Icon Animation */
+.nav-link-connect:hover .messenger-dot,
+.sidebar-item-connect:hover .messenger-dot,
+.nav-link-connect.dropdown-open .messenger-dot,
+.nav-link-connect.active .messenger-dot,
+.sidebar-item-connect.active .messenger-dot {
+    animation: blinkConnectDot 2.5s infinite;
+    fill: #ffffff !important;
+}
+
+.nav-link-connect:hover .messenger-dot.d1,
+.sidebar-item-connect:hover .messenger-dot.d1,
+.nav-link-connect.dropdown-open .messenger-dot.d1,
+.nav-link-connect.active .messenger-dot.d1,
+.sidebar-item-connect.active .messenger-dot.d1 {
+    animation-delay: 0s;
+}
+
+.nav-link-connect:hover .messenger-dot.d2,
+.sidebar-item-connect:hover .messenger-dot.d2,
+.nav-link-connect.dropdown-open .messenger-dot.d2,
+.nav-link-connect.active .messenger-dot.d2,
+.sidebar-item-connect.active .messenger-dot.d2 {
+    animation-delay: 0.5s;
+}
+
+.nav-link-connect:hover .messenger-dot.d3,
+.sidebar-item-connect:hover .messenger-dot.d3,
+.nav-link-connect.dropdown-open .messenger-dot.d3,
+.nav-link-connect.active .messenger-dot.d3,
+.sidebar-item-connect.active .messenger-dot.d3 {
+    animation-delay: 1.0s;
+}
+
+@keyframes blinkConnectDot {
+    0% { opacity: 0; }
+    39.99% { opacity: 0; }
+    40% { opacity: 1; }
+    100% { opacity: 1; }
+}
+
+/* Favorites (Heart) Icon Animation */
+.sidebar-item-favorites:hover .sidebar-icon-wrapper,
+.sidebar-item-favorites.active .sidebar-icon-wrapper {
+    transform-origin: center;
+    animation: heartbeat 1s ease-in-out infinite !important;
+}
+
+@keyframes heartbeat {
+    0% { transform: scale(1); }
+    10% { transform: scale(1.15); }
+    20% { transform: scale(1); }
+    30% { transform: scale(1.15); }
+    40% { transform: scale(1); }
+    100% { transform: scale(1); }
+}
+
+/* Player (Vinyl) Grooves Rotation Animation */
+.player-vinyl-grooves {
+    transform-origin: 12px 12px;
+    transform-box: view-box;
+}
+
+.nav-link-sampler:hover .player-vinyl-grooves,
+.nav-link-sampler.active .player-vinyl-grooves,
+.sidebar-item-player:hover .player-vinyl-grooves,
+.sidebar-item-player.active .player-vinyl-grooves {
+    animation: spinPlayerVinylGrooves 2s linear infinite;
+}
+
+@keyframes spinPlayerVinylGrooves {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Collection Expand Animation */
+.collection-expand-wrapper {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s ease-out;
+}
+
+.collection-expand-wrapper.expanded {
+    grid-template-rows: 1fr;
+}
+
+.collection-expand-inner {
+    overflow: hidden;
+}
+
+/* ── Compact Table Typography (GitHub Style) ── */
+.neomorphic-sunken-table .project-item,
+.neomorphic-sunken-table .pack-item,
+.neomorphic-sunken-table .collection-item,
+.neomorphic-sunken-table .table-row,
+.neomorphic-sunken-table .plan-explorer-row {
+    font-size: 13.5px !important;
+}
+
+.neomorphic-sunken-table .item-name,
+.neomorphic-sunken-table .table-row .name-cell span {
+    font-size: 13.5px !important;
+    font-weight: 400 !important;
+    letter-spacing: -0.05px !important;
+}
+
+.neomorphic-sunken-table .date-cell,
+.neomorphic-sunken-table .meta-cell {
+    font-size: 12px !important;
+    color: #8E8EA0 !important;
+}
+
+/* =====================================================
+   SIDEBAR SCROLLBAR: INVISIBLE BY DEFAULT, DARK ON HOVER
+   ===================================================== */
+.vizja-sidebar,
+body.sidebar-half .vizja-sidebar,
+body.sidebar-expanded .vizja-sidebar,
+body.sidebar-collapsed .vizja-sidebar {
+    scrollbar-width: thin !important;
+    scrollbar-color: transparent transparent !important;
+}
+
+.vizja-sidebar:hover,
+body.sidebar-half .vizja-sidebar:hover,
+body.sidebar-expanded .vizja-sidebar:hover {
+    scrollbar-color: #1e1e2d transparent !important;
+}
+
+.vizja-sidebar::-webkit-scrollbar,
+body.sidebar-half .vizja-sidebar::-webkit-scrollbar,
+body.sidebar-expanded .vizja-sidebar::-webkit-scrollbar,
+body.sidebar-collapsed .vizja-sidebar::-webkit-scrollbar {
+    width: 6px !important;
+    background: transparent !important;
+}
+
+.vizja-sidebar::-webkit-scrollbar-track,
+.vizja-sidebar::-webkit-scrollbar-corner,
+body.sidebar-half .vizja-sidebar::-webkit-scrollbar-track,
+body.sidebar-half .vizja-sidebar::-webkit-scrollbar-corner,
+body.sidebar-expanded .vizja-sidebar::-webkit-scrollbar-track,
+body.sidebar-expanded .vizja-sidebar::-webkit-scrollbar-corner {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.vizja-sidebar::-webkit-scrollbar-thumb,
+body.sidebar-half .vizja-sidebar::-webkit-scrollbar-thumb,
+body.sidebar-expanded .vizja-sidebar::-webkit-scrollbar-thumb,
+body.sidebar-collapsed .vizja-sidebar::-webkit-scrollbar-thumb {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 4px !important;
+    transition: background-color 0.15s ease !important;
+}
+
+/* Dark scrollbar thumb ONLY when hovering on the scrollbar or sidebar */
+.vizja-sidebar::-webkit-scrollbar-thumb:hover,
+body.sidebar-half .vizja-sidebar::-webkit-scrollbar-thumb:hover,
+body.sidebar-expanded .vizja-sidebar::-webkit-scrollbar-thumb:hover,
+body.sidebar-collapsed .vizja-sidebar::-webkit-scrollbar-thumb:hover {
+    background: #1e1e2d !important;
+    border: 2px solid #0a0a0f !important;
+    box-shadow: none !important;
+}
+
+.vizja-sidebar:hover::-webkit-scrollbar-thumb,
+body.sidebar-half .vizja-sidebar:hover::-webkit-scrollbar-thumb,
+body.sidebar-expanded .vizja-sidebar:hover::-webkit-scrollbar-thumb {
+    background: #1e1e2d !important;
+    border: 2px solid #0a0a0f !important;
+}
+
+.vizja-sidebar::-webkit-scrollbar-track:hover,
+body.sidebar-half .vizja-sidebar::-webkit-scrollbar-track:hover,
+body.sidebar-expanded .vizja-sidebar::-webkit-scrollbar-track:hover,
+body.sidebar-collapsed .vizja-sidebar::-webkit-scrollbar-track:hover {
+    background: rgba(10, 10, 15, 0.4) !important;
+}
+
+
+
+
+
