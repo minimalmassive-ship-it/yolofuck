@@ -127,19 +127,43 @@ export const LandingPage: React.FC = () => {
                     }
                 }
             } else {
-                const { error } = await signUpWithEmail(cleanEmail, cleanPassword, cleanUsername);
+                const { data, error } = await signUpWithEmail(cleanEmail, cleanPassword, cleanUsername);
                 if (error) {
                     setErrorMsg(error.message || 'Failed to create account. Please try again.');
-                } else {
-                    setSuccessMsg('Account created! Signing you in...');
-                    // Automatically attempt sign in immediately
-                    setTimeout(async () => {
-                        const { error: autoSignInErr } = await signInWithEmail(cleanEmail, cleanPassword);
-                        if (autoSignInErr) {
-                            setSuccessMsg('Account created! If email confirmation is enabled in your Supabase project, check your inbox or disable "Confirm email" in Supabase -> Authentication -> Providers -> Email.');
-                        }
-                    }, 500);
+                    return;
                 }
+
+                // Factual inspection of Supabase auth state
+                const user = data?.user;
+                const session = data?.session;
+                const identities = user?.identities || [];
+
+                // When user already exists or email is unconfirmed without returning a new identity
+                if (user && identities.length === 0) {
+                    setErrorMsg(`An account with email "${cleanEmail}" is already registered. Please switch to "Sign In" or reset your password.`);
+                    return;
+                }
+
+                // If session was returned immediately (Confirm email is disabled)
+                if (session) {
+                    setSuccessMsg('Account created successfully! Session established.');
+                    return;
+                }
+
+                // If user was created but session is null (Confirm email is still enabled on the server)
+                if (user && !session) {
+                    const isConfirmed = Boolean(user.email_confirmed_at || user.confirmed_at);
+                    if (!isConfirmed) {
+                        setErrorMsg('Account registration received, but Supabase requires email confirmation before you can sign in. Please disable "Confirm email" in Supabase Dashboard (Authentication -> Providers -> Email) or verify your inbox.');
+                    } else {
+                        setSuccessMsg('Account registered! Signing you in...');
+                        await signInWithEmail(cleanEmail, cleanPassword);
+                    }
+                    return;
+                }
+
+                // Fallback for unexpected empty response
+                setErrorMsg('Supabase did not return an active user account. Please check your credentials and project settings.');
             }
         } catch (err: any) {
             setErrorMsg(err.message || 'An unexpected error occurred.');

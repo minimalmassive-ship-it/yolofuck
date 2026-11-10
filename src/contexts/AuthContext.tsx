@@ -36,7 +36,7 @@ interface AuthContextType {
     showPasswordResetModal: boolean;
     closePasswordResetModal: () => void;
     signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
-    signUpWithEmail: (email: string, password: string, username?: string) => Promise<{ error: Error | null }>;
+    signUpWithEmail: (email: string, password: string, username?: string) => Promise<{ data: any; error: Error | null }>;
     signOut: () => Promise<void>;
     refreshProfile: () => Promise<void>;
 }
@@ -192,7 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     }
                 }
             });
-            if (error) return { error };
+            if (error) return { data: null, error };
             if (data.user) {
                 // If auto-signed in, ensure profile
                 try {
@@ -204,9 +204,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     });
                 } catch {}
             }
-            return { error: null };
+            return { data, error: null };
         } catch (err: any) {
-            return { error: err };
+            return { data: null, error: err };
         }
     }, []);
 
