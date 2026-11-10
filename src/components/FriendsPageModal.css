@@ -1,0 +1,282 @@
+/**
+ * FriendsPageModal.css — yolofuck
+ */
+
+.yolofuck-friends-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.yolofuck-friends-modal-card {
+  width: 100%;
+  max-width: 520px;
+  max-height: 85vh;
+  background: #0d0e14;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  color: #efede3;
+  overflow-y: auto;
+}
+
+.yolofuck-friends-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.yolofuck-friends-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.yolofuck-friends-title-group h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #efede3;
+}
+
+.yolofuck-friends-count {
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 2px 8px;
+  border-radius: 10px;
+  color: #10b981;
+}
+
+.yolofuck-friends-close-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.yolofuck-friends-close-btn:hover {
+  color: #ffffff;
+}
+
+.yolofuck-friends-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #71717a;
+  line-height: 1.45;
+}
+
+/* Search Form */
+.yolofuck-friends-search-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #141522;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 6px 12px;
+}
+
+.yolofuck-friends-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 13px;
+  outline: none;
+}
+
+.yolofuck-friends-search-btn {
+  background: #1e2030;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #efede3;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.yolofuck-friends-search-btn:hover {
+  background: #282a3c;
+  color: #ffffff;
+}
+
+.yolofuck-friends-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #71717a;
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* Results Box */
+.yolofuck-friends-results-box {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.yolofuck-friends-user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.yolofuck-friends-user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.yolofuck-friends-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #1e2030;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #efede3;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.yolofuck-friends-avatar.active {
+  border-color: #10b981;
+}
+
+.yolofuck-friends-username {
+  font-size: 13px;
+  font-weight: 600;
+  color: #efede3;
+}
+
+.yolofuck-friends-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: #10b981;
+  color: #ffffff;
+  border: none;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.yolofuck-friends-add-btn:hover {
+  background: #059669;
+}
+
+.yolofuck-friends-add-btn.added {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid #10b981;
+  color: #10b981;
+  cursor: default;
+}
+
+/* Friends list */
+.yolofuck-friends-list-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.yolofuck-friends-empty {
+  padding: 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.yolofuck-friends-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.yolofuck-friends-item-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #141522;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+
+.yolofuck-friends-names {
+  display: flex;
+  flex-direction: column;
+}
+
+.yolofuck-friends-status {
+  font-size: 10px;
+  color: #10b981;
+}
+
+.yolofuck-friends-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.yolofuck-friend-action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #1e2030;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.yolofuck-friend-action-btn:hover {
+  background: #2a2d44;
+  color: #ffffff;
+}
+
+.yolofuck-friend-action-btn.remove:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #f87171;
+}

@@ -10,6 +10,7 @@ import {
     stopDailyStorySharing, resumeDailyStorySharing, deleteDailyStoryShare 
 } from '../lib/journalStoryService';
 import { SharedStoryPlayerModal } from './SharedStoryPlayerModal';
+import { moveToTrash } from '../lib/journalTrashStorage';
 import './JournalSharedGrid.css';
 
 interface JournalSharedGridProps {
@@ -106,6 +107,13 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
 
     useEffect(() => {
         loadStories();
+
+        const handleSharedUpdated = () => {
+            loadStories();
+        };
+
+        window.addEventListener('journal_shared_updated', handleSharedUpdated);
+        return () => window.removeEventListener('journal_shared_updated', handleSharedUpdated);
     }, [loadStories]);
 
     // Close gear dropdown menu on click outside
@@ -245,12 +253,25 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
         if (!user?.id || !deleteConfirmStory) return;
         setIsActionLoading(true);
         const storyDate = getStoryDate(deleteConfirmStory);
+        const storyClips = (deleteConfirmStory.provenance_log as any)?.clips || [];
+
+        // Move clips to trash bin
+        if (Array.isArray(storyClips) && storyClips.length > 0) {
+            storyClips.forEach(c => moveToTrash(c, 'share'));
+        } else if (deleteConfirmStory.video_url) {
+            moveToTrash({
+                id: deleteConfirmStory.id,
+                clip_url: deleteConfirmStory.video_url,
+                thumbnail_url: deleteConfirmStory.thumbnail_url,
+                clip_date: storyDate
+            }, 'share');
+        }
 
         try {
             const ok = await deleteDailyStoryShare(user.id, storyDate, deleteConfirmStory.id);
             if (ok) {
                 setStories(prev => prev.filter(s => s.id !== deleteConfirmStory.id));
-                showToast('Shared story deleted permanently');
+                showToast('Shared story moved to Trash Bin');
             } else {
                 showToast('Failed to delete shared story');
             }

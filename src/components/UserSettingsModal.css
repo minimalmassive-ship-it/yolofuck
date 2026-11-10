@@ -1,0 +1,148 @@
+/**
+ * UserSettingsModal.css — yolofuck
+ */
+
+.yolofuck-settings-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.yolofuck-settings-modal-card {
+  width: 100%;
+  max-width: 440px;
+  background: #0d0e14;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  color: #efede3;
+}
+
+.yolofuck-settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.yolofuck-settings-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.yolofuck-settings-title-group h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #efede3;
+}
+
+.yolofuck-settings-close-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.yolofuck-settings-close-btn:hover {
+  color: #ffffff;
+}
+
+.yolofuck-settings-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.yolofuck-settings-alert.success {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #6ee7b7;
+}
+
+.yolofuck-settings-alert.error {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+
+.yolofuck-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.yolofuck-settings-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.yolofuck-settings-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.yolofuck-settings-input {
+  flex: 1;
+  background: #141522;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #ffffff;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.yolofuck-settings-input:focus {
+  border-color: #10b981;
+}
+
+.yolofuck-settings-save-btn {
+  background: #10b981;
+  border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 16px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.yolofuck-settings-save-btn:hover {
+  background: #059669;
+}
+
+.yolofuck-settings-save-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.yolofuck-settings-save-btn.full {
+  width: 100%;
+  height: 38px;
+  margin-top: 4px;
+}

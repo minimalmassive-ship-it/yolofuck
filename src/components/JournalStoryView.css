@@ -662,3 +662,95 @@
 .yolofuck-delete-btn-confirm:hover {
   background: #b91c1c;
 }
+
+/* ── Floating Controls for Single Film Looping Player ── */
+.yolofuck-single-player-floating-controls {
+  position: absolute;
+  bottom: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: rgba(13, 17, 23, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 30px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+  z-index: 40;
+}
+
+.yolofuck-single-ctrl-btn {
+  background: transparent;
+  border: none;
+  color: #efede3;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.yolofuck-single-ctrl-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.yolofuck-single-ctrl-btn.active {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.15);
+}
+
+.yolofuck-single-volume-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 4px;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.yolofuck-single-volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 60px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.25);
+  outline: none;
+  cursor: pointer;
+}
+
+.yolofuck-single-volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #10b981;
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+
+.yolofuck-single-volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #10b981;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+
+/* Grab cursor for horizontal strip */
+.yolofuck-films-horizontal-strip {
+  cursor: grab;
+  user-select: none;
+}
+
+.yolofuck-films-horizontal-strip:active {
+  cursor: grabbing;
+}

@@ -44,13 +44,53 @@ export const SharedStoryPlayerModal: React.FC<SharedStoryPlayerModalProps> = ({ 
         }
     }, [currentClipIndex, activeClip?.clip_url]);
 
-    const handleClipEnded = () => {
+    const handleNextClip = useCallback(() => {
         if (currentClipIndex < clips.length - 1) {
             setCurrentClipIndex(prev => prev + 1);
         } else if (isLooping) {
             setCurrentClipIndex(0);
         } else {
             setIsPlaying(false);
+        }
+    }, [currentClipIndex, clips.length, isLooping]);
+
+    const handlePrevClip = useCallback(() => {
+        if (currentClipIndex > 0) {
+            setCurrentClipIndex(prev => prev - 1);
+        } else if (isLooping && clips.length > 0) {
+            setCurrentClipIndex(clips.length - 1);
+        }
+    }, [currentClipIndex, isLooping, clips.length]);
+
+    const handleClipEnded = () => {
+        handleNextClip();
+    };
+
+    // Pointer swipe tracking for desktop mouse & mobile touch
+    const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
+
+    const handlePointerDown = (e: React.PointerEvent) => {
+        const target = e.target as HTMLElement;
+        if (target.closest('button') || target.closest('input') || target.closest('.shared-player-controls-bar')) {
+            return;
+        }
+        pointerStartRef.current = { x: e.clientX, y: e.clientY };
+    };
+
+    const handlePointerUp = (e: React.PointerEvent) => {
+        if (!pointerStartRef.current) return;
+        const deltaX = e.clientX - pointerStartRef.current.x;
+        const deltaY = e.clientY - pointerStartRef.current.y;
+        pointerStartRef.current = null;
+
+        if (Math.abs(deltaX) > 35 && Math.abs(deltaX) > Math.abs(deltaY)) {
+            if (deltaX < 0) {
+                // Swipe Left -> Next Clip
+                handleNextClip();
+            } else {
+                // Swipe Right -> Prev Clip
+                handlePrevClip();
+            }
         }
     };
 
@@ -90,7 +130,11 @@ export const SharedStoryPlayerModal: React.FC<SharedStoryPlayerModalProps> = ({ 
 
     return (
         <div className="shared-player-modal-backdrop">
-            <div className="shared-player-modal-canvas">
+            <div 
+                className="shared-player-modal-canvas"
+                onPointerDown={handlePointerDown}
+                onPointerUp={handlePointerUp}
+            >
                 {/* Close Button X at Top Right */}
                 <button 
                     type="button" 

@@ -37,6 +37,7 @@ import {
     type JournalClip,
 } from '../lib/journalStoryService';
 import { getAllLocalJournalRecordings, deleteLocalJournalRecording } from '../lib/journalLocalStorage';
+import { moveToTrash } from '../lib/journalTrashStorage';
 import { JournalShareCommandCenter } from './JournalShareCommandCenter';
 import './JournalStoryView.css';
 
@@ -101,7 +102,9 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
     const [currentClipIndex, setCurrentClipIndex] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
+    const [volume, setVolume] = useState<number>(1);
     const [isLooping, setIsLooping] = useState(false);
+    const [isSingleClipMode, setIsSingleClipMode] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [currentClipDuration, setCurrentClipDuration] = useState(0);
 
@@ -124,14 +127,49 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
     const longPressTimerRef = useRef<any>(null);
     const isLongPressTriggeredRef = useRef(false);
 
-    // Touch gesture tracker for Full-Screen Player: Horizontal Swipe left/right
-    const playerTouchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+    // Touch & Mouse Pointer gesture tracker for Full-Screen Player: Horizontal Swipe left/right
+    const playerPointerStartRef = useRef<{ x: number; y: number; time: number; isTracking: boolean } | null>(null);
     const playerLongPressTimerRef = useRef<any>(null);
     const isPlayerLongPressTriggeredRef = useRef(false);
+
+    // Desktop Mouse Drag-to-Scroll on Horizontal Strip
+    const stripMouseDragRef = useRef<{ date: string; startX: number; scrollLeftStart: number; isDragging: boolean } | null>(null);
 
     // Mobile Swipe-Right pull-to-play gesture state per row
     const [rowPullDistances, setRowPullDistances] = useState<{ [date: string]: number }>({});
     const rowTouchStartRef = useRef<{ date: string; startX: number; startY: number; scrollLeftStart: number; isTracking: boolean } | null>(null);
+
+    // Desktop Strip Mouse drag-to-scroll handlers
+    const handleStripMouseDown = (date: string, e: React.MouseEvent<HTMLDivElement>) => {
+        // Only initiate on left click and not on a direct interactive button
+        if (e.button !== 0) return;
+        const target = e.target as HTMLElement;
+        if (target.closest('button')) return;
+
+        stripMouseDragRef.current = {
+            date,
+            startX: e.pageX - e.currentTarget.offsetLeft,
+            scrollLeftStart: e.currentTarget.scrollLeft,
+            isDragging: true
+        };
+        e.currentTarget.style.cursor = 'grabbing';
+    };
+
+    const handleStripMouseMove = (date: string, e: React.MouseEvent<HTMLDivElement>) => {
+        if (!stripMouseDragRef.current || !stripMouseDragRef.current.isDragging || stripMouseDragRef.current.date !== date) return;
+        e.preventDefault();
+        const x = e.pageX - e.currentTarget.offsetLeft;
+        const walk = (x - stripMouseDragRef.current.startX) * 1.5;
+        e.currentTarget.scrollLeft = stripMouseDragRef.current.scrollLeftStart - walk;
+    };
+
+    const handleStripMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (stripMouseDragRef.current) {
+            stripMouseDragRef.current.isDragging = false;
+            stripMouseDragRef.current = null;
+        }
+        e.currentTarget.style.cursor = 'grab';
+    };
 
     const handleRowTouchStart = (date: string, e: React.TouchEvent<HTMLDivElement>) => {
         const touch = e.touches[0];
@@ -314,6 +352,8 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         const video = videoRef.current;
         video.src = activeClip.clip_url;
         video.currentTime = 0;
+        video.muted = isMuted;
+        video.volume = volume;
         video.load();
 
         if (isPlaying) {
@@ -324,13 +364,15 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                 });
             }
         }
-    }, [showVideoPlayer, activeClip?.id, activeClip?.clip_url]);
+    }, [showVideoPlayer, activeClip?.id, activeClip?.clip_url, volume, isMuted]);
 
     // ── Start Full-screen Story Player ──
-    const handleStartDayPlayer = useCallback((date: string, clipIdx = 0) => {
+    const handleStartDayPlayer = useCallback((date: string, clipIdx = 0, isSingle = false) => {
         setLoopingClipId(null);
         setActiveStoryDate(date);
         setCurrentClipIndex(clipIdx);
+        setIsSingleClipMode(isSingle);
+        setIsLooping(isSingle); // Default loop to true for single clip tap
         setShowVideoPlayer(true);
         setIsPlaying(true);
     }, []);
@@ -338,6 +380,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
     const handleClosePlayer = useCallback(() => {
         setShowVideoPlayer(false);
         setIsPlaying(false);
+        setIsSingleClipMode(false);
         if (videoRef.current) {
             videoRef.current.pause();
         }
@@ -359,8 +402,11 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         if (currentClipIndex > 0) {
             setCurrentClipIndex(prev => prev - 1);
             setCurrentTime(0);
+        } else if (isLooping && activeDayClips.length > 0) {
+            setCurrentClipIndex(activeDayClips.length - 1);
+            setCurrentTime(0);
         }
-    }, [currentClipIndex]);
+    }, [currentClipIndex, isLooping, activeDayClips.length]);
 
     const togglePlayerPlay = useCallback(() => {
         if (!videoRef.current) return;
@@ -373,10 +419,34 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         }
     }, [isPlaying]);
 
+    const togglePlayerMute = useCallback(() => {
+        const nextMuted = !isMuted;
+        setIsMuted(nextMuted);
+        if (videoRef.current) {
+            videoRef.current.muted = nextMuted;
+        }
+    }, [isMuted]);
+
+    const handlePlayerVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newVol = parseFloat(e.target.value);
+        setVolume(newVol);
+        setIsMuted(newVol === 0);
+        if (videoRef.current) {
+            videoRef.current.volume = newVol;
+            videoRef.current.muted = newVol === 0;
+        }
+    };
+
     const handleDeleteConfirmed = async () => {
         if (!clipToDelete) return;
         const { id: clipId } = clipToDelete;
+        const targetClip = allClips.find(c => c.id === clipId);
         setClipToDelete(null);
+
+        // Move to trash bin first
+        if (targetClip) {
+            moveToTrash(targetClip, 'journal');
+        }
 
         try {
             await deleteClip(clipId);
@@ -427,21 +497,27 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         }
     };
 
-    // ── Full-Screen Player Touch & Swipe Handlers ──
-    const handlePlayerTouchStart = (e: React.TouchEvent) => {
+    // ── Full-Screen Player Pointer & Mouse Drag Swipe Handlers (Unified Mobile & Desktop) ──
+    const handlePlayerPointerDown = (e: React.PointerEvent) => {
+        // Ignore if clicking interactive controls (dock, close button, pause button, volume slider)
+        const target = e.target as HTMLElement;
+        if (target.closest('button') || target.closest('input') || target.closest('.yolofuck-player-dock-bar') || target.closest('.yolofuck-single-player-floating-controls')) {
+            return;
+        }
+
         isPlayerLongPressTriggeredRef.current = false;
-        const touch = e.touches[0];
-        playerTouchStartRef.current = {
-            x: touch.clientX,
-            y: touch.clientY,
-            time: Date.now()
+        playerPointerStartRef.current = {
+            x: e.clientX,
+            y: e.clientY,
+            time: Date.now(),
+            isTracking: true
         };
 
         if (playerLongPressTimerRef.current) {
             clearTimeout(playerLongPressTimerRef.current);
         }
 
-        // Long press on mobile in player to trigger delete prompt
+        // Long press in player (touch or mouse hold) to trigger delete prompt
         playerLongPressTimerRef.current = setTimeout(() => {
             isPlayerLongPressTriggeredRef.current = true;
             if (navigator.vibrate) {
@@ -453,13 +529,12 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         }, 900);
     };
 
-    const handlePlayerTouchMove = (e: React.TouchEvent) => {
-        if (!playerTouchStartRef.current) return;
-        const touch = e.touches[0];
-        const dx = Math.abs(touch.clientX - playerTouchStartRef.current.x);
-        const dy = Math.abs(touch.clientY - playerTouchStartRef.current.y);
+    const handlePlayerPointerMove = (e: React.PointerEvent) => {
+        if (!playerPointerStartRef.current || !playerPointerStartRef.current.isTracking) return;
+        const dx = Math.abs(e.clientX - playerPointerStartRef.current.x);
+        const dy = Math.abs(e.clientY - playerPointerStartRef.current.y);
 
-        // Cancel long-press if moving finger (e.g. initiating swipe)
+        // Cancel long-press if moving pointer (e.g. initiating swipe)
         if (dx > 10 || dy > 10) {
             if (playerLongPressTimerRef.current) {
                 clearTimeout(playerLongPressTimerRef.current);
@@ -468,7 +543,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         }
     };
 
-    const handlePlayerTouchEnd = (e: React.TouchEvent) => {
+    const handlePlayerPointerUp = (e: React.PointerEvent) => {
         if (playerLongPressTimerRef.current) {
             clearTimeout(playerLongPressTimerRef.current);
             playerLongPressTimerRef.current = null;
@@ -476,18 +551,17 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
 
         if (isPlayerLongPressTriggeredRef.current) {
             isPlayerLongPressTriggeredRef.current = false;
-            playerTouchStartRef.current = null;
+            playerPointerStartRef.current = null;
             return;
         }
 
-        if (!playerTouchStartRef.current) return;
-        const touch = e.changedTouches[0];
-        const deltaX = touch.clientX - playerTouchStartRef.current.x;
-        const deltaY = touch.clientY - playerTouchStartRef.current.y;
-        playerTouchStartRef.current = null;
+        if (!playerPointerStartRef.current || !playerPointerStartRef.current.isTracking) return;
+        const deltaX = e.clientX - playerPointerStartRef.current.x;
+        const deltaY = e.clientY - playerPointerStartRef.current.y;
+        playerPointerStartRef.current = null;
 
-        // Horizontal Swipe threshold: at least 40px, mostly horizontal
-        if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY)) {
+        // Horizontal Swipe threshold: at least 35px, mostly horizontal
+        if (Math.abs(deltaX) > 35 && Math.abs(deltaX) > Math.abs(deltaY)) {
             if (deltaX < 0) {
                 // Swipe Left -> Next Take in sequence
                 handleNextClip();
@@ -498,8 +572,20 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
             return;
         }
 
-        // Tap on player background/video: close player if tapped on the active video
-        // or toggle play if quick tap
+        // Quick click on the background/video: toggle play/pause or close
+        const target = e.target as HTMLElement;
+        if (target.classList.contains('yolofuck-player-video')) {
+            togglePlayerPlay();
+        }
+    };
+
+    const handlePlayerPointerCancel = () => {
+        if (playerLongPressTimerRef.current) {
+            clearTimeout(playerLongPressTimerRef.current);
+            playerLongPressTimerRef.current = null;
+        }
+        playerPointerStartRef.current = null;
+        isPlayerLongPressTriggeredRef.current = false;
     };
 
     // ── Gesture Handlers for Matrix Films (Single Tap opens full-screen loop, long-press enables drag-and-drop) ──
@@ -560,9 +646,8 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
 
         if (dx > 8 || dy > 8) return;
 
-        // Single Click: Open full-screen player looping this short!
-        setIsLooping(true);
-        handleStartDayPlayer(date, index);
+        // Single Click: Open full-screen player in single-clip loop mode with controls!
+        handleStartDayPlayer(date, index, true);
     };
 
     const handleSquarePointerCancel = () => {
@@ -583,9 +668,10 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                 <div className="yolofuck-player-container">
                     <div 
                         className="yolofuck-player-canvas"
-                        onTouchStart={handlePlayerTouchStart}
-                        onTouchMove={handlePlayerTouchMove}
-                        onTouchEnd={handlePlayerTouchEnd}
+                        onPointerDown={handlePlayerPointerDown}
+                        onPointerMove={handlePlayerPointerMove}
+                        onPointerUp={handlePlayerPointerUp}
+                        onPointerCancel={handlePlayerPointerCancel}
                     >
                         <video
                             ref={videoRef}
@@ -599,7 +685,6 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                 }
                             }}
                             onEnded={handleNextClip}
-                            onClick={handleClosePlayer}
                         />
 
                         {/* Top Overlay Bars (Segmented progress for all takes in this day) */}
@@ -650,6 +735,51 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                         {!isPlaying && (
                             <div className="yolofuck-player-pause-splash" onClick={togglePlayerPlay}>
                                 <Play size={54} fill="#ffffff" color="#ffffff" />
+                            </div>
+                        )}
+
+                        {/* Floating Player Controls Bar for Single Film Playback: Play/Pause, Loop on/off, Volume slider */}
+                        {isSingleClipMode && (
+                            <div className="yolofuck-single-player-floating-controls" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                    type="button"
+                                    className="yolofuck-single-ctrl-btn"
+                                    onClick={togglePlayerPlay}
+                                    title={isPlaying ? 'Pause' : 'Play'}
+                                >
+                                    {isPlaying ? <Pause size={18} /> : <Play size={18} fill="#ffffff" />}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    className={`yolofuck-single-ctrl-btn ${isLooping ? 'active' : ''}`}
+                                    onClick={() => setIsLooping(prev => !prev)}
+                                    title={isLooping ? 'Loop is On' : 'Loop is Off'}
+                                >
+                                    <Repeat size={16} />
+                                </button>
+
+                                <div className="yolofuck-single-volume-group">
+                                    <button
+                                        type="button"
+                                        className="yolofuck-single-ctrl-btn"
+                                        onClick={togglePlayerMute}
+                                        title={isMuted ? 'Unmute' : 'Mute'}
+                                    >
+                                        {isMuted || volume === 0 ? <VolumeX size={17} /> : <Volume2 size={17} />}
+                                    </button>
+
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="1"
+                                        step="0.05"
+                                        value={isMuted ? 0 : volume}
+                                        onChange={handlePlayerVolumeChange}
+                                        className="yolofuck-single-volume-slider"
+                                        title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
+                                    />
+                                </div>
                             </div>
                         )}
 
@@ -776,13 +906,16 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                                     type="button"
                                                     className="yolofuck-day-info-btn share"
                                                     onClick={async () => {
-                                                        if (clips.length > 0 && user?.id) {
+                                                        const targetUserId = user?.id || 'local_user';
+                                                        if (clips.length > 0) {
                                                             try {
-                                                                await ensureDailyStoryIdea(user.id, null, date, clips, effectiveUsername);
+                                                                await ensureDailyStoryIdea(targetUserId, null, date, clips, effectiveUsername);
                                                             } catch (err) {
                                                                 console.warn('[JournalStoryView] auto-ensure share story error:', err);
                                                             }
                                                         }
+                                                        // Notify Shared tab to refresh immediately
+                                                        window.dispatchEvent(new CustomEvent('journal_shared_updated', { detail: { date } }));
                                                         if (onNavigateToShared) {
                                                             onNavigateToShared();
                                                         } else {
@@ -824,12 +957,16 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                             </div>
                                         )}
 
-                                        {/* Horizontal Strip of Square Films (2px gap, oldest to newest) */}
+                                        {/* Horizontal Strip of Square Films (2px gap, oldest to newest) with touch and desktop mouse drag */}
                                         <div 
                                             className="yolofuck-films-horizontal-strip"
                                             onTouchStart={(e) => handleRowTouchStart(date, e)}
                                             onTouchMove={(e) => handleRowTouchMove(date, e)}
                                             onTouchEnd={() => handleRowTouchEnd(date, clips.length)}
+                                            onMouseDown={(e) => handleStripMouseDown(date, e)}
+                                            onMouseMove={(e) => handleStripMouseMove(date, e)}
+                                            onMouseUp={handleStripMouseUp}
+                                            onMouseLeave={handleStripMouseUp}
                                         >
                                             {clips.length === 0 ? (
                                                 <div className="yolofuck-empty-row-box">

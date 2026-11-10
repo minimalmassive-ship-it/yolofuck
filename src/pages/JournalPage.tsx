@@ -18,19 +18,29 @@ import {
     Search,
     X,
     Loader2,
-    LogOut
+    LogOut,
+    User,
+    ChevronDown,
+    Settings,
+    Trash2,
+    Target,
+    Users
 } from 'lucide-react';
 
 import JournalStoryView from '../components/JournalStoryView';
 import { JournalSharedGrid } from '../components/JournalSharedGrid';
 import JournalVideoCaptureModal from '../components/JournalVideoCaptureModal';
+import TrashBinModal from '../components/TrashBinModal';
+import UserSettingsModal from '../components/UserSettingsModal';
+import QuestPageModal from '../components/QuestPageModal';
+import FriendsPageModal from '../components/FriendsPageModal';
 import type { Project } from '../types';
 
 import './JournalPage.css';
 import '../styles/vizja-ui-system.css';
 
 export const JournalPage: React.FC = () => {
-    const { user, loading: authLoading, signOut } = useAuth();
+    const { user, profile, loading: authLoading, signOut } = useAuth();
 
     const [activeTab, setActiveTab] = useState<'story' | 'shared'>('story');
     const [project, setProject] = useState<Project | null>(null);
@@ -38,6 +48,13 @@ export const JournalPage: React.FC = () => {
     const [showCaptureModal, setShowCaptureModal] = useState(false);
     const [isPlayerActive, setIsPlayerActive] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Dropdown and modal states
+    const [showUserMenu, setShowUserMenu] = useState(false);
+    const [showTrashModal, setShowTrashModal] = useState(false);
+    const [showUserSettingsModal, setShowUserSettingsModal] = useState(false);
+    const [showQuestModal, setShowQuestModal] = useState(false);
+    const [showFriendsModal, setShowFriendsModal] = useState(false);
 
     // Listen for video player state to hide bars in fullscreen story mode
     useEffect(() => {
@@ -133,16 +150,88 @@ export const JournalPage: React.FC = () => {
                     )}
                 </div>
 
+                {/* User Dropdown Menu Button (Mobile & Desktop) */}
                 {user && (
-                    <button
-                        type="button"
-                        className="yolofuck-top-signout-btn"
-                        onClick={() => signOut()}
-                        title="Sign out of yolofuck"
-                    >
-                        <LogOut size={14} />
-                        <span>Sign out</span>
-                    </button>
+                    <div className="yolofuck-top-user-wrap">
+                        <button
+                            type="button"
+                            className={`yolofuck-top-user-btn ${showUserMenu ? 'active' : ''}`}
+                            onClick={() => setShowUserMenu(prev => !prev)}
+                            title="Account Menu"
+                        >
+                            <User size={15} color="#10b981" />
+                            <span className="yolofuck-top-username">
+                                {profile?.username || user?.user_metadata?.username || 'Account'}
+                            </span>
+                            <ChevronDown size={14} className={`yolofuck-chevron ${showUserMenu ? 'open' : ''}`} />
+                        </button>
+
+                        {showUserMenu && (
+                            <div className="yolofuck-user-dropdown-menu">
+                                <button
+                                    type="button"
+                                    className="yolofuck-user-menu-item"
+                                    onClick={() => {
+                                        setShowUserMenu(false);
+                                        setShowUserSettingsModal(true);
+                                    }}
+                                >
+                                    <Settings size={15} color="#cbd5e1" />
+                                    <span>User Settings</span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    className="yolofuck-user-menu-item"
+                                    onClick={() => {
+                                        setShowUserMenu(false);
+                                        setShowTrashModal(true);
+                                    }}
+                                >
+                                    <Trash2 size={15} color="#f87171" />
+                                    <span>Trash Bin</span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    className="yolofuck-user-menu-item"
+                                    onClick={() => {
+                                        setShowUserMenu(false);
+                                        setShowQuestModal(true);
+                                    }}
+                                >
+                                    <Target size={15} color="var(--yolo-lime, #c8f72c)" />
+                                    <span>Quests</span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    className="yolofuck-user-menu-item"
+                                    onClick={() => {
+                                        setShowUserMenu(false);
+                                        setShowFriendsModal(true);
+                                    }}
+                                >
+                                    <Users size={15} color="#60a5fa" />
+                                    <span>Friends</span>
+                                </button>
+
+                                <div className="yolofuck-user-menu-divider" />
+
+                                <button
+                                    type="button"
+                                    className="yolofuck-user-menu-item logout"
+                                    onClick={() => {
+                                        setShowUserMenu(false);
+                                        signOut();
+                                    }}
+                                >
+                                    <LogOut size={15} color="#94a3b8" />
+                                    <span>Log out</span>
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 )}
             </header>
 
@@ -209,6 +298,26 @@ export const JournalPage: React.FC = () => {
                         setShowCaptureModal(false);
                     }}
                 />
+            )}
+
+            {/* Trash Bin Modal */}
+            {showTrashModal && (
+                <TrashBinModal onClose={() => setShowTrashModal(false)} />
+            )}
+
+            {/* User Settings Modal */}
+            {showUserSettingsModal && (
+                <UserSettingsModal onClose={() => setShowUserSettingsModal(false)} />
+            )}
+
+            {/* Quest Page Modal */}
+            {showQuestModal && (
+                <QuestPageModal onClose={() => setShowQuestModal(false)} />
+            )}
+
+            {/* Friends Page Modal */}
+            {showFriendsModal && (
+                <FriendsPageModal onClose={() => setShowFriendsModal(false)} />
             )}
         </div>
     );
