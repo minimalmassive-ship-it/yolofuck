@@ -154,7 +154,15 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
 
     // Mobile Swipe-Right pull-to-play gesture state per row
     const [rowPullDistances, setRowPullDistances] = useState<{ [date: string]: number }>({});
-    const rowTouchStartRef = useRef<{ date: string; startX: number; startY: number; scrollLeftStart: number; isTracking: boolean } | null>(null);
+    const [revealedDrawerStages, setRevealedDrawerStages] = useState<{ [date: string]: number }>({});
+    const rowTouchStartRef = useRef<{ 
+        date: string; 
+        startX: number; 
+        startY: number; 
+        scrollLeftStart: number; 
+        initialStage: number;
+        isTracking: boolean 
+    } | null>(null);
 
     // Desktop Strip Mouse drag-to-scroll handlers
     const handleStripMouseDown = (date: string, e: React.MouseEvent<HTMLDivElement>) => {
@@ -192,13 +200,15 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         const touch = e.touches[0];
         if (!touch) return;
         const currentScrollLeft = e.currentTarget.scrollLeft;
-        // We only initiate overscroll pull if we are right at the left wall (scrollLeft <= 2)
+        const currentStage = revealedDrawerStages[date] || 0;
+        // Initiate pull tracking if right at the left wall (scrollLeft <= 2) or if already open
         rowTouchStartRef.current = {
             date,
             startX: touch.clientX,
             startY: touch.clientY,
             scrollLeftStart: currentScrollLeft,
-            isTracking: currentScrollLeft <= 2
+            initialStage: currentStage,
+            isTracking: currentScrollLeft <= 2 || currentStage > 0
         };
     };
 
@@ -210,36 +220,115 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         const currentScrollLeft = e.currentTarget.scrollLeft;
         const deltaX = touch.clientX - rowTouchStartRef.current.startX;
         const deltaY = touch.clientY - rowTouchStartRef.current.startY;
+        const initStage = rowTouchStartRef.current.initialStage;
 
-        // If user is scrolling vertically or not at left edge, cancel overscroll tracking
+        // If user is scrolling vertically or not tracking, cancel overscroll tracking
         if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 10) {
             rowTouchStartRef.current.isTracking = false;
             setRowPullDistances(prev => prev[date] ? { ...prev, [date]: 0 } : prev);
             return;
         }
 
-        // Only track swipe to the right (deltaX > 0) when at the left wall
-        if (rowTouchStartRef.current.isTracking && currentScrollLeft <= 2 && deltaX > 0) {
-            // Smooth resistance curve up to 80px
-            const pullAmount = Math.min(80, deltaX * 0.55);
+        if (!rowTouchStartRef.current.isTracking) return;
+
+        // Progressive 2-stage resistance calculation:
+        if (initStage === 0) {
+            if (currentScrollLeft <= 2 && deltaX > 0) {
+                const pullAmount = Math.min(125, deltaX * 0.7);
+                setRowPullDistances(prev => ({ ...prev, [date]: pullAmount }));
+            } else {
+                setRowPullDistances(prev => prev[date] ? { ...prev, [date]: 0 } : prev);
+            }
+        } else if (initStage === 1) {
+            // Already at Stage 1 (Play revealed). Swipe right further pulls towards Stage 2 (Share)
+            const base = 52;
+            const pullAmount = Math.max(0, Math.min(125, base + deltaX * 0.7));
             setRowPullDistances(prev => ({ ...prev, [date]: pullAmount }));
-        } else {
-            setRowPullDistances(prev => prev[date] ? { ...prev, [date]: 0 } : prev);
+        } else if (initStage === 2) {
+            // Already at Stage 2 (Play + Share revealed). Swipe left closes back
+            const base = 104;
+            const pullAmount = Math.max(0, Math.min(125, base + deltaX * 0.7));
+            setRowPullDistances(prev => ({ ...prev, [date]: pullAmount }));
         }
     };
 
     const handleRowTouchEnd = (date: string, clipsCount: number) => {
+        if (!rowTouchStartRef.current || rowTouchStartRef.current.date !== date) {
+            setRowPullDistances(prev => ({ ...prev, [date]: 0 }));
+            return;
+        }
         const currentPull = rowPullDistances[date] || 0;
+        const initStage = rowTouchStartRef.current.initialStage;
         rowTouchStartRef.current = null;
         setRowPullDistances(prev => ({ ...prev, [date]: 0 }));
 
-        // Trigger sequence player if pulled past threshold (>= 48px) and row has clips
-        if (currentPull >= 48 && clipsCount > 0) {
-            if (navigator.vibrate) {
-                try { navigator.vibrate(50); } catch {}
-            }
-            handleStartDayPlayer(date, 0);
+        if (clipsCount === 0) {
+            setRevealedDrawerStages(prev => ({ ...prev, [date]: 0 }));
+            return;
         }
+
+        // Determine destination snap stage based on pull distance
+        let nextStage = 0;
+        if (initStage === 0) {
+            if (currentPull >= 75) {
+                nextStage = 2; // Swiped far in one go: reveal both Play and Share
+            } else if (currentPull >= 28) {
+                nextStage = 1; // First swipe: reveal Play button
+            } else {
+                nextStage = 0;
+            }
+        } else if (initStage === 1) {
+            if (currentPull >= 75) {
+                nextStage = 2; // Second swipe: reveal Share button with right arrow
+            } else if (currentPull < 25) {
+                nextStage = 0; // Swiped left: close drawer
+            } else {
+                nextStage = 1; // Stay at stage 1
+            }
+        } else if (initStage === 2) {
+            if (currentPull < 35) {
+                nextStage = 0; // Swiped left far: close
+            } else if (currentPull < 75) {
+                nextStage = 1; // Swiped left partially: back to stage 1
+            } else {
+                nextStage = 2; // Stay at stage 2
+            }
+        }
+
+        if (nextStage !== initStage && navigator.vibrate) {
+            try { navigator.vibrate(25); } catch {}
+        }
+
+        // Snap to target stage - NEVER auto-play; wait for user tap
+        setRevealedDrawerStages(prev => ({ ...prev, [date]: nextStage }));
+    };
+
+    const handlePlayFromDrawer = (date: string) => {
+        setRevealedDrawerStages(prev => ({ ...prev, [date]: 0 }));
+        handleStartDayPlayer(date, 0);
+    };
+
+    const handleForwardToShared = async (date: string, clips: JournalClip[]) => {
+        const targetUserId = user?.id || 'local_user';
+        if (clips.length > 0) {
+            try {
+                await ensureDailyStoryIdea(targetUserId, null, date, clips, effectiveUsername);
+            } catch (err) {
+                console.warn('[JournalStoryView] auto-ensure share story error:', err);
+            }
+        }
+        // Notify Shared tab to refresh immediately and place this sequence at the top
+        window.dispatchEvent(new CustomEvent('journal_shared_updated', { detail: { date, top: true } }));
+        if (onNavigateToShared) {
+            onNavigateToShared();
+        } else {
+            window.dispatchEvent(new CustomEvent('journal_navigate_tab', { detail: { tab: 'shared' } }));
+        }
+    };
+
+    const handleShareFromDrawer = async (date: string, clips: JournalClip[]) => {
+        setRevealedDrawerStages(prev => ({ ...prev, [date]: 0 }));
+        await handleForwardToShared(date, clips);
     };
 
     // ── Load Clips from Supabase & Local IndexedDB ──
@@ -1142,23 +1231,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                                 <button
                                                     type="button"
                                                     className="yolofuck-day-info-btn share"
-                                                    onClick={async () => {
-                                                        const targetUserId = user?.id || 'local_user';
-                                                        if (clips.length > 0) {
-                                                            try {
-                                                                await ensureDailyStoryIdea(targetUserId, null, date, clips, effectiveUsername);
-                                                            } catch (err) {
-                                                                console.warn('[JournalStoryView] auto-ensure share story error:', err);
-                                                            }
-                                                        }
-                                                        // Notify Shared tab to refresh immediately
-                                                        window.dispatchEvent(new CustomEvent('journal_shared_updated', { detail: { date } }));
-                                                        if (onNavigateToShared) {
-                                                            onNavigateToShared();
-                                                        } else {
-                                                            window.dispatchEvent(new CustomEvent('journal_navigate_tab', { detail: { tab: 'shared' } }));
-                                                        }
-                                                    }}
+                                                    onClick={() => handleForwardToShared(date, clips)}
                                                     disabled={clips.length === 0}
                                                     title="Forward sequence to Shared tab"
                                                 >
@@ -1199,17 +1272,53 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                             </span>
                                         </div>
 
-                                        {/* Pull to Play Reveal Drawer (Emerges on swipe right when pushed past the left wall) */}
-                                        {rowPullDistances[date] > 0 && (
-                                            <div 
-                                                className="yolofuck-swipe-play-drawer" 
-                                                style={{ width: `${rowPullDistances[date]}px` }}
-                                            >
-                                                <div className={`yolofuck-swipe-play-circle ${rowPullDistances[date] >= 48 ? 'triggered' : ''}`}>
-                                                    <Play size={18} fill="currentColor" />
+                                        {/* Progressive 2-Stage Reveal Drawer (Stage 1: Play, Stage 2: Share Right Arrow) */}
+                                        {(() => {
+                                            const isDragging = (rowPullDistances[date] || 0) > 0;
+                                            const stage = revealedDrawerStages[date] || 0;
+                                            const currentWidth = isDragging 
+                                                ? rowPullDistances[date] 
+                                                : (stage === 2 ? 104 : stage === 1 ? 52 : 0);
+                                            
+                                            if (currentWidth <= 0 && stage === 0) return null;
+
+                                            const showShareBtn = currentWidth >= 70 || stage === 2;
+
+                                            return (
+                                                <div 
+                                                    className={`yolofuck-swipe-play-drawer ${isDragging ? 'is-dragging' : 'snapped'}`}
+                                                    style={{ width: `${currentWidth}px` }}
+                                                >
+                                                    {/* Stage 1: Play Button (Lime Circle, Black Play Icon) */}
+                                                    <button
+                                                        type="button"
+                                                        className="yolofuck-swipe-action-circle play"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handlePlayFromDrawer(date);
+                                                        }}
+                                                        title="Play day story"
+                                                    >
+                                                        <Play size={18} fill="currentColor" color="#000000" />
+                                                    </button>
+
+                                                    {/* Stage 2: Share Right Arrow Button (Lime Circle, Black Right Arrow) */}
+                                                    {showShareBtn && (
+                                                        <button
+                                                            type="button"
+                                                            className="yolofuck-swipe-action-circle share-forward"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleShareFromDrawer(date, clips);
+                                                            }}
+                                                            title="Copy sequence to Share page"
+                                                        >
+                                                            <ArrowRight size={20} color="#000000" strokeWidth={2.5} />
+                                                        </button>
+                                                    )}
                                                 </div>
-                                            </div>
-                                        )}
+                                            );
+                                        })()}
 
                                         {/* Horizontal Strip of Square Films (2px gap, oldest to newest) with touch and desktop mouse drag */}
                                         <div 

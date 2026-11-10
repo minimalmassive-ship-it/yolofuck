@@ -315,39 +315,56 @@
   }
 }
 
-/* ── Pull to Play Reveal Indicator (Revealed from the left upon swipe-right at boundary) ── */
+/* ── Progressive 2-Stage Swipe Reveal Drawer (Stage 1: Play, Stage 2: Share Right Arrow) ── */
 .yolofuck-swipe-play-drawer {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  padding: 0 6px;
+  gap: 8px;
   height: 128px;
   overflow: hidden;
   flex-shrink: 0;
   background: #000000;
   border-right: 1px solid rgba(200, 247, 44, 0.25);
-  transition: width 0.08s ease-out;
+  box-sizing: border-box;
 }
 
-.yolofuck-swipe-play-circle {
-  width: 38px;
-  height: 38px;
+.yolofuck-swipe-play-drawer.snapped {
+  transition: width 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.yolofuck-swipe-play-drawer.is-dragging {
+  transition: none;
+}
+
+.yolofuck-swipe-action-circle {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
   border-radius: 50%;
   background: var(--yolo-lime, #c8f72c);
-  box-shadow: 0 0 16px rgba(200, 247, 44, 0.55);
+  border: none;
+  box-shadow: 0 0 16px rgba(200, 247, 44, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #000000;
-  transform: scale(0.85);
-  transition: transform 0.12s ease-out, box-shadow 0.15s ease;
+  cursor: pointer;
+  flex-shrink: 0;
+  transform: scale(0.95);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.yolofuck-swipe-play-circle.triggered {
-  background: var(--yolo-lime, #c8f72c);
-  color: #000000;
-  transform: scale(1.15);
-  box-shadow: 0 0 24px rgba(200, 247, 44, 0.9);
+.yolofuck-swipe-action-circle:hover,
+.yolofuck-swipe-action-circle:active {
+  transform: scale(1.08);
+  box-shadow: 0 0 24px rgba(200, 247, 44, 0.95);
+}
+
+.yolofuck-swipe-action-circle svg {
+  display: block;
 }
 
 /* ── Horizontal Strip of 9:16 Films ── */

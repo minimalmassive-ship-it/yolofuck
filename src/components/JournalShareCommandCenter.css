@@ -110,6 +110,22 @@
     opacity: 0.65;
 }
 
+.journal-share-link-status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(200, 247, 44, 0.12);
+    border: 1px solid rgba(200, 247, 44, 0.3);
+    color: var(--yolo-lime, #c8f72c);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    margin-left: 6px;
+    flex-shrink: 0;
+}
+
 .journal-share-url-input {
     width: 100%;
     background: transparent;

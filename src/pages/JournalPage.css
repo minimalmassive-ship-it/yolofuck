@@ -111,7 +111,12 @@
 }
 
 .yolofuck-top-username {
-  max-width: 110px;
+  font-family: 'HermanoAlto Round', sans-serif;
+  color: var(--yolo-lime, #c8f72c);
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: 0.5px;
+  max-width: 125px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -119,7 +124,7 @@
 
 .yolofuck-chevron {
   flex-shrink: 0;
-  color: #64748b;
+  color: #94a3b8;
   transition: transform 0.2s ease;
 }
 
@@ -131,7 +136,7 @@
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  width: 190px;
+  width: 195px;
   background: #0d0e14;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
@@ -153,8 +158,9 @@
   background: transparent;
   border: none;
   color: #cbd5e1;
-  font-size: 13px;
-  font-weight: 500;
+  font-family: 'HermanoAlto Round', sans-serif;
+  font-size: 15px;
+  letter-spacing: 0.4px;
   cursor: pointer;
   text-align: left;
   transition: all 0.15s ease;

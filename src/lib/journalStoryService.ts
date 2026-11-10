@@ -1285,12 +1285,12 @@ export async function deleteDailyStoryShare(userId: string, date: string, ideaId
 export async function fetchUserSharedDailyStories(userId: string): Promise<any[]> {
     if (!userId) return [];
     try {
-        // Query ideas for this user (ideas table in DB has no 'category' column)
+        // Query ideas for this user, ordered by most recently updated/shared first
         const { data, error } = await supabase
             .from('ideas')
             .select('*')
             .eq('user_id', userId)
-            .order('created_at', { ascending: false });
+            .order('updated_at', { ascending: false });
 
         if (!error && data && data.length > 0) {
             // Filter to journal stories (identified by provenance_log or media_type)
@@ -1301,6 +1301,12 @@ export async function fetchUserSharedDailyStories(userId: string): Promise<any[]
                 return true;
             });
             if (journalStories.length > 0) {
+                // Strictly sort so that newly forwarded or modified stories appear at the very top
+                journalStories.sort((a: any, b: any) => {
+                    const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
+                    const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
+                    return timeB - timeA;
+                });
                 return journalStories;
             }
         }
@@ -1317,6 +1323,11 @@ export async function fetchUserSharedDailyStories(userId: string): Promise<any[]
             const mapped = entries
                 .map((e: any) => e.idea || e)
                 .filter(Boolean);
+            mapped.sort((a: any, b: any) => {
+                const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
+                const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
+                return timeB - timeA;
+            });
             return mapped;
         }
 

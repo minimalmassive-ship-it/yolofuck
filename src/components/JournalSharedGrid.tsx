@@ -33,15 +33,24 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
 
     // Mobile Swipe-Right pull-to-play gesture state per shared story
     const [storyPullDistances, setStoryPullDistances] = useState<{ [storyId: string]: number }>({});
-    const storyTouchStartRef = useRef<{ id: string; startX: number; startY: number; isTracking: boolean } | null>(null);
+    const [storyDrawerStages, setStoryDrawerStages] = useState<{ [storyId: string]: number }>({});
+    const storyTouchStartRef = useRef<{ 
+        id: string; 
+        startX: number; 
+        startY: number; 
+        initialStage: number;
+        isTracking: boolean 
+    } | null>(null);
 
     const handleSharedTouchStart = (storyId: string, e: React.TouchEvent) => {
         const touch = e.touches[0];
         if (!touch) return;
+        const currentStage = storyDrawerStages[storyId] || 0;
         storyTouchStartRef.current = {
             id: storyId,
             startX: touch.clientX,
             startY: touch.clientY,
+            initialStage: currentStage,
             isTracking: true
         };
     };
@@ -53,34 +62,79 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
 
         const deltaX = touch.clientX - storyTouchStartRef.current.startX;
         const deltaY = touch.clientY - storyTouchStartRef.current.startY;
+        const initStage = storyTouchStartRef.current.initialStage;
 
-        // If vertical scrolling, cancel
+        // If vertical scrolling, cancel tracking
         if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 10) {
             storyTouchStartRef.current.isTracking = false;
             setStoryPullDistances(prev => prev[storyId] ? { ...prev, [storyId]: 0 } : prev);
             return;
         }
 
-        // Only track swipe to right
-        if (storyTouchStartRef.current.isTracking && deltaX > 0) {
-            const pullAmount = Math.min(80, deltaX * 0.55);
+        if (!storyTouchStartRef.current.isTracking) return;
+
+        if (initStage === 0) {
+            if (deltaX > 0) {
+                const pullAmount = Math.min(125, deltaX * 0.7);
+                setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
+            } else {
+                setStoryPullDistances(prev => prev[storyId] ? { ...prev, [storyId]: 0 } : prev);
+            }
+        } else if (initStage === 1) {
+            // Swiping right further pushes towards stage 2 (Share Options)
+            const base = 52;
+            const pullAmount = Math.max(0, Math.min(125, base + deltaX * 0.7));
             setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
-        } else {
-            setStoryPullDistances(prev => prev[storyId] ? { ...prev, [storyId]: 0 } : prev);
+        } else if (initStage === 2) {
+            const base = 104;
+            const pullAmount = Math.max(0, Math.min(125, base + deltaX * 0.7));
+            setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
         }
     };
 
     const handleSharedTouchEnd = (story: any) => {
-        const pullAmount = storyPullDistances[story.id] || 0;
+        if (!storyTouchStartRef.current || storyTouchStartRef.current.id !== story.id) {
+            setStoryPullDistances(prev => ({ ...prev, [story.id]: 0 }));
+            return;
+        }
+        const currentPull = storyPullDistances[story.id] || 0;
+        const initStage = storyTouchStartRef.current.initialStage;
         storyTouchStartRef.current = null;
         setStoryPullDistances(prev => ({ ...prev, [story.id]: 0 }));
 
-        if (pullAmount >= 48 && !story.is_sharing_stopped) {
-            if (navigator.vibrate) {
-                try { navigator.vibrate(50); } catch {}
+        let nextStage = 0;
+        if (initStage === 0) {
+            if (currentPull >= 75) {
+                nextStage = 2; // Swiped far: reveal both Play and Share Options
+            } else if (currentPull >= 28) {
+                nextStage = 1; // First swipe: reveal Play button
+            } else {
+                nextStage = 0;
             }
-            setPreviewPlayerStory(story);
+        } else if (initStage === 1) {
+            if (currentPull >= 75) {
+                nextStage = 2; // Second swipe: reveal Share Options
+            } else if (currentPull < 25) {
+                nextStage = 0; // Swiped left: close
+            } else {
+                nextStage = 1;
+            }
+        } else if (initStage === 2) {
+            if (currentPull < 35) {
+                nextStage = 0; // Swiped left far: close
+            } else if (currentPull < 75) {
+                nextStage = 1; // Swiped left partially: back to stage 1
+            } else {
+                nextStage = 2;
+            }
         }
+
+        if (nextStage !== initStage && navigator.vibrate) {
+            try { navigator.vibrate(25); } catch {}
+        }
+
+        // Snap to target stage - NEVER auto-play; wait for user tap
+        setStoryDrawerStages(prev => ({ ...prev, [story.id]: nextStage }));
     };
 
     const toastTimerRef = useRef<any>(null);
@@ -100,7 +154,14 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
         try {
             setLoading(true);
             const data = await fetchUserSharedDailyStories(user.id);
-            setStories(data || []);
+            const list = Array.isArray(data) ? [...data] : [];
+            // Strictly sort with most recently updated or created story at the very top (index 0)
+            list.sort((a: any, b: any) => {
+                const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
+                const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
+                return timeB - timeA;
+            });
+            setStories(list);
         } catch (err) {
             console.error('[JournalSharedGrid] loadStories error:', err);
         } finally {
@@ -489,20 +550,67 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
                                         </span>
                                     </div>
 
-                                    {/* Pull to Play Reveal Drawer (Emerges on swipe right when pulled from left) */}
-                                    {storyPullDistances[story.id] > 0 && (
-                                        <div 
-                                            className="shared-swipe-play-drawer"
-                                            style={{ width: `${storyPullDistances[story.id]}px` }}
-                                        >
-                                            <div className={`shared-swipe-play-circle ${storyPullDistances[story.id] >= 48 ? 'triggered' : ''}`}>
-                                                <Play size={18} fill="currentColor" />
+                                    {/* Progressive 2-Stage Reveal Drawer (Stage 1: Play, Stage 2: Share Options Modal) */}
+                                    {(() => {
+                                        const isDragging = (storyPullDistances[story.id] || 0) > 0;
+                                        const stage = storyDrawerStages[story.id] || 0;
+                                        const currentWidth = isDragging 
+                                            ? storyPullDistances[story.id] 
+                                            : (stage === 2 ? 104 : stage === 1 ? 52 : 0);
+
+                                        if (currentWidth <= 0 && stage === 0) return null;
+
+                                        const showShareBtn = currentWidth >= 70 || stage === 2;
+
+                                        return (
+                                            <div 
+                                                className={`shared-swipe-play-drawer ${isDragging ? 'is-dragging' : 'snapped'}`}
+                                                style={{ width: `${currentWidth}px` }}
+                                            >
+                                                {/* Stage 1: Play Button (Lime Circle, Black Play Icon) */}
+                                                <button
+                                                    type="button"
+                                                    className="shared-swipe-action-circle play"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setStoryDrawerStages(prev => ({ ...prev, [story.id]: 0 }));
+                                                        setPreviewPlayerStory(story);
+                                                    }}
+                                                    title="Play story"
+                                                >
+                                                    <Play size={18} fill="currentColor" color="#000000" />
+                                                </button>
+
+                                                {/* Stage 2: Share Options Button (Lime Circle, Black Share2 Icon) */}
+                                                {showShareBtn && (
+                                                    <button
+                                                        type="button"
+                                                        className="shared-swipe-action-circle share-options"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setStoryDrawerStages(prev => ({ ...prev, [story.id]: 0 }));
+                                                            setShareModalStory(story);
+                                                        }}
+                                                        title="Open share options"
+                                                    >
+                                                        <Share2 size={18} color="#000000" strokeWidth={2.5} />
+                                                    </button>
+                                                )}
                                             </div>
-                                        </div>
-                                    )}
+                                        );
+                                    })()}
 
                                     {/* Horizontal Sequence of 9:16 Shorts just like in Journal feed */}
-                                    <div className="shared-story-films-strip" onClick={() => setPreviewPlayerStory(story)}>
+                                    <div 
+                                        className="shared-story-films-strip" 
+                                        onClick={() => {
+                                            if (storyDrawerStages[story.id]) {
+                                                setStoryDrawerStages(prev => ({ ...prev, [story.id]: 0 }));
+                                                return;
+                                            }
+                                            setPreviewPlayerStory(story);
+                                        }}
+                                    >
                                         {clips && clips.length > 0 ? (
                                             clips.map((clip: any, idx: number) => {
                                                 const clipThumb = clip.thumbnail_url || null;

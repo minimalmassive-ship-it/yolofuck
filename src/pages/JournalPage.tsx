@@ -167,7 +167,6 @@ export const JournalPage: React.FC = () => {
                             onClick={() => setShowUserMenu(prev => !prev)}
                             title="Account Menu"
                         >
-                            <User size={15} color="var(--yolo-lime, #c8f72c)" />
                             <span className="yolofuck-top-username">
                                 {profile?.username || user?.user_metadata?.username || 'Account'}
                             </span>

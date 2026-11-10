@@ -354,6 +354,10 @@ export const JournalShareCommandCenter: React.FC<JournalShareCommandCenterProps>
                         placeholder={isLinkActive ? '' : 'Link inactive • Click "Create link" to activate'}
                         className="journal-share-url-input"
                     />
+                    <div className="journal-share-link-status-chip" title="Access mode: All who have the link can see">
+                        <Globe size={11} color="var(--yolo-lime, #c8f72c)" />
+                        <span>All who have the link can see</span>
+                    </div>
                 </div>
 
                 {/* Create Link / Disable Link Toggle Button (directly to the left of Copy Link) */}
