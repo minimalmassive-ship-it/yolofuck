@@ -501,32 +501,79 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
                                         </div>
                                     )}
 
-                                    {/* Media Preview & Details */}
-                                    <div className="shared-story-media-preview" onClick={() => setPreviewPlayerStory(story)}>
-                                    {thumbnail ? (
-                                        <img src={thumbnail} alt={story.title} className="shared-story-thumb-img" />
-                                    ) : previewVideoUrl ? (
-                                        <video src={previewVideoUrl} className="shared-story-thumb-video" preload="metadata" />
-                                    ) : (
-                                        <div className="shared-story-placeholder">
-                                            <Video size={28} color="#555" />
-                                        </div>
-                                    )}
+                                    {/* Horizontal Sequence of 9:16 Shorts just like in Journal feed */}
+                                    <div className="shared-story-films-strip" onClick={() => setPreviewPlayerStory(story)}>
+                                        {clips && clips.length > 0 ? (
+                                            clips.map((clip: any, idx: number) => {
+                                                const clipThumb = clip.thumbnail_url || null;
+                                                const clipVideo = clip.clip_url || null;
+                                                const clipCreatedAt = clip.created_at || '';
+                                                let startTimeStr = '';
+                                                if (clipCreatedAt) {
+                                                    try {
+                                                        const d = new Date(clipCreatedAt);
+                                                        if (!isNaN(d.getTime())) {
+                                                            const hh = String(d.getHours()).padStart(2, '0');
+                                                            const mm = String(d.getMinutes()).padStart(2, '0');
+                                                            startTimeStr = `${hh}:${mm}`;
+                                                        }
+                                                    } catch {}
+                                                }
 
-                                    {/* Takes Pill */}
-                                    <div className="shared-story-takes-pill">
-                                        {takesCount} {takesCount === 1 ? 'Take' : 'Takes'}
+                                                return (
+                                                    <div key={clip.id || idx} className="shared-film-square">
+                                                        {clipThumb ? (
+                                                            <img src={clipThumb} alt={`Take ${idx + 1}`} className="shared-square-media" />
+                                                        ) : clipVideo ? (
+                                                            <video src={clipVideo} className="shared-square-media" preload="metadata" muted />
+                                                        ) : (
+                                                            <div className="shared-film-placeholder">
+                                                                <Video size={16} color="#64748b" />
+                                                            </div>
+                                                        )}
+
+                                                        <div className="shared-film-take-num">
+                                                            {idx + 1}
+                                                        </div>
+
+                                                        {startTimeStr && (
+                                                            <div className="shared-film-start-time">
+                                                                {startTimeStr}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })
+                                        ) : thumbnail ? (
+                                            <div className="shared-film-single-cover">
+                                                <img src={thumbnail} alt={story.title} className="shared-story-thumb-img" />
+                                                <div className="shared-story-takes-pill">
+                                                    {takesCount} {takesCount === 1 ? 'Take' : 'Takes'}
+                                                </div>
+                                            </div>
+                                        ) : previewVideoUrl ? (
+                                            <div className="shared-film-single-cover">
+                                                <video src={previewVideoUrl} className="shared-story-thumb-video" preload="metadata" />
+                                                <div className="shared-story-takes-pill">
+                                                    {takesCount} {takesCount === 1 ? 'Take' : 'Takes'}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="shared-film-empty-box">
+                                                <Video size={24} color="#64748b" />
+                                                <span>No takes in sequence</span>
+                                            </div>
+                                        )}
+
+                                        {/* Stopped Overlay */}
+                                        {isStopped && (
+                                            <div className="shared-story-stopped-overlay">
+                                                <EyeOff size={22} color="#f87171" />
+                                                <span>Sharing Stopped</span>
+                                                <small>Link Deactivated</small>
+                                            </div>
+                                        )}
                                     </div>
-
-                                    {/* Stopped Overlay */}
-                                    {isStopped && (
-                                        <div className="shared-story-stopped-overlay">
-                                            <EyeOff size={22} color="#f87171" />
-                                            <span>Sharing Stopped</span>
-                                            <small>Link Deactivated</small>
-                                        </div>
-                                    )}
-                                </div>
                             </div>
 
                                 {/* Card Footer & Status Badges */}

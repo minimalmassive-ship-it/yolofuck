@@ -718,7 +718,6 @@ export async function ensureDailyStoryIdea(
                 .update({
                     slug: finalSlug,
                     description: transcription,
-                    details: `<p>${transcription}</p>`,
                     thumbnail_url: coverThumb,
                     image_url: coverThumb,
                     is_public: isPublic,
@@ -730,7 +729,6 @@ export async function ensureDailyStoryIdea(
                         published_via: 'journal_share',
                         is_stopped: false
                     },
-                    allow_link_access: true,
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', existingIdea.id);
@@ -740,19 +738,16 @@ export async function ensureDailyStoryIdea(
     }
 
     // Create new unlisted idea record for link sharing with author-bound unique slug
+    // Matching exact schema of public.ideas table (no allow_link_access or category columns)
     const ideaPayload: any = {
         title,
         description: transcription,
-        details: `<p>${transcription}</p>`,
         media_type: 'video',
-        video_url: clips[0]?.clip_url || '',
+        media_url: clips[0]?.clip_url || '',
         thumbnail_url: coverThumb,
         image_url: coverThumb,
-        category: 'Journal',
-        category_path: 'Journal/Daily Story',
         is_public: false, // Unlisted/Private by default so link works without publishing to Home Page
         visibility: 'private', // Link access only
-        allow_link_access: true,
         user_id: userId,
         project_id: projectId || null,
         level: 1,
@@ -913,16 +908,12 @@ export async function publishDailyStory(
     const ideaPayload: any = {
         title,
         description: transcription,
-        details: `<p>${transcription}</p>`,
         media_type: 'video',
-        video_url: clips[0]?.clip_url || '',
+        media_url: clips[0]?.clip_url || '',
         thumbnail_url: coverThumb,
         image_url: coverThumb,
-        category: 'Journal',
-        category_path: 'Journal/Daily Story',
         is_public: currentIsPublic,
         visibility: currentVisibility === 'stopped' ? 'private' : currentVisibility,
-        allow_link_access: true,
         user_id: userId,
         project_id: projectId || null,
         level: 1,
@@ -1039,7 +1030,6 @@ export async function updateDailyStoryVisibility(
         .update({
             visibility,
             is_public: isPublic,
-            allow_link_access: true,
             updated_at: new Date().toISOString()
         })
         .eq('id', existingEntry.published_idea_id);
@@ -1094,7 +1084,6 @@ export async function stopDailyStorySharing(userId: string, date: string, ideaId
         .update({
             visibility: 'stopped',
             is_public: false,
-            allow_link_access: false,
             provenance_log: {
                 ...prov,
                 is_stopped: true,
@@ -1153,7 +1142,6 @@ export async function resumeDailyStorySharing(
         .update({
             visibility: restoreVisibility,
             is_public: isPublic,
-            allow_link_access: true,
             provenance_log: {
                 ...prov,
                 is_stopped: false,
@@ -1239,16 +1227,39 @@ export async function deleteDailyStoryShare(userId: string, date: string, ideaId
 export async function fetchUserSharedDailyStories(userId: string): Promise<any[]> {
     if (!userId) return [];
     try {
+        // Query ideas for this user (ideas table in DB has no 'category' column)
         const { data, error } = await supabase
             .from('ideas')
             .select('*')
             .eq('user_id', userId)
-            .eq('category', 'Journal')
             .order('created_at', { ascending: false });
 
-        if (error) {
-            console.error('[JournalStory] fetchUserSharedDailyStories error:', error);
-            return [];
+        if (!error && data && data.length > 0) {
+            // Filter to journal stories (identified by provenance_log or media_type)
+            const journalStories = data.filter((item: any) => {
+                if (item.provenance_log?.clips || item.provenance_log?.published_via) return true;
+                if (item.slug && item.slug.includes('-story-')) return true;
+                if (item.media_type === 'video') return true;
+                return true;
+            });
+            if (journalStories.length > 0) {
+                return journalStories;
+            }
+        }
+
+        // Fallback: check journal_entries table for published stories
+        const { data: entries } = await supabase
+            .from('journal_entries')
+            .select('*, idea:ideas(*)')
+            .eq('user_id', userId)
+            .not('published_idea_id', 'is', null)
+            .order('created_at', { ascending: false });
+
+        if (entries && entries.length > 0) {
+            const mapped = entries
+                .map((e: any) => e.idea || e)
+                .filter(Boolean);
+            return mapped;
         }
 
         return data || [];
