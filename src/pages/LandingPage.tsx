@@ -78,6 +78,17 @@ export const LandingPage: React.FC = () => {
 
         const cleanEmail = email.trim();
         const cleanPassword = password.trim();
+        const cleanUsername = username.trim();
+
+        if (authMode === 'signup' && !cleanUsername) {
+            setErrorMsg('Please enter a username. It will be your identity across the app.');
+            return;
+        }
+
+        if (authMode === 'signup' && cleanUsername.length < 2) {
+            setErrorMsg('Username must be at least 2 characters.');
+            return;
+        }
 
         if (!cleanEmail || !cleanPassword) {
             setErrorMsg('Please enter both email and password.');
@@ -97,7 +108,7 @@ export const LandingPage: React.FC = () => {
                 if (error) {
                     const msg = error.message || 'Failed to sign in. Please check your credentials.';
                     if (msg.toLowerCase().includes('email not confirmed')) {
-                        setErrorMsg('Please check your email to confirm your account before signing in, or use Create Account.');
+                        setErrorMsg('Email not confirmed yet. In Supabase Dashboard, disable "Confirm email" under Authentication -> Providers -> Email for instant access.');
                     } else if (msg.toLowerCase().includes('invalid login credentials')) {
                         setErrorMsg('Invalid email or password. If you do not have an account yet, switch to "Create Account".');
                     } else {
@@ -105,16 +116,16 @@ export const LandingPage: React.FC = () => {
                     }
                 }
             } else {
-                const { error } = await signUpWithEmail(cleanEmail, cleanPassword, username.trim() || undefined);
+                const { error } = await signUpWithEmail(cleanEmail, cleanPassword, cleanUsername);
                 if (error) {
                     setErrorMsg(error.message || 'Failed to create account. Please try again.');
                 } else {
-                    setSuccessMsg('Account created successfully! Signing you in...');
+                    setSuccessMsg('Account created! Signing you in...');
                     // Automatically attempt sign in immediately
                     setTimeout(async () => {
                         const { error: autoSignInErr } = await signInWithEmail(cleanEmail, cleanPassword);
                         if (autoSignInErr) {
-                            setSuccessMsg('Account created! Please check your email to confirm, then sign in.');
+                            setSuccessMsg('Account created! If email confirmation is enabled in your Supabase project, check your inbox or disable "Confirm email" in Supabase -> Authentication -> Providers -> Email.');
                         }
                     }, 500);
                 }
@@ -246,11 +257,13 @@ export const LandingPage: React.FC = () => {
                     <form onSubmit={handleSubmit} className="yolofuck-auth-form">
                         {authMode === 'signup' && (
                             <div className="yolofuck-form-field">
-                                <label>Username (Optional)</label>
+                                <label>Username (Mandatory)</label>
                                 <input
                                     type="text"
+                                    required
+                                    minLength={2}
                                     className="yolofuck-form-input"
-                                    placeholder="Your username or handle"
+                                    placeholder="Unique username (shown to everyone)"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
                                     autoComplete="username"
@@ -292,7 +305,7 @@ export const LandingPage: React.FC = () => {
                             {loading ? (
                                 <Loader2 size={18} className="vizja-spin" />
                             ) : (
-                                <span>Sign In</span>
+                                <span>{authMode === 'signin' ? 'Sign In' : 'Create Account'}</span>
                             )}
                         </button>
                     </form>

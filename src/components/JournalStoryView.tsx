@@ -64,7 +64,8 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
     projectId: _projectId, 
     searchQuery = '' 
 }) => {
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
+    const effectiveUsername = profile?.username || user?.user_metadata?.username || 'Journal';
 
     // Data states
     const [allClips, setAllClips] = useState<JournalClip[]>([]);
@@ -662,7 +663,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                     clips={groupedDays.find(([d]) => d === lockedShareDate)?.[1] || []}
                     projectId={null}
                     userId={user?.id || 'local_user'}
-                    username={user?.user_metadata?.username || 'Journal'}
+                    username={effectiveUsername}
                     onClose={() => {
                         setShowShareModal(false);
                         setLockedShareDate(null);
