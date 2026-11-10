@@ -66,32 +66,150 @@ export const SharedStoryPlayerModal: React.FC<SharedStoryPlayerModalProps> = ({ 
         handleNextClip();
     };
 
-    // Pointer swipe tracking for desktop mouse & mobile touch
-    const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
+    // Pointer swipe tracking for desktop mouse & mobile touch (Direct 1:1 Follow & Snap)
+    const [dragOffset, setDragOffset] = useState<number>(0);
+    const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
+    const pointerStartRef = useRef<{ 
+        x: number; 
+        y: number; 
+        time: number;
+        canvasWidth: number;
+        isLockedHorizontal: boolean;
+        isTracking: boolean;
+    } | null>(null);
 
     const handlePointerDown = (e: React.PointerEvent) => {
         const target = e.target as HTMLElement;
         if (target.closest('button') || target.closest('input') || target.closest('.shared-player-controls-bar')) {
             return;
         }
-        pointerStartRef.current = { x: e.clientX, y: e.clientY };
+
+        if (isTransitioning) return;
+
+        const canvasElem = e.currentTarget as HTMLElement;
+        const width = canvasElem.getBoundingClientRect().width || window.innerWidth;
+
+        pointerStartRef.current = { 
+            x: e.clientX, 
+            y: e.clientY, 
+            time: Date.now(),
+            canvasWidth: width,
+            isLockedHorizontal: false,
+            isTracking: true
+        };
+    };
+
+    const handlePointerMove = (e: React.PointerEvent) => {
+        const start = pointerStartRef.current;
+        if (!start || !start.isTracking || isTransitioning) return;
+
+        const rawDx = e.clientX - start.x;
+        const rawDy = e.clientY - start.y;
+        const absX = Math.abs(rawDx);
+        const absY = Math.abs(rawDy);
+
+        if (!start.isLockedHorizontal) {
+            if (absX > 8 && absX > absY * 1.2) {
+                start.isLockedHorizontal = true;
+                try {
+                    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                } catch {}
+            } else if (absY > 15) {
+                start.isTracking = false;
+                setDragOffset(0);
+                return;
+            }
+        }
+
+        if (start.isLockedHorizontal) {
+            const isAtStart = currentClipIndex === 0 && rawDx > 0 && !isLooping;
+            const isAtEnd = currentClipIndex >= clips.length - 1 && rawDx < 0 && !isLooping;
+
+            let computed = rawDx;
+            if (isAtStart || isAtEnd) {
+                computed = rawDx * 0.28;
+            }
+            setDragOffset(computed);
+        }
     };
 
     const handlePointerUp = (e: React.PointerEvent) => {
-        if (!pointerStartRef.current) return;
-        const deltaX = e.clientX - pointerStartRef.current.x;
-        const deltaY = e.clientY - pointerStartRef.current.y;
+        try {
+            if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
+                (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+            }
+        } catch {}
+
+        const start = pointerStartRef.current;
+        if (!start || !start.isTracking) {
+            pointerStartRef.current = null;
+            setDragOffset(0);
+            return;
+        }
+
+        const deltaX = e.clientX - start.x;
+        const deltaTime = Math.max(1, Date.now() - start.time);
+        const velocity = Math.abs(deltaX) / deltaTime;
+        const width = start.canvasWidth || 360;
+        const dragRatio = Math.abs(deltaX) / width;
+
         pointerStartRef.current = null;
 
-        if (Math.abs(deltaX) > 35 && Math.abs(deltaX) > Math.abs(deltaY)) {
+        const meetsThreshold = (dragRatio >= 0.22 && Math.abs(deltaX) >= 40) || (velocity >= 0.35 && Math.abs(deltaX) >= 30);
+
+        if (start.isLockedHorizontal && meetsThreshold) {
             if (deltaX < 0) {
-                // Swipe Left -> Next Clip
-                handleNextClip();
-            } else {
-                // Swipe Right -> Prev Clip
-                handlePrevClip();
+                const hasNext = currentClipIndex < clips.length - 1 || isLooping;
+                if (hasNext) {
+                    setIsTransitioning(true);
+                    setDragOffset(-width);
+                    setTimeout(() => {
+                        handleNextClip();
+                        setDragOffset(0);
+                        setIsTransitioning(false);
+                    }, 240);
+                    return;
+                }
+            } else if (deltaX > 0) {
+                const hasPrev = currentClipIndex > 0 || isLooping;
+                if (hasPrev) {
+                    setIsTransitioning(true);
+                    setDragOffset(width);
+                    setTimeout(() => {
+                        handlePrevClip();
+                        setDragOffset(0);
+                        setIsTransitioning(false);
+                    }, 240);
+                    return;
+                }
             }
         }
+
+        if (Math.abs(dragOffset) > 0 || (start.isLockedHorizontal && deltaX !== 0)) {
+            setIsTransitioning(true);
+            setDragOffset(0);
+            setTimeout(() => {
+                setIsTransitioning(false);
+            }, 260);
+            return;
+        }
+
+        const target = e.target as HTMLElement;
+        if (target.classList.contains('shared-player-video') || target.classList.contains('shared-player-slide-track')) {
+            togglePlay();
+        }
+    };
+
+    const handlePointerCancel = (e: React.PointerEvent) => {
+        try {
+            if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
+                (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+            }
+        } catch {}
+        pointerStartRef.current = null;
+        setIsTransitioning(true);
+        setDragOffset(0);
+        setTimeout(() => setIsTransitioning(false), 240);
     };
 
     const togglePlay = () => {
@@ -133,7 +251,9 @@ export const SharedStoryPlayerModal: React.FC<SharedStoryPlayerModalProps> = ({ 
             <div 
                 className="shared-player-modal-canvas"
                 onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerCancel}
             >
                 {/* Close Button X at Top Right */}
                 <button 
@@ -153,22 +273,31 @@ export const SharedStoryPlayerModal: React.FC<SharedStoryPlayerModalProps> = ({ 
                     />
                 </div>
 
-                {/* Video Viewport */}
+                {/* Video Viewport with 1:1 Direct Follow & Snap */}
                 {activeClip ? (
-                    <video
-                        ref={videoRef}
-                        className="shared-player-video"
-                        playsInline
-                        muted={isMuted}
-                        onTimeUpdate={() => {
-                            if (videoRef.current) {
-                                setCurrentTime(videoRef.current.currentTime);
-                                setClipDuration(videoRef.current.duration || 0);
-                            }
+                    <div 
+                        className="shared-player-slide-track"
+                        style={{
+                            transform: `translate3d(${dragOffset}px, 0, 0)`,
+                            transition: isTransitioning 
+                                ? 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)' 
+                                : 'none'
                         }}
-                        onEnded={handleClipEnded}
-                        onClick={togglePlay}
-                    />
+                    >
+                        <video
+                            ref={videoRef}
+                            className="shared-player-video"
+                            playsInline
+                            muted={isMuted}
+                            onTimeUpdate={() => {
+                                if (videoRef.current) {
+                                    setCurrentTime(videoRef.current.currentTime);
+                                    setClipDuration(videoRef.current.duration || 0);
+                                }
+                            }}
+                            onEnded={handleClipEnded}
+                        />
+                    </div>
                 ) : (
                     <div className="shared-player-no-video">
                         <span>No video available</span>

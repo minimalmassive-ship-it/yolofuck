@@ -24,6 +24,9 @@
   display: flex;
   flex-direction: column;
   box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* Close Button X at Top Right */
@@ -71,13 +74,29 @@
   transition: width 0.08s linear;
 }
 
+.shared-player-slide-track {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  cursor: grab;
+}
+
+.shared-player-slide-track:active {
+  cursor: grabbing;
+}
+
 /* Video viewport */
 .shared-player-video {
   width: 100%;
   height: 100%;
   object-fit: cover;
   background: #000000;
-  cursor: pointer;
+  pointer-events: none;
 }
 
 .shared-player-no-video {

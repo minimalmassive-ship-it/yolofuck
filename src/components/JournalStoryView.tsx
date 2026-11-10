@@ -130,7 +130,16 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
     const isLongPressTriggeredRef = useRef(false);
 
     // Touch & Mouse Pointer gesture tracker for Full-Screen Player: Horizontal Swipe left/right
-    const playerPointerStartRef = useRef<{ x: number; y: number; time: number; isTracking: boolean } | null>(null);
+    const [playerDragOffset, setPlayerDragOffset] = useState<number>(0);
+    const [isSwipeTransitioning, setIsSwipeTransitioning] = useState<boolean>(false);
+    const playerPointerStartRef = useRef<{ 
+        x: number; 
+        y: number; 
+        time: number; 
+        isTracking: boolean;
+        isLockedHorizontal: boolean;
+        canvasWidth: number;
+    } | null>(null);
     const playerLongPressTimerRef = useRef<any>(null);
     const isPlayerLongPressTriggeredRef = useRef(false);
 
@@ -499,7 +508,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         }
     };
 
-    // ── Full-Screen Player Pointer & Mouse Drag Swipe Handlers (Unified Mobile & Desktop) ──
+    // ── Full-Screen Player Pointer & Mouse Drag Swipe Handlers (Direct Follow Drag & Snap) ──
     const handlePlayerPointerDown = (e: React.PointerEvent) => {
         // Ignore if clicking interactive controls (dock, close button, pause button, volume slider)
         const target = e.target as HTMLElement;
@@ -507,12 +516,19 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
             return;
         }
 
+        if (isSwipeTransitioning) return;
+
+        const canvasElem = e.currentTarget as HTMLElement;
+        const width = canvasElem.getBoundingClientRect().width || window.innerWidth;
+
         isPlayerLongPressTriggeredRef.current = false;
         playerPointerStartRef.current = {
             x: e.clientX,
             y: e.clientY,
             time: Date.now(),
-            isTracking: true
+            isTracking: true,
+            isLockedHorizontal: false,
+            canvasWidth: width
         };
 
         if (playerLongPressTimerRef.current) {
@@ -532,16 +548,50 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
     };
 
     const handlePlayerPointerMove = (e: React.PointerEvent) => {
-        if (!playerPointerStartRef.current || !playerPointerStartRef.current.isTracking) return;
-        const dx = Math.abs(e.clientX - playerPointerStartRef.current.x);
-        const dy = Math.abs(e.clientY - playerPointerStartRef.current.y);
+        const start = playerPointerStartRef.current;
+        if (!start || !start.isTracking || isSwipeTransitioning) return;
 
-        // Cancel long-press if moving pointer (e.g. initiating swipe)
-        if (dx > 10 || dy > 10) {
+        const rawDx = e.clientX - start.x;
+        const rawDy = e.clientY - start.y;
+        const absX = Math.abs(rawDx);
+        const absY = Math.abs(rawDy);
+
+        // Cancel long-press if pointer moves noticeably
+        if (absX > 8 || absY > 8) {
             if (playerLongPressTimerRef.current) {
                 clearTimeout(playerLongPressTimerRef.current);
                 playerLongPressTimerRef.current = null;
             }
+        }
+
+        // Lock horizontal gesture if horizontal movement dominates vertical
+        if (!start.isLockedHorizontal) {
+            if (absX > 8 && absX > absY * 1.2) {
+                start.isLockedHorizontal = true;
+                // Capture pointer to ensure smooth drag tracking outside bounds
+                try {
+                    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                } catch {}
+            } else if (absY > 15) {
+                // Dominant vertical scroll/drag - do not hijack
+                start.isTracking = false;
+                setPlayerDragOffset(0);
+                return;
+            }
+        }
+
+        if (start.isLockedHorizontal) {
+            // Check boundary limits for elastic rubber-band resistance
+            const isAtStartBoundary = currentClipIndex === 0 && rawDx > 0 && !isLooping;
+            const isAtEndBoundary = currentClipIndex >= activeDayClips.length - 1 && rawDx < 0 && !isLooping;
+
+            let computedOffset = rawDx;
+            if (isAtStartBoundary || isAtEndBoundary) {
+                // Apply elastic damping: 0.28x resistance
+                computedOffset = rawDx * 0.28;
+            }
+
+            setPlayerDragOffset(computedOffset);
         }
     };
 
@@ -551,43 +601,100 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
             playerLongPressTimerRef.current = null;
         }
 
+        try {
+            if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
+                (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+            }
+        } catch {}
+
         if (isPlayerLongPressTriggeredRef.current) {
             isPlayerLongPressTriggeredRef.current = false;
             playerPointerStartRef.current = null;
+            setPlayerDragOffset(0);
             return;
         }
 
-        if (!playerPointerStartRef.current || !playerPointerStartRef.current.isTracking) return;
-        const deltaX = e.clientX - playerPointerStartRef.current.x;
-        const deltaY = e.clientY - playerPointerStartRef.current.y;
+        const start = playerPointerStartRef.current;
+        if (!start || !start.isTracking) {
+            playerPointerStartRef.current = null;
+            setPlayerDragOffset(0);
+            return;
+        }
+
+        const deltaX = e.clientX - start.x;
+        const deltaTime = Math.max(1, Date.now() - start.time);
+        const velocity = Math.abs(deltaX) / deltaTime; // pixels per ms
+        const width = start.canvasWidth || 360;
+        const dragRatio = Math.abs(deltaX) / width;
+
         playerPointerStartRef.current = null;
 
-        // Horizontal Swipe threshold: at least 35px, mostly horizontal
-        if (Math.abs(deltaX) > 35 && Math.abs(deltaX) > Math.abs(deltaY)) {
+        // Industry standard threshold:
+        // Either distance >= 22% of player canvas width OR flick velocity >= 0.35 px/ms with >= 30px move
+        const meetsThreshold = (dragRatio >= 0.22 && Math.abs(deltaX) >= 40) || (velocity >= 0.35 && Math.abs(deltaX) >= 30);
+
+        if (start.isLockedHorizontal && meetsThreshold) {
             if (deltaX < 0) {
-                // Swipe Left -> Next Take in sequence
-                handleNextClip();
-            } else {
-                // Swipe Right -> Previous Take in sequence
-                handlePrevClip();
+                // Swipe Left -> Next Take
+                const hasNext = currentClipIndex < activeDayClips.length - 1 || isLooping;
+                if (hasNext) {
+                    setIsSwipeTransitioning(true);
+                    setPlayerDragOffset(-width);
+                    setTimeout(() => {
+                        handleNextClip();
+                        setPlayerDragOffset(0);
+                        setIsSwipeTransitioning(false);
+                    }, 240);
+                    return;
+                }
+            } else if (deltaX > 0) {
+                // Swipe Right -> Previous Take
+                const hasPrev = currentClipIndex > 0 || isLooping;
+                if (hasPrev) {
+                    setIsSwipeTransitioning(true);
+                    setPlayerDragOffset(width);
+                    setTimeout(() => {
+                        handlePrevClip();
+                        setPlayerDragOffset(0);
+                        setIsSwipeTransitioning(false);
+                    }, 240);
+                    return;
+                }
             }
+        }
+
+        // If threshold not met or at boundary: spring/bounce smoothly back to 0
+        if (Math.abs(playerDragOffset) > 0 || (start.isLockedHorizontal && deltaX !== 0)) {
+            setIsSwipeTransitioning(true);
+            setPlayerDragOffset(0);
+            setTimeout(() => {
+                setIsSwipeTransitioning(false);
+            }, 260);
             return;
         }
 
-        // Quick click on the background/video: toggle play/pause or close
+        // Quick click on the background/video: toggle play/pause
         const target = e.target as HTMLElement;
-        if (target.classList.contains('yolofuck-player-video')) {
+        if (target.classList.contains('yolofuck-player-video') || target.classList.contains('yolofuck-player-slide-track')) {
             togglePlayerPlay();
         }
     };
 
-    const handlePlayerPointerCancel = () => {
+    const handlePlayerPointerCancel = (e: React.PointerEvent) => {
         if (playerLongPressTimerRef.current) {
             clearTimeout(playerLongPressTimerRef.current);
             playerLongPressTimerRef.current = null;
         }
+        try {
+            if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
+                (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+            }
+        } catch {}
         playerPointerStartRef.current = null;
         isPlayerLongPressTriggeredRef.current = false;
+        setIsSwipeTransitioning(true);
+        setPlayerDragOffset(0);
+        setTimeout(() => setIsSwipeTransitioning(false), 240);
     };
 
     // ── Gesture Handlers for Matrix Films (Single Tap opens full-screen loop, long-press enables drag-and-drop) ──
@@ -675,19 +782,30 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                         onPointerUp={handlePlayerPointerUp}
                         onPointerCancel={handlePlayerPointerCancel}
                     >
-                        <video
-                            ref={videoRef}
-                            className="yolofuck-player-video"
-                            playsInline
-                            muted={isMuted}
-                            onTimeUpdate={() => {
-                                if (videoRef.current) {
-                                    setCurrentTime(videoRef.current.currentTime);
-                                    setCurrentClipDuration(videoRef.current.duration || 0);
-                                }
+                        {/* Video Slider Track with 1:1 Direct Manipulation Drag Follow & Physics */}
+                        <div 
+                            className="yolofuck-player-slide-track"
+                            style={{
+                                transform: `translate3d(${playerDragOffset}px, 0, 0)`,
+                                transition: isSwipeTransitioning 
+                                    ? 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)' 
+                                    : 'none'
                             }}
-                            onEnded={handleNextClip}
-                        />
+                        >
+                            <video
+                                ref={videoRef}
+                                className="yolofuck-player-video"
+                                playsInline
+                                muted={isMuted}
+                                onTimeUpdate={() => {
+                                    if (videoRef.current) {
+                                        setCurrentTime(videoRef.current.currentTime);
+                                        setCurrentClipDuration(videoRef.current.duration || 0);
+                                    }
+                                }}
+                                onEnded={handleNextClip}
+                            />
+                        </div>
 
                         {/* Top Overlay Bars (Segmented progress for all takes in this day) */}
                         <div className="yolofuck-player-progress-row">
