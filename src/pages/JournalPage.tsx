@@ -128,8 +128,16 @@ export const JournalPage: React.FC = () => {
 
     return (
         <div className="yolofuck-root">
-            {/* Top Bar: Search Bar Only */}
+            {/* Top Bar: Brand Logo on Left, Search Bar in Center, Account Menu on Right */}
             <header className={`yolofuck-top-bar ${isPlayerActive ? 'hidden-player-active' : ''}`}>
+                <div className="yolofuck-top-brand-logo">
+                    <img 
+                        src="/yolofuck-logo.png" 
+                        alt="YOLOFUCK" 
+                        className="yolofuck-top-logo-img"
+                    />
+                </div>
+
                 <div className="yolofuck-search-pill">
                     <Search size={16} color="#10b981" />
                     <input 

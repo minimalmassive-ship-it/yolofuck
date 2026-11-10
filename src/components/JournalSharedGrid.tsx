@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
     Settings, Lock, Users, Globe, Trash2, Copy, Check, EyeOff, RotateCcw, 
-    Video, Calendar, AlertTriangle, X, Share2, Loader2, ExternalLink, Play
+    Video, Calendar, AlertTriangle, X, Share2, Loader2, ExternalLink, Play, ArrowUp
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { 
     fetchUserSharedDailyStories, updateDailyStoryVisibility, 
-    stopDailyStorySharing, resumeDailyStorySharing, deleteDailyStoryShare 
+    stopDailyStorySharing, resumeDailyStorySharing, deleteDailyStoryShare,
+    getLocalDateISO
 } from '../lib/journalStoryService';
 import { SharedStoryPlayerModal } from './SharedStoryPlayerModal';
+import { JournalShareCommandCenter } from './JournalShareCommandCenter';
 import { moveToTrash } from '../lib/journalTrashStorage';
 import './JournalSharedGrid.css';
 
@@ -27,6 +29,7 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
     const [isActionLoading, setIsActionLoading] = useState<boolean>(false);
     const [copiedStoryId, setCopiedStoryId] = useState<string | null>(null);
     const [previewPlayerStory, setPreviewPlayerStory] = useState<any | null>(null);
+    const [shareModalStory, setShareModalStory] = useState<any | null>(null);
 
     // Mobile Swipe-Right pull-to-play gesture state per shared story
     const [storyPullDistances, setStoryPullDistances] = useState<{ [storyId: string]: number }>({});
@@ -461,12 +464,16 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
 
                                         <button
                                             type="button"
-                                            className={`shared-story-left-copy-btn ${copiedStoryId === story.id ? 'copied' : ''}`}
-                                            onClick={(e) => handleCopyLink(story, e)}
+                                            className="shared-story-left-share-btn"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setShareModalStory(story);
+                                            }}
                                             disabled={isStopped}
-                                            title="Copy shareable link"
+                                            title="Open Share Options"
                                         >
-                                            {copiedStoryId === story.id ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+                                            <Share2 size={13} />
+                                            <ArrowUp size={12} className="share-arrow-up-icon" />
                                         </button>
 
                                         <div className="shared-story-left-date-info">
@@ -629,6 +636,55 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
                     story={previewPlayerStory}
                     onClose={() => setPreviewPlayerStory(null)}
                 />
+            )}
+
+            {/* Centered Share Options Modal */}
+            {shareModalStory && (
+                <div 
+                    className="shared-options-modal-backdrop" 
+                    onClick={() => setShareModalStory(null)}
+                >
+                    <div 
+                        className="shared-options-modal-window" 
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="shared-options-modal-header">
+                            <div className="shared-options-modal-title">
+                                <Share2 size={16} color="#10b981" />
+                                <span>Share Story Options</span>
+                            </div>
+                            <button 
+                                type="button" 
+                                className="shared-options-modal-close" 
+                                onClick={() => setShareModalStory(null)}
+                                title="Close"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <div className="shared-options-modal-content">
+                            <JournalShareCommandCenter
+                                date={getStoryDate(shareModalStory)}
+                                clips={(shareModalStory.provenance_log as any)?.clips || (shareModalStory.video_url ? [{ clip_url: shareModalStory.video_url, id: shareModalStory.id, clip_date: getStoryDate(shareModalStory), is_merged: false, clip_order: 0, created_at: shareModalStory.created_at, duration_ms: 5000, project_id: null, thumbnail_url: shareModalStory.thumbnail_url, transcription: null, user_id: user?.id || '' }] : [])}
+                                projectId={null}
+                                userId={user?.id || 'local_user'}
+                                username={user?.user_metadata?.username || ''}
+                                onClose={() => setShareModalStory(null)}
+                            />
+                        </div>
+
+                        <div className="shared-options-modal-footer">
+                            <button 
+                                type="button" 
+                                className="shared-options-modal-cancel-btn" 
+                                onClick={() => setShareModalStory(null)}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

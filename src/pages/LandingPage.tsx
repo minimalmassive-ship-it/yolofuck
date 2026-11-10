@@ -175,18 +175,18 @@ export const LandingPage: React.FC = () => {
 
     return (
         <div className="yolofuck-landing-root">
-            {/* ── Top Bar (No underline separator, centered logo, PWA button on right) ── */}
+            {/* ── Top Bar (No underline separator, logo on left, PWA button on right) ── */}
             <header className="yolofuck-landing-header">
-                <div className="yolofuck-header-spacer" />
-
-                {/* Centered YOLOFUCK Image Logo */}
-                <div className="yolofuck-header-center-logo">
+                {/* Left YOLOFUCK Image Logo */}
+                <div className="yolofuck-header-left-logo">
                     <img 
                         src="/yolofuck-logo.png" 
                         alt="YOLOFUCK" 
                         className="yolofuck-brand-logo-img"
                     />
                 </div>
+
+                <div className="yolofuck-header-spacer" />
 
                 {/* Far Right: Direct PWA Install Icon */}
                 <div className="yolofuck-header-right-action">

@@ -25,7 +25,8 @@ import {
     Share2, 
     Video, 
     Sparkles,
-    Layers
+    Layers,
+    ArrowRight
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -829,40 +830,6 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                     2. MAIN FEED: TIGHT SQUARE VIDEO SHORTS MATRIX
                    ══════════════════════════════════════════════════════════ */
                 <div className="yolofuck-matrix-container">
-                    {/* Sub-Header Strip (Placed under searchbar, above Today's row) */}
-                    <div className="yolofuck-today-strip-bar">
-                        <button
-                            type="button"
-                            className="yolofuck-today-play-btn"
-                            onClick={() => handleStartDayPlayer(todayDate, 0)}
-                            disabled={todayClips.length === 0}
-                            title="Play today's story in sequence"
-                        >
-                            <Play size={13} fill="#ffffff" />
-                            <span>Play Story</span>
-                        </button>
-
-                        <div className="yolofuck-today-summary-badge">
-                            <span>{todayClips.length} {todayClips.length === 1 ? 'take' : 'takes'}</span>
-                            {todayTotalMs > 0 && <span className="yolofuck-summary-dot">·</span>}
-                            {todayTotalMs > 0 && <span>{formatDuration(todayTotalMs)}</span>}
-                        </div>
-
-                        <button
-                            type="button"
-                            className="yolofuck-today-share-btn"
-                            onClick={() => {
-                                setLockedShareDate(todayDate);
-                                setShowShareModal(true);
-                            }}
-                            disabled={todayClips.length === 0}
-                            title="Share today's story"
-                        >
-                            <Share2 size={13} />
-                            <span>Share</span>
-                        </button>
-                    </div>
-
                     {/* Filter info feedback if search query is active */}
                     {searchQuery && (
                         <div className="yolofuck-search-feedback-strip">
@@ -923,9 +890,10 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                                         }
                                                     }}
                                                     disabled={clips.length === 0}
-                                                    title="Open Shared stories timeline"
+                                                    title="Forward sequence to Shared tab"
                                                 >
-                                                    <Share2 size={16} />
+                                                    <Share2 size={13} />
+                                                    <ArrowRight size={12} className="share-arrow-icon" />
                                                 </button>
                                             </div>
 
