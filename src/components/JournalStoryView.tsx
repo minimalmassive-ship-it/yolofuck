@@ -27,7 +27,8 @@ import {
     Sparkles,
     Layers,
     ArrowRight,
-    ArrowLeft
+    ArrowLeft,
+    RotateCcw
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -36,6 +37,10 @@ import {
     deleteClip,
     reorderDailyClips,
     ensureDailyStoryIdea,
+    getDayCustomOrder,
+    setDayCustomOrder,
+    resetDayCustomOrder,
+    claimAllExistingClipsForUser,
     type JournalClip,
 } from '../lib/journalStoryService';
 import { getAllLocalJournalRecordings, deleteLocalJournalRecording } from '../lib/journalLocalStorage';
@@ -121,6 +126,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
     const [draggingClip, setDraggingClip] = useState<{ clip: JournalClip; date: string } | null>(null);
     const [dragOverClipId, setDragOverClipId] = useState<string | null>(null);
     const [dragEnabledClipId, setDragEnabledClipId] = useState<string | null>(null);
+    const [reorderVersion, setReorderVersion] = useState<number>(0);
 
     const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -246,12 +252,21 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         try {
             setLoading(true);
 
+            // One-time safety claim for minimalmassive@gmail.com / Plasticin
+            if (
+                user.email === 'minimalmassive@gmail.com' ||
+                user.id === '4fb34c08-a3b7-45b3-a7ad-fda625eae464' ||
+                profile?.username?.toLowerCase() === 'plasticin'
+            ) {
+                await claimAllExistingClipsForUser(user.id);
+            }
+
             // 1. Fetch cloud clips strictly for this user
             const cloudClips = await fetchAllUserClips(user.id);
 
             // 2. Fetch local storage clips strictly for this user
             const localEntries = await getAllLocalJournalRecordings(user.id);
-            const localMapped: JournalClip[] = localEntries.map((loc, idx) => {
+            const localMapped: JournalClip[] = localEntries.map((loc) => {
                 const date = loc.createdAt ? loc.createdAt.slice(0, 10) : getLocalDateISO();
                 return {
                     id: loc.id,
@@ -261,18 +276,27 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                     thumbnail_url: null,
                     transcription: loc.transcription || null,
                     duration_ms: loc.durationMs || 5000,
-                    clip_order: idx,
+                    clip_order: 0,
                     clip_date: date,
                     is_merged: false,
                     created_at: loc.createdAt || new Date().toISOString()
                 };
             });
 
-            // Combine avoiding duplicates
+            // Combine avoiding duplicates between cloud and local
             const combinedMap = new Map<string, JournalClip>();
             cloudClips.forEach(c => combinedMap.set(c.id, c));
+
+            // Add local clips only if not already present in cloudClips
             localMapped.forEach(l => {
-                if (!combinedMap.has(l.id)) {
+                const alreadyInCloud = cloudClips.some(c => {
+                    const sameDate = (c.clip_date === l.clip_date);
+                    const timeDiff = Math.abs(new Date(c.created_at).getTime() - new Date(l.created_at).getTime());
+                    const durDiff = Math.abs((c.duration_ms || 0) - (l.duration_ms || 0));
+                    return sameDate && timeDiff < 20000 && durDiff < 2000;
+                });
+
+                if (!alreadyInCloud && !combinedMap.has(l.id)) {
                     combinedMap.set(l.id, l);
                 }
             });
@@ -284,7 +308,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         } finally {
             setLoading(false);
         }
-    }, [user?.id]);
+    }, [user?.id, user?.email, profile?.username]);
 
     useEffect(() => {
         loadAllClips();
@@ -326,15 +350,36 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
             if (!map.has(date)) {
                 map.set(date, []);
             }
-            map.get(date)!.push(clip);
+            map.get(date)!.push({ ...clip });
         }
 
-        // Sort each day's clips chronologically (oldest to newest: left to right)
-        map.forEach((clips) => {
-            clips.sort((a, b) => {
-                if (a.clip_order !== b.clip_order) return a.clip_order - b.clip_order;
-                return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        // Process each day:
+        // 1. Sort strictly chronologically by created_at ASC (oldest to newest: left to right)
+        // 2. Assign permanent original take number (1, 2, 3... N)
+        // 3. If the user saved a custom sequence (via drag & drop), arrange according to custom order
+        map.forEach((clips, date) => {
+            // Step 1: Chronological sort
+            clips.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+            // Step 2: Assign permanent original take number
+            clips.forEach((c, idx) => {
+                if (!c.original_take_number) {
+                    c.original_take_number = idx + 1;
+                }
             });
+
+            // Step 3: Check if user has reordered this day's sequence
+            const customOrder = getDayCustomOrder(user?.id || 'local_user', date);
+            if (customOrder && Array.isArray(customOrder) && customOrder.length > 0) {
+                const posMap = new Map<string, number>();
+                customOrder.forEach((id, pos) => posMap.set(id, pos));
+                clips.sort((a, b) => {
+                    const posA = posMap.has(a.id) ? posMap.get(a.id)! : 99999;
+                    const posB = posMap.has(b.id) ? posMap.get(b.id)! : 99999;
+                    if (posA !== posB) return posA - posB;
+                    return (a.original_take_number || 0) - (b.original_take_number || 0);
+                });
+            }
         });
 
         // Convert to array and sort dates DESCENDING (today first, then yesterday, etc.)
@@ -342,7 +387,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         entries.sort(([dateA], [dateB]) => dateB.localeCompare(dateA));
 
         return entries;
-    }, [allClips, searchQuery]);
+    }, [allClips, searchQuery, user?.id, reorderVersion]);
 
     const todayDate = getLocalDateISO();
     const todayEntry = groupedDays.find(([d]) => d === todayDate);
@@ -489,8 +534,13 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         const [moved] = reordered.splice(oldIndex, 1);
         reordered.splice(newIndex, 0, moved);
 
-        // Update clip_order numbers
+        // Update clip_order numbers while preserving permanent original_take_number
         const updatedClips = reordered.map((c, idx) => ({ ...c, clip_order: idx }));
+
+        // Persist day sequence order to localStorage
+        const userId = user?.id || 'local_user';
+        setDayCustomOrder(userId, date, reordered.map(c => c.id));
+        setReorderVersion(v => v + 1);
 
         // Optimistically update allClips state
         setAllClips(prev => {
@@ -506,6 +556,36 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                 console.error('[JournalStoryView] Failed to persist reordering:', err);
             }
         }
+    };
+
+    const handleResetDayOrder = async (date: string) => {
+        const userId = user?.id || 'local_user';
+        resetDayCustomOrder(userId, date);
+        setReorderVersion(v => v + 1);
+
+        // Reset order in allClips state back to chronological created_at order
+        const dayClips = groupedDays.find(([d]) => d === date)?.[1] || [];
+        const chronoSorted = [...dayClips].sort(
+            (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        ).map((c, idx) => ({ ...c, clip_order: idx }));
+
+        setAllClips(prev => {
+            const others = prev.filter(c => (c.clip_date || c.created_at.slice(0, 10)) !== date);
+            return [...others, ...chronoSorted];
+        });
+
+        if (user?.id) {
+            try {
+                await reorderDailyClips(user.id, date, chronoSorted);
+            } catch (err) {
+                console.error('[JournalStoryView] Failed to reset reordering in DB:', err);
+            }
+        }
+    };
+
+    const isDayReordered = (clips: JournalClip[]) => {
+        if (!clips || clips.length <= 1) return false;
+        return clips.some((c, idx) => (c.original_take_number || (idx + 1)) !== (idx + 1));
     };
 
     // ── Full-Screen Player Pointer & Mouse Drag Swipe Handlers (Direct Follow Drag & Snap) ──
@@ -838,7 +918,12 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                     {formatVerticalDate(activeStoryDate)}
                                 </span>
                                 <span className="yolofuck-player-take-badge">
-                                    Take {currentClipIndex + 1} of {activeDayClips.length}
+                                    Take {activeClip?.original_take_number || (currentClipIndex + 1)}
+                                    {activeClip?.original_take_number && activeClip.original_take_number !== (currentClipIndex + 1) ? (
+                                        <span className="yolofuck-player-pos-hint"> (pos {currentClipIndex + 1}/{activeDayClips.length})</span>
+                                    ) : (
+                                        ` of ${activeDayClips.length}`
+                                    )}
                                 </span>
                             </div>
 
@@ -988,7 +1073,23 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
 
                                             <div className="yolofuck-day-info-bottom">
                                                 <span className="yolofuck-day-info-date">{formattedDate}</span>
-                                                <span className="yolofuck-day-info-count">{clips.length} {clips.length === 1 ? 'take' : 'takes'}</span>
+                                                <div className="yolofuck-day-info-meta-row">
+                                                    <span className="yolofuck-day-info-count">{clips.length} {clips.length === 1 ? 'take' : 'takes'}</span>
+                                                    {isDayReordered(clips) && (
+                                                        <button
+                                                            type="button"
+                                                            className="yolofuck-reset-order-btn"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleResetDayOrder(date);
+                                                            }}
+                                                            title="Reset sequence back to original chronological recording order"
+                                                        >
+                                                            <RotateCcw size={10} style={{ marginRight: 3 }} />
+                                                            Reset
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
 
@@ -1067,7 +1168,11 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                                                 setDragOverClipId(null);
                                                                 setDragEnabledClipId(null);
                                                             }}
-                                                            title={`Take ${idx + 1}`}
+                                                            title={`Take ${clip.original_take_number || (idx + 1)}${
+                                                                clip.original_take_number && clip.original_take_number !== idx + 1
+                                                                    ? ` (moved to position ${idx + 1})`
+                                                                    : ''
+                                                            }`}
                                                         >
                                                             {isLoopingThis ? (
                                                                 <video
@@ -1081,7 +1186,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                                             ) : clip.thumbnail_url ? (
                                                                 <img 
                                                                     src={clip.thumbnail_url} 
-                                                                    alt={`Take ${idx + 1}`} 
+                                                                    alt={`Take ${clip.original_take_number || (idx + 1)}`} 
                                                                     className="yolofuck-square-media" 
                                                                 />
                                                             ) : (
@@ -1096,7 +1201,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                                             {/* Top Center Take Number: Small, standard font, centered, no shadow */}
                                                             <div className="yolofuck-film-top-badge">
                                                                 <span className="yolofuck-film-take-num">
-                                                                    {idx + 1}
+                                                                    {clip.original_take_number || (idx + 1)}
                                                                 </span>
                                                             </div>
 

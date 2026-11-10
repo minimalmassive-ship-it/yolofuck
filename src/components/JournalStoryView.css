@@ -234,7 +234,41 @@
 .yolofuck-day-info-count {
   font-size: 10px;
   font-weight: 600;
-  color: #10b981;
+  color: var(--yolo-lime, #c8f72c);
+}
+
+.yolofuck-day-info-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.yolofuck-reset-order-btn {
+  background: rgba(200, 247, 44, 0.08);
+  border: 1px solid rgba(200, 247, 44, 0.28);
+  color: var(--yolo-lime, #c8f72c);
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.yolofuck-reset-order-btn:hover {
+  background: var(--yolo-lime, #c8f72c);
+  color: #000000;
+  box-shadow: 0 0 10px rgba(200, 247, 44, 0.4);
+}
+
+.yolofuck-player-pos-hint {
+  font-size: 11px;
+  color: rgba(200, 247, 44, 0.8);
+  font-weight: 500;
 }
 
 /* ── Vertical Sideways Date Strip (Mobile only: e.g. 09-11-2026) ── */
@@ -291,7 +325,7 @@
   overflow: hidden;
   flex-shrink: 0;
   background: #000000;
-  border-right: 1px solid rgba(16, 185, 129, 0.25);
+  border-right: 1px solid rgba(200, 247, 44, 0.25);
   transition: width 0.08s ease-out;
 }
 
@@ -299,21 +333,21 @@
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: #10b981;
-  box-shadow: 0 0 16px rgba(16, 185, 129, 0.55);
+  background: var(--yolo-lime, #c8f72c);
+  box-shadow: 0 0 16px rgba(200, 247, 44, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
+  color: #000000;
   transform: scale(0.85);
-  transition: transform 0.12s ease-out, background 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.12s ease-out, box-shadow 0.15s ease;
 }
 
 .yolofuck-swipe-play-circle.triggered {
   background: var(--yolo-lime, #c8f72c);
   color: #000000;
   transform: scale(1.15);
-  box-shadow: 0 0 22px rgba(200, 247, 44, 0.8);
+  box-shadow: 0 0 24px rgba(200, 247, 44, 0.9);
 }
 
 /* ── Horizontal Strip of 9:16 Films ── */

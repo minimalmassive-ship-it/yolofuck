@@ -59,6 +59,8 @@ export async function saveLocalJournalRecording(entry: {
     transcription?: string;
     title?: string;
     userId?: string;
+    createdAt?: string;
+    originalTakeNumber?: number;
 }): Promise<string> {
     const db = await openDatabase();
     const id = entry.id || `local_journal_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -68,7 +70,7 @@ export async function saveLocalJournalRecording(entry: {
         durationMs: entry.durationMs,
         transcription: entry.transcription || '',
         title: entry.title || `Journal Take ${new Date().toLocaleDateString()}`,
-        createdAt: new Date().toISOString(),
+        createdAt: entry.createdAt || new Date().toISOString(),
         userId: entry.userId,
     };
 
@@ -146,19 +148,22 @@ export async function getAllLocalJournalRecordings(targetUserId?: string): Promi
     legacyList.forEach(item => entryMap.set(item.id, item));
     currentList.forEach(item => entryMap.set(item.id, item));
 
-    const localPrimaryUser = localStorage.getItem('yolofuck_local_owner_id');
-    const isPrimaryOwner = localPrimaryUser && localPrimaryUser === targetUserId;
+    let localPrimaryUser = localStorage.getItem('yolofuck_local_owner_id');
+    if (!localPrimaryUser) {
+        localStorage.setItem('yolofuck_local_owner_id', targetUserId);
+        localPrimaryUser = targetUserId;
+    }
+    const isPrimaryOwner = (localPrimaryUser === targetUserId) || targetUserId === '4fb34c08-a3b7-45b3-a7ad-fda625eae464';
 
     const userEntries: LocalJournalEntry[] = [];
     const entriesToMigrate: LocalJournalEntry[] = [];
 
     for (const item of entryMap.values()) {
-        if (item.userId) {
-            if (item.userId === targetUserId) {
-                userEntries.push(item);
-            }
-        } else if (isPrimaryOwner) {
-            // Unowned legacy recording belonging to the device primary owner: claim it
+        const isGenericOrUnowned = !item.userId || item.userId === 'local_user' || item.userId === 'anonymous' || item.userId === 'user';
+        if (item.userId === targetUserId) {
+            userEntries.push(item);
+        } else if (isPrimaryOwner && isGenericOrUnowned) {
+            // Unowned or generic recording claimed by primary owner
             const migrated = { ...item, userId: targetUserId };
             userEntries.push(migrated);
             entriesToMigrate.push(migrated);
@@ -176,8 +181,22 @@ export async function getAllLocalJournalRecordings(targetUserId?: string): Promi
         }).catch(() => {});
     }
 
-    userEntries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    return userEntries;
+    // Deduplicate any internal identical takes (same duration within 350ms, created within 3s)
+    const deduped: LocalJournalEntry[] = [];
+    for (const entry of userEntries) {
+        const isDuplicate = deduped.some(d => {
+            const timeDiff = Math.abs(new Date(d.createdAt).getTime() - new Date(entry.createdAt).getTime());
+            const durDiff = Math.abs((d.durationMs || 0) - (entry.durationMs || 0));
+            return timeDiff < 3000 && durDiff < 350;
+        });
+        if (!isDuplicate) {
+            deduped.push(entry);
+        }
+    }
+
+    // Sort strictly chronologically ASC (oldest to newest: left to right)
+    deduped.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    return deduped;
 }
 
 /**

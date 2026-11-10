@@ -246,6 +246,7 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
             }
 
             const fullTranscription = (transcription + ' ' + liveWord).trim();
+            const nowBase = Date.now();
 
             // Save to IndexedDB local storage
             for (let i = 0; i < recordedClips.length; i++) {
@@ -256,6 +257,7 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
                     transcription: fullTranscription,
                     title: `Journal Take ${i + 1} (${new Date().toLocaleDateString()})`,
                     userId: user.id,
+                    createdAt: new Date(nowBase + i * 500).toISOString(),
                 });
             }
 

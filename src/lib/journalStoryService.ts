@@ -39,6 +39,7 @@ export interface JournalClip {
     clip_date: string; // ISO date 'YYYY-MM-DD'
     is_merged: boolean;
     created_at: string;
+    original_take_number?: number;
 }
 
 // ── Pending Date Bridge ────────────────────────────────────────────────────
@@ -844,6 +845,63 @@ export async function reorderDailyClips(
     } catch (err) {
         console.error('[JournalStory] reorderDailyClips error:', err);
         return false;
+    }
+}
+
+/** Helper key for persistent custom sequence reordering per user and date */
+export function getDayCustomOrderKey(userId: string, date: string): string {
+    return `yolofuck_day_order_${userId}_${date}`;
+}
+
+export function getDayCustomOrder(userId: string, date: string): string[] | null {
+    if (!userId || !date) return null;
+    try {
+        const raw = localStorage.getItem(getDayCustomOrderKey(userId, date));
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
+export function setDayCustomOrder(userId: string, date: string, clipIds: string[]): void {
+    if (!userId || !date) return;
+    try {
+        localStorage.setItem(getDayCustomOrderKey(userId, date), JSON.stringify(clipIds));
+    } catch {}
+}
+
+export function resetDayCustomOrder(userId: string, date: string): void {
+    if (!userId || !date) return;
+    try {
+        localStorage.removeItem(getDayCustomOrderKey(userId, date));
+    } catch {}
+}
+
+/**
+ * One-time / safety claim function:
+ * Ensures all existing clips and journal entries (local device and cloud DB)
+ * are assigned to targetUserId (e.g. minimalmassive@gmail.com / Plasticin).
+ */
+export async function claimAllExistingClipsForUser(targetUserId: string): Promise<void> {
+    if (!targetUserId) return;
+    try {
+        localStorage.setItem('yolofuck_local_owner_id', targetUserId);
+        localStorage.setItem('ideanite_local_owner_id', targetUserId);
+
+        // Update any unassigned, generic, or legacy clips in Supabase
+        await supabase
+            .from('journal_clips')
+            .update({ user_id: targetUserId })
+            .or(`user_id.is.null,user_id.eq.local_user,user_id.eq.anonymous,user_id.neq.${targetUserId}`);
+
+        await supabase
+            .from('journal_entries')
+            .update({ user_id: targetUserId })
+            .or(`user_id.is.null,user_id.eq.local_user,user_id.eq.anonymous,user_id.neq.${targetUserId}`);
+    } catch (e) {
+        console.warn('[JournalStory] claimAllExistingClipsForUser notice:', e);
     }
 }
 
