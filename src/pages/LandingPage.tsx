@@ -1,12 +1,12 @@
 /**
  * LandingPage.tsx — yolofuck
- * High-conversion Neumorphic Dark Landing Page with 1-Screen Authentication
+ * High-conversion Neumorphic Dark Landing Page with 1-Screen Authentication & PWA Install
  * Strictly NO purple/violet hues.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Video, Mic, Calendar, Sparkles, Loader2, ArrowRight } from 'lucide-react';
+import { Video, Mic, Calendar, Loader2, Download } from 'lucide-react';
 import './LandingPage.css';
 
 export const LandingPage: React.FC = () => {
@@ -18,17 +18,73 @@ export const LandingPage: React.FC = () => {
     const [username, setUsername] = useState('');
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+    // PWA Install Prompt State
+    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+    const [isPwaInstalled, setIsPwaInstalled] = useState(false);
+
+    useEffect(() => {
+        const handleBeforeInstall = (e: any) => {
+            e.preventDefault();
+            setDeferredPrompt(e);
+        };
+
+        const handleAppInstalled = () => {
+            setIsPwaInstalled(true);
+            setDeferredPrompt(null);
+        };
+
+        window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+        window.addEventListener('appinstalled', handleAppInstalled);
+
+        // Check if already running in standalone PWA mode
+        if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
+            setIsPwaInstalled(true);
+        }
+
+        return () => {
+            window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+            window.removeEventListener('appinstalled', handleAppInstalled);
+        };
+    }, []);
+
+    const handleInstallPwa = async () => {
+        if (deferredPrompt) {
+            try {
+                deferredPrompt.prompt();
+                const choiceResult = await deferredPrompt.userChoice;
+                if (choiceResult.outcome === 'accepted') {
+                    setDeferredPrompt(null);
+                }
+            } catch (err) {
+                console.warn('[PWA] Install prompt exception:', err);
+            }
+        } else {
+            // Inform user on iOS or mobile browsers where manual install action applies
+            const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+            if (isIos) {
+                alert('To install yolofuck: tap the Share button in Safari, then select "Add to Home Screen".');
+            } else {
+                alert('To install yolofuck: tap the browser menu (⋮) and choose "Install App" or "Add to Home screen".');
+            }
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setErrorMsg(null);
+        setSuccessMsg(null);
 
-        if (!email.trim() || !password.trim()) {
+        const cleanEmail = email.trim();
+        const cleanPassword = password.trim();
+
+        if (!cleanEmail || !cleanPassword) {
             setErrorMsg('Please enter both email and password.');
             return;
         }
 
-        if (authMode === 'signup' && password.length < 6) {
+        if (authMode === 'signup' && cleanPassword.length < 6) {
             setErrorMsg('Password must be at least 6 characters.');
             return;
         }
@@ -37,14 +93,30 @@ export const LandingPage: React.FC = () => {
 
         try {
             if (authMode === 'signin') {
-                const { error } = await signInWithEmail(email.trim(), password);
+                const { error } = await signInWithEmail(cleanEmail, cleanPassword);
                 if (error) {
-                    setErrorMsg(error.message || 'Failed to sign in. Please check your credentials.');
+                    const msg = error.message || 'Failed to sign in. Please check your credentials.';
+                    if (msg.toLowerCase().includes('email not confirmed')) {
+                        setErrorMsg('Please check your email to confirm your account before signing in, or use Create Account.');
+                    } else if (msg.toLowerCase().includes('invalid login credentials')) {
+                        setErrorMsg('Invalid email or password. If you do not have an account yet, switch to "Create Account".');
+                    } else {
+                        setErrorMsg(msg);
+                    }
                 }
             } else {
-                const { error } = await signUpWithEmail(email.trim(), password, username.trim() || undefined);
+                const { error } = await signUpWithEmail(cleanEmail, cleanPassword, username.trim() || undefined);
                 if (error) {
                     setErrorMsg(error.message || 'Failed to create account. Please try again.');
+                } else {
+                    setSuccessMsg('Account created successfully! Signing you in...');
+                    // Automatically attempt sign in immediately
+                    setTimeout(async () => {
+                        const { error: autoSignInErr } = await signInWithEmail(cleanEmail, cleanPassword);
+                        if (autoSignInErr) {
+                            setSuccessMsg('Account created! Please check your email to confirm, then sign in.');
+                        }
+                    }, 500);
                 }
             }
         } catch (err: any) {
@@ -56,12 +128,30 @@ export const LandingPage: React.FC = () => {
 
     return (
         <div className="yolofuck-landing-root">
-            {/* ── Top Bar ── */}
+            {/* ── Top Bar (No underline separator, centered logo, PWA button on right) ── */}
             <header className="yolofuck-landing-header">
-                <div className="yolofuck-brand-group">
-                    <span className="yolofuck-brand-dot" />
-                    <span className="yolofuck-brand-logo-text">YOLOFUCK</span>
-                    <span className="yolofuck-brand-tag">JOURNAL</span>
+                <div className="yolofuck-header-spacer" />
+
+                {/* Centered YOLOFUCK Image Logo */}
+                <div className="yolofuck-header-center-logo">
+                    <img 
+                        src="/yolofuck-logo.png" 
+                        alt="YOLOFUCK" 
+                        className="yolofuck-brand-logo-img"
+                    />
+                </div>
+
+                {/* Far Right: Direct PWA Install Icon */}
+                <div className="yolofuck-header-right-action">
+                    <button
+                        type="button"
+                        className="yolofuck-pwa-install-btn"
+                        onClick={handleInstallPwa}
+                        title={isPwaInstalled ? 'yolofuck is installed' : 'Install yolofuck app'}
+                    >
+                        <Download size={18} />
+                        <span className="yolofuck-pwa-btn-label">App</span>
+                    </button>
                 </div>
             </header>
 
@@ -69,11 +159,6 @@ export const LandingPage: React.FC = () => {
             <main className="yolofuck-landing-hero">
                 {/* Left: Product Value Proposition */}
                 <div className="yolofuck-hero-left">
-                    <div className="yolofuck-hero-badge">
-                        <Sparkles size={14} color="#ff9900" />
-                        <span>Frictionless 9:16 Video Journal</span>
-                    </div>
-
                     <h1 className="yolofuck-hero-title">
                         Capture your day.<br />
                         <span>Search what you spoke.</span>
@@ -122,14 +207,14 @@ export const LandingPage: React.FC = () => {
                         <button
                             type="button"
                             className={`yolofuck-auth-tab-btn ${authMode === 'signin' ? 'active' : ''}`}
-                            onClick={() => { setAuthMode('signin'); setErrorMsg(null); }}
+                            onClick={() => { setAuthMode('signin'); setErrorMsg(null); setSuccessMsg(null); }}
                         >
                             Sign In
                         </button>
                         <button
                             type="button"
                             className={`yolofuck-auth-tab-btn ${authMode === 'signup' ? 'active' : ''}`}
-                            onClick={() => { setAuthMode('signup'); setErrorMsg(null); }}
+                            onClick={() => { setAuthMode('signup'); setErrorMsg(null); setSuccessMsg(null); }}
                         >
                             Create Account
                         </button>
@@ -149,6 +234,12 @@ export const LandingPage: React.FC = () => {
                     {errorMsg && (
                         <div className="yolofuck-auth-error">
                             {errorMsg}
+                        </div>
+                    )}
+
+                    {successMsg && (
+                        <div className="yolofuck-auth-success">
+                            {successMsg}
                         </div>
                     )}
 
@@ -201,10 +292,7 @@ export const LandingPage: React.FC = () => {
                             {loading ? (
                                 <Loader2 size={18} className="vizja-spin" />
                             ) : (
-                                <>
-                                    <span>{authMode === 'signin' ? 'Sign In to Journal' : 'Get Started Free'}</span>
-                                    <ArrowRight size={16} />
-                                </>
+                                <span>Sign In</span>
                             )}
                         </button>
                     </form>

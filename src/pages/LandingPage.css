@@ -1,8 +1,18 @@
 /**
  * LandingPage.css — yolofuck
  * High-conversion Neumorphic Dark Landing Page with 1-Screen Auth
+ * Theme color: #c8f72c (Vibrant Neon Lime from brand logo)
+ * Pure pitch black background #000000.
  * Strictly NO purple/violet hues.
  */
+
+:root {
+    --yolo-lime: #c8f72c;
+    --yolo-lime-hover: #b8e624;
+    --yolo-lime-glow: rgba(200, 247, 44, 0.4);
+    --yolo-lime-subtle: rgba(200, 247, 44, 0.12);
+    --yolo-lime-border: rgba(200, 247, 44, 0.3);
+}
 
 .yolofuck-landing-root {
     min-height: 100vh;
@@ -19,56 +29,76 @@
     -webkit-overflow-scrolling: touch;
 }
 
-/* ── Top Header Bar ── */
+/* ── Top Header Bar (No border/separator, logo centered) ── */
 .yolofuck-landing-header {
-    height: 64px;
-    padding: 0 24px;
+    height: 70px;
+    padding: 0 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     background: #000000;
-    border-bottom: 1px solid #21262d;
+    border-bottom: none; /* removed horizontal line separator */
+    position: relative;
     z-index: 20;
 }
 
-.yolofuck-brand-group {
+.yolofuck-header-spacer {
+    width: 60px;
+    flex-shrink: 0;
+}
+
+.yolofuck-header-center-logo {
+    flex: 1;
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: center;
+    height: 100%;
 }
 
-.yolofuck-brand-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #10b981;
-    box-shadow: 0 0 10px rgba(16, 185, 129, 0.8);
-    animation: yolofuckPulseDot 2s infinite ease-in-out;
+.yolofuck-brand-logo-img {
+    height: 38px;
+    width: auto;
+    max-width: 220px;
+    object-fit: contain;
+    display: block;
+    filter: drop-shadow(0 2px 8px rgba(200, 247, 44, 0.25));
 }
 
-@keyframes yolofuckPulseDot {
-    0%, 100% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.3); opacity: 0.7; }
+.yolofuck-header-right-action {
+    width: 60px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    flex-shrink: 0;
 }
 
-.yolofuck-brand-logo-text {
-    font-size: 19px;
-    font-weight: 900;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    color: #ffffff;
-}
-
-.yolofuck-brand-tag {
-    font-size: 11px;
+/* ── PWA Direct Install Button ── */
+.yolofuck-pwa-install-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--yolo-lime-subtle);
+    border: 1px solid var(--yolo-lime-border);
+    color: var(--yolo-lime);
+    padding: 6px 10px;
+    border-radius: 16px;
+    font-size: 12px;
     font-weight: 700;
-    letter-spacing: 0.8px;
-    padding: 3px 8px;
-    border-radius: 12px;
-    background: rgba(16, 185, 129, 0.12);
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    color: #10b981;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 0 10px rgba(200, 247, 44, 0.15);
+}
+
+.yolofuck-pwa-install-btn:hover {
+    background: var(--yolo-lime);
+    color: #000000;
+    box-shadow: 0 0 16px var(--yolo-lime-glow);
+    transform: translateY(-1px);
+}
+
+.yolofuck-pwa-btn-label {
+    font-weight: 800;
+    letter-spacing: 0.5px;
 }
 
 /* ── Main Hero Container ── */
@@ -77,7 +107,7 @@
     max-width: 1180px;
     width: 100%;
     margin: 0 auto;
-    padding: 48px 24px 64px;
+    padding: 32px 24px 64px;
     display: grid;
     grid-template-columns: 1.15fr 0.85fr;
     gap: 48px;
@@ -87,8 +117,8 @@
 @media (max-width: 900px) {
     .yolofuck-landing-hero {
         grid-template-columns: 1fr;
-        gap: 36px;
-        padding: 32px 16px 48px;
+        gap: 32px;
+        padding: 20px 16px 40px;
     }
 }
 
@@ -99,69 +129,58 @@
     gap: 24px;
 }
 
-.yolofuck-hero-badge {
-    align-self: flex-start;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
-    border-radius: 20px;
-    background: #0d1117;
-    border: 1px solid #30363d;
-    font-size: 12px;
-    font-weight: 700;
-    color: #ff9900;
-    letter-spacing: 0.5px;
+.yolofuck-hero-title {
+    font-size: 44px;
+    font-weight: 900;
+    line-height: 1.12;
+    letter-spacing: -1.2px;
+    color: #ffffff;
+    margin: 0;
 }
 
-.yolofuck-hero-title {
-    font-size: 42px;
-    font-weight: 900;
-    line-height: 1.15;
-    letter-spacing: -0.5px;
-    color: #f0f6fc;
-    margin: 0;
+.yolofuck-hero-title span {
+    background: linear-gradient(135deg, var(--yolo-lime) 0%, #a4e010 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 @media (max-width: 600px) {
     .yolofuck-hero-title {
-        font-size: 32px;
+        font-size: 34px;
+        letter-spacing: -0.8px;
     }
 }
 
-.yolofuck-hero-title span {
-    color: #10b981;
-    text-shadow: 0 0 24px rgba(16, 185, 129, 0.35);
-}
-
 .yolofuck-hero-description {
-    font-size: 16px;
+    font-size: 15px;
     line-height: 1.6;
     color: #8b949e;
     margin: 0;
+    max-width: 540px;
 }
 
-/* Feature Grid */
+/* ── Feature Cards ── */
 .yolofuck-feature-cards {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    margin-top: 8px;
+    gap: 12px;
+    margin-top: 4px;
 }
 
 .yolofuck-feat-card {
     display: flex;
     align-items: flex-start;
-    gap: 16px;
-    padding: 16px;
+    gap: 14px;
+    padding: 14px 16px;
     border-radius: 14px;
     background: #0d1117;
     border: 1px solid #21262d;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     transition: border-color 0.2s ease, transform 0.2s ease;
 }
 
 .yolofuck-feat-card:hover {
-    border-color: #30363d;
+    border-color: rgba(200, 247, 44, 0.4);
     transform: translateY(-1px);
 }
 
@@ -169,12 +188,12 @@
     width: 40px;
     height: 40px;
     border-radius: 10px;
-    background: rgba(16, 185, 129, 0.1);
-    border: 1px solid rgba(16, 185, 129, 0.25);
+    background: var(--yolo-lime-subtle);
+    border: 1px solid var(--yolo-lime-border);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #10b981;
+    color: var(--yolo-lime);
     flex-shrink: 0;
 }
 
@@ -285,8 +304,8 @@
 }
 
 .yolofuck-form-input:focus {
-    border-color: #10b981;
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
+    border-color: var(--yolo-lime);
+    box-shadow: 0 0 0 3px rgba(200, 247, 44, 0.2);
 }
 
 .yolofuck-form-input::placeholder {
@@ -305,18 +324,30 @@
     word-break: break-word;
 }
 
+.yolofuck-auth-success {
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: var(--yolo-lime-subtle);
+    border: 1px solid var(--yolo-lime-border);
+    color: var(--yolo-lime);
+    font-size: 12px;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+/* ── Submit Button with Logo Lime Color ── */
 .yolofuck-auth-submit-btn {
     width: 100%;
     height: 44px;
     border-radius: 12px;
-    background: #10b981;
+    background: var(--yolo-lime);
     border: none;
-    color: #ffffff;
+    color: #000000;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 800;
     letter-spacing: 0.5px;
     cursor: pointer;
-    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+    box-shadow: 0 4px 18px var(--yolo-lime-glow);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -326,8 +357,8 @@
 }
 
 .yolofuck-auth-submit-btn:hover:not(:disabled) {
-    background: #059669;
-    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+    background: var(--yolo-lime-hover);
+    box-shadow: 0 6px 24px rgba(200, 247, 44, 0.5);
     transform: translateY(-1px);
 }
 
