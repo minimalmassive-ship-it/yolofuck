@@ -115,6 +115,64 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
     const playerLongPressTimerRef = useRef<any>(null);
     const isPlayerLongPressTriggeredRef = useRef(false);
 
+    // Mobile Swipe-Right pull-to-play gesture state per row
+    const [rowPullDistances, setRowPullDistances] = useState<{ [date: string]: number }>({});
+    const rowTouchStartRef = useRef<{ date: string; startX: number; startY: number; scrollLeftStart: number; isTracking: boolean } | null>(null);
+
+    const handleRowTouchStart = (date: string, e: React.TouchEvent<HTMLDivElement>) => {
+        const touch = e.touches[0];
+        if (!touch) return;
+        const currentScrollLeft = e.currentTarget.scrollLeft;
+        // We only initiate overscroll pull if we are right at the left wall (scrollLeft <= 2)
+        rowTouchStartRef.current = {
+            date,
+            startX: touch.clientX,
+            startY: touch.clientY,
+            scrollLeftStart: currentScrollLeft,
+            isTracking: currentScrollLeft <= 2
+        };
+    };
+
+    const handleRowTouchMove = (date: string, e: React.TouchEvent<HTMLDivElement>) => {
+        if (!rowTouchStartRef.current || rowTouchStartRef.current.date !== date) return;
+        const touch = e.touches[0];
+        if (!touch) return;
+
+        const currentScrollLeft = e.currentTarget.scrollLeft;
+        const deltaX = touch.clientX - rowTouchStartRef.current.startX;
+        const deltaY = touch.clientY - rowTouchStartRef.current.startY;
+
+        // If user is scrolling vertically or not at left edge, cancel overscroll tracking
+        if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 10) {
+            rowTouchStartRef.current.isTracking = false;
+            setRowPullDistances(prev => prev[date] ? { ...prev, [date]: 0 } : prev);
+            return;
+        }
+
+        // Only track swipe to the right (deltaX > 0) when at the left wall
+        if (rowTouchStartRef.current.isTracking && currentScrollLeft <= 2 && deltaX > 0) {
+            // Smooth resistance curve up to 80px
+            const pullAmount = Math.min(80, deltaX * 0.55);
+            setRowPullDistances(prev => ({ ...prev, [date]: pullAmount }));
+        } else {
+            setRowPullDistances(prev => prev[date] ? { ...prev, [date]: 0 } : prev);
+        }
+    };
+
+    const handleRowTouchEnd = (date: string, clipsCount: number) => {
+        const currentPull = rowPullDistances[date] || 0;
+        rowTouchStartRef.current = null;
+        setRowPullDistances(prev => ({ ...prev, [date]: 0 }));
+
+        // Trigger sequence player if pulled past threshold (>= 48px) and row has clips
+        if (currentPull >= 48 && clipsCount > 0) {
+            if (navigator.vibrate) {
+                try { navigator.vibrate(50); } catch {}
+            }
+            handleStartDayPlayer(date, 0);
+        }
+    };
+
     // ── Load Clips from Supabase & Local IndexedDB ──
     const loadAllClips = useCallback(async () => {
         if (!user?.id) {
@@ -730,8 +788,35 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                             </div>
                                         </div>
 
+                                        {/* Mobile Vertical Sideways Date Strip (Hidden on Desktop) */}
+                                        <div 
+                                            className="yolofuck-vertical-date-strip"
+                                            title={`Date: ${formattedDate}`}
+                                        >
+                                            <span className="yolofuck-vertical-date-text">
+                                                {formattedDate}
+                                            </span>
+                                        </div>
+
+                                        {/* Pull to Play Reveal Drawer (Emerges on swipe right when pushed past the left wall) */}
+                                        {rowPullDistances[date] > 0 && (
+                                            <div 
+                                                className="yolofuck-swipe-play-drawer" 
+                                                style={{ width: `${rowPullDistances[date]}px` }}
+                                            >
+                                                <div className={`yolofuck-swipe-play-circle ${rowPullDistances[date] >= 48 ? 'triggered' : ''}`}>
+                                                    <Play size={18} fill="currentColor" />
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {/* Horizontal Strip of Square Films (2px gap, oldest to newest) */}
-                                        <div className="yolofuck-films-horizontal-strip">
+                                        <div 
+                                            className="yolofuck-films-horizontal-strip"
+                                            onTouchStart={(e) => handleRowTouchStart(date, e)}
+                                            onTouchMove={(e) => handleRowTouchMove(date, e)}
+                                            onTouchEnd={() => handleRowTouchEnd(date, clips.length)}
+                                        >
                                             {clips.length === 0 ? (
                                                 <div className="yolofuck-empty-row-box">
                                                     <Video size={18} color="#475569" />

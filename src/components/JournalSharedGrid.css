@@ -720,3 +720,83 @@
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* ── Vertical Sideways Date Strip for Shared Story (Mobile only) ── */
+.shared-story-vertical-date-strip {
+    width: 26px;
+    height: 128px;
+    flex-shrink: 0;
+    display: none; /* hidden on desktop */
+    align-items: center;
+    justify-content: center;
+    background: #000000;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    user-select: none;
+}
+
+.shared-story-vertical-date-text {
+    transform: rotate(-90deg);
+    white-space: nowrap;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    color: #94a3b8;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    text-transform: uppercase;
+}
+
+/* ── Pull to Play Reveal Indicator for Shared Grid ── */
+.shared-swipe-play-drawer {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 128px;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #000000;
+    border-right: 1px solid rgba(16, 185, 129, 0.25);
+    transition: width 0.08s ease-out;
+}
+
+.shared-swipe-play-circle {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    transform: scale(0.85);
+    transition: transform 0.12s ease-out, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.shared-swipe-play-circle.triggered {
+    background: var(--yolo-lime, #c8f72c);
+    color: #000000;
+    transform: scale(1.15);
+    box-shadow: 0 0 22px rgba(200, 247, 44, 0.8);
+}
+
+/* Mobile responsive visibility: Mobile (<= 768px) hides left square, shows vertical date strip */
+@media (max-width: 768px) {
+    .shared-story-left-info-square {
+        display: none !important;
+    }
+    .shared-story-vertical-date-strip {
+        display: flex !important;
+    }
+}
+
+@media (min-width: 769px) {
+    .shared-story-left-info-square {
+        display: flex !important;
+    }
+    .shared-story-vertical-date-strip {
+        display: none !important;
+    }
+}
+

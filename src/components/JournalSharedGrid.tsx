@@ -27,6 +27,58 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
     const [copiedStoryId, setCopiedStoryId] = useState<string | null>(null);
     const [previewPlayerStory, setPreviewPlayerStory] = useState<any | null>(null);
 
+    // Mobile Swipe-Right pull-to-play gesture state per shared story
+    const [storyPullDistances, setStoryPullDistances] = useState<{ [storyId: string]: number }>({});
+    const storyTouchStartRef = useRef<{ id: string; startX: number; startY: number; isTracking: boolean } | null>(null);
+
+    const handleSharedTouchStart = (storyId: string, e: React.TouchEvent) => {
+        const touch = e.touches[0];
+        if (!touch) return;
+        storyTouchStartRef.current = {
+            id: storyId,
+            startX: touch.clientX,
+            startY: touch.clientY,
+            isTracking: true
+        };
+    };
+
+    const handleSharedTouchMove = (storyId: string, e: React.TouchEvent) => {
+        if (!storyTouchStartRef.current || storyTouchStartRef.current.id !== storyId) return;
+        const touch = e.touches[0];
+        if (!touch) return;
+
+        const deltaX = touch.clientX - storyTouchStartRef.current.startX;
+        const deltaY = touch.clientY - storyTouchStartRef.current.startY;
+
+        // If vertical scrolling, cancel
+        if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 10) {
+            storyTouchStartRef.current.isTracking = false;
+            setStoryPullDistances(prev => prev[storyId] ? { ...prev, [storyId]: 0 } : prev);
+            return;
+        }
+
+        // Only track swipe to right
+        if (storyTouchStartRef.current.isTracking && deltaX > 0) {
+            const pullAmount = Math.min(80, deltaX * 0.55);
+            setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
+        } else {
+            setStoryPullDistances(prev => prev[storyId] ? { ...prev, [storyId]: 0 } : prev);
+        }
+    };
+
+    const handleSharedTouchEnd = (story: any) => {
+        const pullAmount = storyPullDistances[story.id] || 0;
+        storyTouchStartRef.current = null;
+        setStoryPullDistances(prev => ({ ...prev, [story.id]: 0 }));
+
+        if (pullAmount >= 48 && !story.is_sharing_stopped) {
+            if (navigator.vibrate) {
+                try { navigator.vibrate(50); } catch {}
+            }
+            setPreviewPlayerStory(story);
+        }
+    };
+
     const toastTimerRef = useRef<any>(null);
 
     const showToast = (msg: string) => {
@@ -368,8 +420,13 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
                                     </div>
                                 </div>
 
-                                <div className="shared-story-row-wrapper">
-                                    {/* 1:1 Black Square on Left Side matching Journal day card with Play button */}
+                                 <div 
+                                    className="shared-story-row-wrapper"
+                                    onTouchStart={(e) => handleSharedTouchStart(story.id, e)}
+                                    onTouchMove={(e) => handleSharedTouchMove(story.id, e)}
+                                    onTouchEnd={() => handleSharedTouchEnd(story)}
+                                >
+                                    {/* 1:1 Black Square on Left Side matching Journal day card with Play button (Desktop only) */}
                                     <div className="shared-story-left-info-square">
                                         <button
                                             type="button"
@@ -396,6 +453,25 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
                                             <span className="shared-story-left-takes">{takesCount} {takesCount === 1 ? 'take' : 'takes'}</span>
                                         </div>
                                     </div>
+
+                                    {/* Vertical Sideways Date Strip (Mobile only: e.g. 09-11-2026) */}
+                                    <div className="shared-story-vertical-date-strip" title={`Date: ${storyDate}`}>
+                                        <span className="shared-story-vertical-date-text">
+                                            {storyDate ? storyDate.split('-').reverse().join('-') : 'STORY'}
+                                        </span>
+                                    </div>
+
+                                    {/* Pull to Play Reveal Drawer (Emerges on swipe right when pulled from left) */}
+                                    {storyPullDistances[story.id] > 0 && (
+                                        <div 
+                                            className="shared-swipe-play-drawer"
+                                            style={{ width: `${storyPullDistances[story.id]}px` }}
+                                        >
+                                            <div className={`shared-swipe-play-circle ${storyPullDistances[story.id] >= 48 ? 'triggered' : ''}`}>
+                                                <Play size={18} fill="currentColor" />
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Media Preview & Details */}
                                     <div className="shared-story-media-preview" onClick={() => setPreviewPlayerStory(story)}>
