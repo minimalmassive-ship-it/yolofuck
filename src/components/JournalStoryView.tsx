@@ -402,6 +402,26 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
 
     const activeClip = activeDayClips[currentClipIndex] || null;
 
+    const prevClip = useMemo(() => {
+        if (currentClipIndex > 0) {
+            return activeDayClips[currentClipIndex - 1];
+        }
+        if (isLooping && activeDayClips.length > 1) {
+            return activeDayClips[activeDayClips.length - 1];
+        }
+        return null;
+    }, [currentClipIndex, activeDayClips, isLooping]);
+
+    const nextClip = useMemo(() => {
+        if (currentClipIndex < activeDayClips.length - 1) {
+            return activeDayClips[currentClipIndex + 1];
+        }
+        if (isLooping && activeDayClips.length > 1) {
+            return activeDayClips[0];
+        }
+        return null;
+    }, [currentClipIndex, activeDayClips, isLooping]);
+
     // Synchronize video element playback with active clip
     useEffect(() => {
         if (!showVideoPlayer || !activeClip || !videoRef.current) return;
@@ -410,6 +430,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         video.currentTime = 0;
         video.muted = isMuted;
         video.volume = volume;
+        video.loop = isLooping;
         video.load();
 
         if (isPlaying) {
@@ -420,7 +441,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                 });
             }
         }
-    }, [showVideoPlayer, activeClip?.id, activeClip?.clip_url, volume, isMuted]);
+    }, [showVideoPlayer, activeClip?.id, activeClip?.clip_url, volume, isMuted, isLooping]);
 
     // ── Start Full-screen Story Player ──
     const handleStartDayPlayer = useCallback((date: string, clipIdx = 0, isSingle = false) => {
@@ -446,10 +467,10 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         if (currentClipIndex < activeDayClips.length - 1) {
             setCurrentClipIndex(prev => prev + 1);
             setCurrentTime(0);
-        } else if (isLooping) {
+        } else if (isLooping && activeDayClips.length > 1) {
             setCurrentClipIndex(0);
             setCurrentTime(0);
-        } else {
+        } else if (!isLooping) {
             setIsPlaying(false);
         }
     }, [currentClipIndex, activeDayClips.length, isLooping]);
@@ -458,7 +479,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         if (currentClipIndex > 0) {
             setCurrentClipIndex(prev => prev - 1);
             setCurrentTime(0);
-        } else if (isLooping && activeDayClips.length > 0) {
+        } else if (isLooping && activeDayClips.length > 1) {
             setCurrentClipIndex(activeDayClips.length - 1);
             setCurrentTime(0);
         }
@@ -474,6 +495,16 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
             setIsPlaying(true);
         }
     }, [isPlaying]);
+
+    const togglePlayerLoop = useCallback(() => {
+        setIsLooping(prev => {
+            const next = !prev;
+            if (videoRef.current) {
+                videoRef.current.loop = next;
+            }
+            return next;
+        });
+    }, []);
 
     const togglePlayerMute = useCallback(() => {
         const nextMuted = !isMuted;
@@ -872,19 +903,84 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                     : 'none'
                             }}
                         >
-                            <video
-                                ref={videoRef}
-                                className="yolofuck-player-video"
-                                playsInline
-                                muted={isMuted}
-                                onTimeUpdate={() => {
-                                    if (videoRef.current) {
-                                        setCurrentTime(videoRef.current.currentTime);
-                                        setCurrentClipDuration(videoRef.current.duration || 0);
-                                    }
-                                }}
-                                onEnded={handleNextClip}
-                            />
+                            {/* Previous Take Slide (Enters seamlessly from the left on swipe right) */}
+                            {prevClip && (
+                                <div 
+                                    className="yolofuck-player-slide-item prev"
+                                    style={{ transform: 'translate3d(-100%, 0, 0)' }}
+                                >
+                                    {prevClip.thumbnail_url ? (
+                                        <img 
+                                            src={prevClip.thumbnail_url} 
+                                            alt="" 
+                                            className="yolofuck-player-video" 
+                                        />
+                                    ) : (
+                                        <video
+                                            src={prevClip.clip_url}
+                                            className="yolofuck-player-video"
+                                            preload="auto"
+                                            muted
+                                            playsInline
+                                        />
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Current Active Take Slide */}
+                            <div 
+                                className="yolofuck-player-slide-item current"
+                                style={{ transform: 'translate3d(0, 0, 0)' }}
+                            >
+                                <video
+                                    ref={videoRef}
+                                    poster={activeClip.thumbnail_url || undefined}
+                                    className="yolofuck-player-video"
+                                    playsInline
+                                    muted={isMuted}
+                                    loop={isLooping}
+                                    onTimeUpdate={() => {
+                                        if (videoRef.current) {
+                                            setCurrentTime(videoRef.current.currentTime);
+                                            setCurrentClipDuration(videoRef.current.duration || 0);
+                                        }
+                                    }}
+                                    onEnded={() => {
+                                        if (isLooping) {
+                                            if (videoRef.current) {
+                                                videoRef.current.currentTime = 0;
+                                                videoRef.current.play().catch(() => {});
+                                            }
+                                        } else {
+                                            handleNextClip();
+                                        }
+                                    }}
+                                />
+                            </div>
+
+                            {/* Next Take Slide (Enters seamlessly from the right on swipe left) */}
+                            {nextClip && (
+                                <div 
+                                    className="yolofuck-player-slide-item next"
+                                    style={{ transform: 'translate3d(100%, 0, 0)' }}
+                                >
+                                    {nextClip.thumbnail_url ? (
+                                        <img 
+                                            src={nextClip.thumbnail_url} 
+                                            alt="" 
+                                            className="yolofuck-player-video" 
+                                        />
+                                    ) : (
+                                        <video
+                                            src={nextClip.clip_url}
+                                            className="yolofuck-player-video"
+                                            preload="auto"
+                                            muted
+                                            playsInline
+                                        />
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Top Overlay Bars (Segmented progress for all takes in this day) */}
@@ -968,7 +1064,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                             <button
                                 type="button"
                                 className={`yolofuck-player-dock-btn loop ${isLooping ? 'active' : ''}`}
-                                onClick={() => setIsLooping(prev => !prev)}
+                                onClick={togglePlayerLoop}
                                 title={isLooping ? 'Loop is On' : 'Loop is Off'}
                             >
                                 <Repeat size={18} />
