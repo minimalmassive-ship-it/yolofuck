@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Video, Mic, Calendar, Loader2, Download, CheckCircle2, Circle } from 'lucide-react';
+import { Video, Mic, Calendar, Loader2, Download, CheckCircle2, Circle, Eye, EyeOff } from 'lucide-react';
 import './LandingPage.css';
 
 export const LandingPage: React.FC = () => {
@@ -19,6 +19,7 @@ export const LandingPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
+    const [showPassword, setShowPassword] = useState(false);
 
     // PWA Install Prompt State
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -253,14 +254,24 @@ export const LandingPage: React.FC = () => {
                         <button
                             type="button"
                             className={`yolofuck-auth-tab-btn ${authMode === 'signin' ? 'active' : ''}`}
-                            onClick={() => { setAuthMode('signin'); setErrorMsg(null); setSuccessMsg(null); }}
+                            onClick={() => { 
+                                setAuthMode('signin'); 
+                                setErrorMsg(null); 
+                                setSuccessMsg(null); 
+                                setPassword('');
+                            }}
                         >
                             Sign In
                         </button>
                         <button
                             type="button"
                             className={`yolofuck-auth-tab-btn ${authMode === 'signup' ? 'active' : ''}`}
-                            onClick={() => { setAuthMode('signup'); setErrorMsg(null); setSuccessMsg(null); }}
+                            onClick={() => { 
+                                setAuthMode('signup'); 
+                                setErrorMsg(null); 
+                                setSuccessMsg(null); 
+                                setPassword('');
+                            }}
                         >
                             Create Account
                         </button>
@@ -289,11 +300,13 @@ export const LandingPage: React.FC = () => {
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="yolofuck-auth-form">
+                    <form onSubmit={handleSubmit} className="yolofuck-auth-form" noValidate>
                         {authMode === 'signup' && (
                             <div className="yolofuck-form-field">
-                                <label>Username (Mandatory)</label>
+                                <label htmlFor="auth-username">Username (Mandatory)</label>
                                 <input
+                                    id="auth-username"
+                                    name="username"
                                     type="text"
                                     required
                                     minLength={2}
@@ -302,34 +315,62 @@ export const LandingPage: React.FC = () => {
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
                                     autoComplete="username"
+                                    spellCheck={false}
+                                    autoCorrect="off"
+                                    autoCapitalize="none"
                                 />
                             </div>
                         )}
 
                         <div className="yolofuck-form-field">
-                            <label>Email Address</label>
+                            <label htmlFor="auth-email">Email Address</label>
                             <input
+                                id="auth-email"
+                                name="email"
                                 type="email"
                                 required
                                 className="yolofuck-form-input"
                                 placeholder="name@example.com"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                autoComplete="email"
+                                autoComplete="username email"
+                                spellCheck={false}
+                                autoCorrect="off"
+                                autoCapitalize="none"
                             />
                         </div>
 
                         <div className="yolofuck-form-field">
-                            <label>Password</label>
-                            <input
-                                type="password"
-                                required
-                                className="yolofuck-form-input"
-                                placeholder="••••••••"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                autoComplete={authMode === 'signin' ? 'current-password' : 'new-password'}
-                            />
+                            <label htmlFor="auth-password">Password</label>
+                            <div className="yolofuck-password-input-wrapper">
+                                <input
+                                    id="auth-password"
+                                    name="password"
+                                    type={showPassword ? 'text' : 'password'}
+                                    required
+                                    className="yolofuck-form-input yolofuck-password-input"
+                                    placeholder="••••••••"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    onDoubleClick={(e) => {
+                                        (e.target as HTMLInputElement).select();
+                                    }}
+                                    autoComplete={authMode === 'signin' ? 'current-password' : 'new-password'}
+                                    spellCheck={false}
+                                    autoCorrect="off"
+                                    autoCapitalize="none"
+                                />
+                                <button
+                                    type="button"
+                                    className="yolofuck-password-toggle-btn"
+                                    onClick={() => setShowPassword(prev => !prev)}
+                                    title={showPassword ? 'Hide password' : 'Show password'}
+                                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                    tabIndex={-1}
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
                         </div>
 
                         {authMode === 'signup' && (

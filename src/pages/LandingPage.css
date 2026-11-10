@@ -313,6 +313,41 @@
     font-size: 13px;
 }
 
+/* ── Password Wrapper & Show/Hide Eye Button ── */
+.yolofuck-password-input-wrapper {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.yolofuck-password-input {
+    padding-right: 44px;
+}
+
+.yolofuck-password-toggle-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: #6e7681;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.yolofuck-password-toggle-btn:hover {
+    color: var(--yolo-lime);
+    background: rgba(200, 247, 44, 0.08);
+}
+
 .yolofuck-auth-error {
     padding: 10px 14px;
     border-radius: 8px;
