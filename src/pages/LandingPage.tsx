@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Video, Mic, Calendar, Loader2, Download } from 'lucide-react';
+import { Video, Mic, Calendar, Loader2, Download, CheckCircle2, Circle } from 'lucide-react';
 import './LandingPage.css';
 
 export const LandingPage: React.FC = () => {
@@ -23,6 +23,17 @@ export const LandingPage: React.FC = () => {
     // PWA Install Prompt State
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
     const [isPwaInstalled, setIsPwaInstalled] = useState(false);
+
+    // Password requirements matching Supabase recommended rule
+    const hasMinLength = password.length >= 8;
+    const hasLower = /[a-z]/.test(password);
+    const hasUpper = /[A-Z]/.test(password);
+    const hasDigit = /[0-9]/.test(password);
+    const hasSymbol = /[^A-Za-z0-9]/.test(password);
+
+    const metCount = [hasMinLength, hasLower, hasUpper, hasDigit, hasSymbol].filter(Boolean).length;
+    const strengthPercent = Math.round((metCount / 5) * 100);
+    const isPasswordFullyValid = metCount === 5;
 
     useEffect(() => {
         const handleBeforeInstall = (e: any) => {
@@ -95,8 +106,8 @@ export const LandingPage: React.FC = () => {
             return;
         }
 
-        if (authMode === 'signup' && cleanPassword.length < 6) {
-            setErrorMsg('Password must be at least 6 characters.');
+        if (authMode === 'signup' && !isPasswordFullyValid) {
+            setErrorMsg('Password does not meet all security requirements. Please fulfill all 5 checks below.');
             return;
         }
 
@@ -297,10 +308,56 @@ export const LandingPage: React.FC = () => {
                             />
                         </div>
 
+                        {authMode === 'signup' && (
+                            <div className="yolofuck-pw-requirements-card">
+                                <div className="yolofuck-pw-header-row">
+                                    <span className="yolofuck-pw-req-label">Password Requirements</span>
+                                    <span className="yolofuck-pw-req-counter">
+                                        {metCount}/5 met ({strengthPercent}%)
+                                    </span>
+                                </div>
+
+                                {/* Dynamic Progress Bar */}
+                                <div className="yolofuck-pw-progress-track">
+                                    <div 
+                                        className="yolofuck-pw-progress-fill" 
+                                        style={{ 
+                                            width: `${strengthPercent}%`,
+                                            backgroundColor: strengthPercent === 100 ? '#c8f72c' : strengthPercent >= 60 ? '#a3e635' : '#eab308'
+                                        }} 
+                                    />
+                                </div>
+
+                                {/* Checklist Items */}
+                                <ul className="yolofuck-pw-checklist">
+                                    <li className={`yolofuck-pw-item ${hasMinLength ? 'met' : ''}`}>
+                                        {hasMinLength ? <CheckCircle2 size={14} className="yolofuck-check-met" /> : <Circle size={14} className="yolofuck-check-unmet" />}
+                                        <span>At least 8 characters</span>
+                                    </li>
+                                    <li className={`yolofuck-pw-item ${hasLower ? 'met' : ''}`}>
+                                        {hasLower ? <CheckCircle2 size={14} className="yolofuck-check-met" /> : <Circle size={14} className="yolofuck-check-unmet" />}
+                                        <span>At least 1 lowercase letter (a-z)</span>
+                                    </li>
+                                    <li className={`yolofuck-pw-item ${hasUpper ? 'met' : ''}`}>
+                                        {hasUpper ? <CheckCircle2 size={14} className="yolofuck-check-met" /> : <Circle size={14} className="yolofuck-check-unmet" />}
+                                        <span>At least 1 uppercase letter (A-Z)</span>
+                                    </li>
+                                    <li className={`yolofuck-pw-item ${hasDigit ? 'met' : ''}`}>
+                                        {hasDigit ? <CheckCircle2 size={14} className="yolofuck-check-met" /> : <Circle size={14} className="yolofuck-check-unmet" />}
+                                        <span>At least 1 digit (0-9)</span>
+                                    </li>
+                                    <li className={`yolofuck-pw-item ${hasSymbol ? 'met' : ''}`}>
+                                        {hasSymbol ? <CheckCircle2 size={14} className="yolofuck-check-met" /> : <Circle size={14} className="yolofuck-check-unmet" />}
+                                        <span>At least 1 special symbol (!@#$%^&*...)</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        )}
+
                         <button
                             type="submit"
                             className="yolofuck-auth-submit-btn"
-                            disabled={loading}
+                            disabled={loading || (authMode === 'signup' && !isPasswordFullyValid)}
                         >
                             {loading ? (
                                 <Loader2 size={18} className="vizja-spin" />

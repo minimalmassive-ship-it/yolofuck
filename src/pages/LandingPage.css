@@ -378,3 +378,84 @@
     line-height: 1.4;
     margin: 4px 0 0;
 }
+
+/* ── Password Requirements & Progress Bar ── */
+.yolofuck-pw-requirements-card {
+    background: #080b0f;
+    border: 1px solid #21262d;
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.yolofuck-pw-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.yolofuck-pw-req-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #c9d1d9;
+    text-transform: none;
+}
+
+.yolofuck-pw-req-counter {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--yolo-lime);
+}
+
+.yolofuck-pw-progress-track {
+    width: 100%;
+    height: 6px;
+    background: #161b22;
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+.yolofuck-pw-progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.25s ease;
+    box-shadow: 0 0 8px rgba(200, 247, 44, 0.4);
+}
+
+.yolofuck-pw-checklist {
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.yolofuck-pw-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11.5px;
+    color: #6e7681;
+    transition: color 0.15s ease;
+}
+
+.yolofuck-pw-item.met {
+    color: #f0f6fc;
+}
+
+.yolofuck-check-met {
+    color: var(--yolo-lime);
+    flex-shrink: 0;
+    filter: drop-shadow(0 0 4px rgba(200, 247, 44, 0.5));
+}
+
+.yolofuck-check-unmet {
+    color: #30363d;
+    flex-shrink: 0;
+}
