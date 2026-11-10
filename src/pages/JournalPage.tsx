@@ -183,7 +183,7 @@ export const JournalPage: React.FC = () => {
                                         setShowUserSettingsModal(true);
                                     }}
                                 >
-                                    <Settings size={15} color="#cbd5e1" />
+                                    <Settings size={14} color="#cbd5e1" />
                                     <span>Settings</span>
                                 </button>
 
@@ -195,7 +195,7 @@ export const JournalPage: React.FC = () => {
                                         setShowTrashModal(true);
                                     }}
                                 >
-                                    <Trash2 size={15} color="#f87171" />
+                                    <Trash2 size={14} color="#f87171" />
                                     <span>Trash Bin</span>
                                 </button>
 
@@ -207,7 +207,7 @@ export const JournalPage: React.FC = () => {
                                         setShowQuestModal(true);
                                     }}
                                 >
-                                    <Target size={15} color="var(--yolo-lime, #c8f72c)" />
+                                    <Target size={14} color="var(--yolo-lime, #c8f72c)" />
                                     <span>Quests</span>
                                 </button>
 
@@ -219,7 +219,7 @@ export const JournalPage: React.FC = () => {
                                         setShowFriendsModal(true);
                                     }}
                                 >
-                                    <Users size={15} color="#60a5fa" />
+                                    <Users size={14} color="#60a5fa" />
                                     <span>Friends</span>
                                 </button>
 
@@ -233,7 +233,7 @@ export const JournalPage: React.FC = () => {
                                         signOut();
                                     }}
                                 >
-                                    <LogOut size={15} color="#94a3b8" />
+                                    <LogOut size={14} color="#f87171" />
                                     <span>Log out</span>
                                 </button>
                             </div>
