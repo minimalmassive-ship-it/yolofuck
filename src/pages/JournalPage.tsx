@@ -139,11 +139,11 @@ export const JournalPage: React.FC = () => {
                 </div>
 
                 <div className="yolofuck-search-pill">
-                    <Search size={16} color="#10b981" />
+                    <Search size={15} color="var(--yolo-lime, #c8f72c)" />
                     <input 
                         type="text" 
                         className="yolofuck-search-input"
-                        placeholder="Search spoken words in videos..."
+                        placeholder="Search spoken words..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
