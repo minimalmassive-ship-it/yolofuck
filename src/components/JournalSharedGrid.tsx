@@ -260,14 +260,14 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
 
         // Move clips to trash bin
         if (Array.isArray(storyClips) && storyClips.length > 0) {
-            storyClips.forEach(c => moveToTrash(c, 'share'));
+            storyClips.forEach(c => moveToTrash(c, 'share', user.id));
         } else if (deleteConfirmStory.video_url) {
             moveToTrash({
                 id: deleteConfirmStory.id,
                 clip_url: deleteConfirmStory.video_url,
                 thumbnail_url: deleteConfirmStory.thumbnail_url,
                 clip_date: storyDate
-            }, 'share');
+            }, 'share', user.id);
         }
 
         try {

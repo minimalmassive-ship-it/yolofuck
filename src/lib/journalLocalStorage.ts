@@ -129,10 +129,14 @@ async function getEntriesFromDb(dbName: string): Promise<LocalJournalEntry[]> {
 
 /**
  * Lists all locally saved journal entries from both current and legacy IndexedDB databases.
- * If targetUserId is provided, filters strictly to entries belonging to that user
- * (or entries with no owner for backwards compatibility with the primary owner).
+ * Strictly requires targetUserId: users can only access their own recordings.
+ * If targetUserId matches the local legacy owner, unowned legacy recordings are claimed and migrated.
  */
 export async function getAllLocalJournalRecordings(targetUserId?: string): Promise<LocalJournalEntry[]> {
+    if (!targetUserId) {
+        return [];
+    }
+
     const [currentList, legacyList] = await Promise.all([
         getEntriesFromDb(DB_NAME),
         getEntriesFromDb(LEGACY_DB_NAME),
@@ -142,25 +146,38 @@ export async function getAllLocalJournalRecordings(targetUserId?: string): Promi
     legacyList.forEach(item => entryMap.set(item.id, item));
     currentList.forEach(item => entryMap.set(item.id, item));
 
-    let combined = Array.from(entryMap.values());
+    const localPrimaryUser = localStorage.getItem('yolofuck_local_owner_id');
+    const isPrimaryOwner = localPrimaryUser && localPrimaryUser === targetUserId;
 
-    if (targetUserId) {
-        // Enforce user isolation: only return entries belonging to this user
-        combined = combined.filter(item => {
-            if (item.userId) {
-                return item.userId === targetUserId;
+    const userEntries: LocalJournalEntry[] = [];
+    const entriesToMigrate: LocalJournalEntry[] = [];
+
+    for (const item of entryMap.values()) {
+        if (item.userId) {
+            if (item.userId === targetUserId) {
+                userEntries.push(item);
             }
-            // For legacy recordings that lacked userId, check owner tag stored in localStorage
-            const localPrimaryUser = localStorage.getItem('yolofuck_local_owner_id');
-            if (localPrimaryUser) {
-                return localPrimaryUser === targetUserId;
-            }
-            return false;
-        });
+        } else if (isPrimaryOwner) {
+            // Unowned legacy recording belonging to the device primary owner: claim it
+            const migrated = { ...item, userId: targetUserId };
+            userEntries.push(migrated);
+            entriesToMigrate.push(migrated);
+        }
     }
 
-    combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    return combined;
+    // Persist ownership of migrated entries in the background so they are permanently sealed to targetUserId
+    if (entriesToMigrate.length > 0) {
+        openDatabase().then(db => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            for (const entry of entriesToMigrate) {
+                try { store.put(entry); } catch {}
+            }
+        }).catch(() => {});
+    }
+
+    userEntries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return userEntries;
 }
 
 /**

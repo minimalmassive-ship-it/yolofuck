@@ -57,8 +57,8 @@ export const DEFAULT_MEDIA_RECORDING_SETTINGS: MediaRecordingSettings = {
 // ── Selection Options ──────────────────────────────────────────────────────
 
 export const VIDEO_RESOLUTION_OPTIONS: { value: VideoResolution; label: string; description: string }[] = [
-    { value: 1080, label: '1080 x 1080 (Full HD)', description: 'Crisp, high-definition 1:1 square canvas' },
-    { value: 720, label: '720 x 720 (HD)', description: 'Compact 1:1 square canvas for lower bandwidth' },
+    { value: 1080, label: '1080 x 1920 (Full HD 9:16)', description: 'Crisp, high-definition vertical video shorts (1080p)' },
+    { value: 720, label: '720 x 1280 (HD 9:16)', description: 'Compact vertical video canvas for lower bandwidth (720p)' },
 ];
 
 export const AUDIO_BITRATE_OPTIONS: { value: AudioBitrateKbps; label: string; description: string }[] = [
@@ -476,3 +476,36 @@ export async function loadMediaSettings(userId?: string): Promise<MediaRecording
         return DEFAULT_MEDIA_RECORDING_SETTINGS;
     }
 }
+
+// ── Transcription & AI Cockpit Settings ────────────────────────────────────
+
+export interface TranscriptionSettings {
+    ai_provider: string;
+    ai_model: string;
+    custom_api_key: string;
+    transcription_engine: string;
+    transcription_model: string;
+    deepgram_api_key: string;
+}
+
+export const DEFAULT_TRANSCRIPTION_SETTINGS: TranscriptionSettings = {
+    ai_provider: '',
+    ai_model: '',
+    custom_api_key: '',
+    transcription_engine: 'browser',
+    transcription_model: 'native',
+    deepgram_api_key: '',
+};
+
+export function getTranscriptionSettingsFromProfile(profileSettings: Record<string, any> | null | undefined): TranscriptionSettings {
+    const s = profileSettings || {};
+    return {
+        ai_provider: typeof s.ai_provider === 'string' ? s.ai_provider : '',
+        ai_model: typeof s.ai_model === 'string' ? s.ai_model : '',
+        custom_api_key: typeof s.custom_api_key === 'string' ? s.custom_api_key : '',
+        transcription_engine: typeof s.transcription_engine === 'string' && s.transcription_engine ? s.transcription_engine : 'browser',
+        transcription_model: typeof s.transcription_model === 'string' && s.transcription_model ? s.transcription_model : 'native',
+        deepgram_api_key: typeof s.deepgram_api_key === 'string' ? s.deepgram_api_key : '',
+    };
+}
+

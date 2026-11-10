@@ -185,7 +185,7 @@ export const JournalPage: React.FC = () => {
                                     }}
                                 >
                                     <Settings size={15} color="#cbd5e1" />
-                                    <span>User Settings</span>
+                                    <span>Settings</span>
                                 </button>
 
                                 <button

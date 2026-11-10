@@ -1,148 +1,631 @@
 /**
  * UserSettingsModal.css — yolofuck
+ * Full-screen Settings in Neumorphic Dark style
+ * Frameless clean sections ("bez ramek")
  */
 
-.yolofuck-settings-modal-backdrop {
+.yolofuck-settings-fullscreen {
   position: fixed;
   inset: 0;
-  z-index: 1100;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  animation: fadeIn 0.2s ease-out;
-}
-
-.yolofuck-settings-modal-card {
-  width: 100%;
-  max-width: 440px;
-  background: #0d0e14;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
-  padding: 24px;
+  z-index: 1200;
+  background: #000000;
+  color: #efede3;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  color: #efede3;
+  overflow: hidden;
+  animation: yolofuckFadeIn 0.2s ease-out;
 }
 
-.yolofuck-settings-header {
+@keyframes yolofuckFadeIn {
+  from { opacity: 0; transform: scale(0.99); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ── Top Bar ── */
+.yolofuck-settings-topbar {
+  height: 64px;
+  background: #050608;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 0 20px;
+  flex-shrink: 0;
+  gap: 12px;
 }
 
-.yolofuck-settings-title-group {
+.yolofuck-settings-nav-btn {
+  background: #0d0e14;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.6), -1px -1px 3px rgba(255, 255, 255, 0.03);
 }
 
-.yolofuck-settings-title-group h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
+.yolofuck-settings-nav-btn:hover {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.18);
+  transform: translateY(-1px);
+}
+
+.yolofuck-settings-nav-btn.close {
+  padding: 8px;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  justify-content: center;
+}
+
+/* ── Tabs Pill in Top Center ── */
+.yolofuck-settings-tabs-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #090a0f;
+  padding: 4px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.8), inset -1px -1px 3px rgba(255, 255, 255, 0.03);
+}
+
+.yolofuck-settings-tab-btn {
+  background: transparent;
+  border: none;
+  color: #8892b0;
+  padding: 7px 16px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.yolofuck-settings-tab-btn:hover {
   color: #efede3;
 }
 
-.yolofuck-settings-close-btn {
+.yolofuck-settings-tab-btn.active {
+  background: #151722;
+  color: var(--yolo-lime, #c8f72c);
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.7), -1px -1px 4px rgba(255, 255, 255, 0.06);
+}
+
+/* ── Viewport & Scroll ── */
+.yolofuck-settings-viewport {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px 20px 100px;
+  background: radial-gradient(circle at 50% 0%, #0d0f18 0%, #000000 70%);
+}
+
+.yolofuck-settings-content-wrapper {
+  max-width: 680px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.yolofuck-settings-tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  animation: yolofuckTabFade 0.22s ease-out;
+}
+
+@keyframes yolofuckTabFade {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Header ── */
+.yolofuck-tab-header h1 {
+  font-size: 26px;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.5px;
+}
+
+.yolofuck-tab-header p {
+  font-size: 14px;
+  color: #8892b0;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ── Clean Frameless Cards ("bez ramek") ── */
+.yolofuck-settings-clean-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
+  background: #08090f;
+  border-radius: 14px;
+  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.6), -2px -2px 8px rgba(255, 255, 255, 0.02);
+}
+
+.yolofuck-settings-clean-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 4px 0;
+}
+
+.yolofuck-section-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  margin: 12px 0;
+}
+
+.yolofuck-section-headline {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.yolofuck-section-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: inset 1px 1px 3px rgba(255, 255, 255, 0.1), 2px 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.yolofuck-section-icon.audio {
+  background: rgba(200, 247, 44, 0.12);
+  color: var(--yolo-lime, #c8f72c);
+}
+
+.yolofuck-section-icon.video {
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+}
+
+.yolofuck-section-icon.brain {
+  background: rgba(168, 85, 247, 0.12);
+  color: #c084fc;
+}
+
+.yolofuck-section-icon.ear {
+  background: rgba(200, 247, 44, 0.12);
+  color: var(--yolo-lime, #c8f72c);
+}
+
+.yolofuck-section-headline h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.yolofuck-section-headline p {
+  margin: 2px 0 0 0;
+  font-size: 13px;
+  color: #8892b0;
+}
+
+/* ── Form Fields ── */
+.yolofuck-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.yolofuck-field-label,
+.yolofuck-settings-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.yolofuck-field-hint {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.yolofuck-settings-text-input,
+.yolofuck-settings-select {
+  width: 100%;
+  background: #0b0c13;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  padding: 11px 14px;
+  color: #ffffff;
+  font-size: 14px;
+  outline: none;
+  box-shadow: inset 2px 2px 6px rgba(0, 0, 0, 0.7);
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.yolofuck-settings-text-input:focus,
+.yolofuck-settings-select:focus {
+  border-color: var(--yolo-lime, #c8f72c);
+  box-shadow: inset 2px 2px 6px rgba(0, 0, 0, 0.7), 0 0 0 2px rgba(200, 247, 44, 0.15);
+}
+
+/* ── Pills Selector ── */
+.yolofuck-pills-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.yolofuck-pill-btn {
+  background: #0b0c13;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #8892b0;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5), -1px -1px 3px rgba(255, 255, 255, 0.02);
+}
+
+.yolofuck-pill-btn:hover {
+  color: #efede3;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.yolofuck-pill-btn.active {
+  background: #141724;
+  border-color: var(--yolo-lime, #c8f72c);
+  color: var(--yolo-lime, #c8f72c);
+  box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.8), 0 0 8px rgba(200, 247, 44, 0.12);
+}
+
+.yolofuck-custom-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: 13px;
+  color: #8892b0;
+}
+
+.yolofuck-number-input {
+  width: 80px;
+  background: #0b0c13;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 6px 10px;
+  color: #ffffff;
+  font-size: 13px;
+  outline: none;
+  box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.7);
+}
+
+/* ── Toggle Switch Cards ── */
+.yolofuck-toggle-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  background: #08090f;
+  border-radius: 12px;
+  box-shadow: inset 1px 1px 3px rgba(255, 255, 255, 0.03), 3px 3px 8px rgba(0, 0, 0, 0.5);
+}
+
+.yolofuck-toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.yolofuck-toggle-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #efede3;
+}
+
+.yolofuck-toggle-desc {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.yolofuck-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.yolofuck-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.yolofuck-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #1e2230;
+  transition: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 24px;
+  box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.yolofuck-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #8892b0;
+  transition: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 50%;
+  box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.yolofuck-switch input:checked + .yolofuck-slider {
+  background-color: var(--yolo-lime, #c8f72c);
+}
+
+.yolofuck-switch input:checked + .yolofuck-slider:before {
+  transform: translateX(20px);
+  background-color: #000000;
+}
+
+/* ── Key Input with Reveal & Clear ── */
+.yolofuck-key-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.yolofuck-settings-text-input.key {
+  padding-right: 76px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.yolofuck-key-input-actions {
+  position: absolute;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.yolofuck-icon-btn {
   background: transparent;
   border: none;
-  color: #94a3b8;
+  color: #8892b0;
   cursor: pointer;
-  padding: 4px;
+  padding: 6px;
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: color 0.15s ease;
 }
 
-.yolofuck-settings-close-btn:hover {
+.yolofuck-icon-btn:hover {
   color: #ffffff;
 }
 
-.yolofuck-settings-alert {
+.yolofuck-inline-link {
+  color: var(--yolo-lime, #c8f72c);
+  text-decoration: underline;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 500;
+}
+
+.yolofuck-feature-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.yolofuck-feature-badge.success {
+  background: rgba(200, 247, 44, 0.1);
+  border: 1px solid rgba(200, 247, 44, 0.25);
+  color: var(--yolo-lime, #c8f72c);
+}
+
+/* ── Save Action Bar ── */
+.yolofuck-save-action-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 10px;
+}
+
+.yolofuck-save-settings-btn {
+  background: var(--yolo-lime, #c8f72c);
+  color: #000000;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
-  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 16px rgba(200, 247, 44, 0.25);
+}
+
+.yolofuck-save-settings-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(200, 247, 44, 0.35);
+}
+
+.yolofuck-save-settings-btn.success {
+  background: #10b981;
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+}
+
+.yolofuck-save-settings-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Neumorphic Buttons for User Tab ── */
+.yolofuck-input-with-button {
+  display: flex;
+  gap: 10px;
+}
+
+.yolofuck-inputs-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.yolofuck-neumorphic-btn {
+  background: #141724;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #efede3;
+  padding: 10px 18px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.6), -1px -1px 3px rgba(255, 255, 255, 0.03);
+  transition: all 0.15s ease;
+}
+
+.yolofuck-neumorphic-btn:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.yolofuck-neumorphic-btn.primary {
+  background: var(--yolo-lime, #c8f72c);
+  color: #000000;
+  border: none;
+  box-shadow: 0 3px 12px rgba(200, 247, 44, 0.2);
+}
+
+.yolofuck-neumorphic-btn.primary:hover:not(:disabled) {
+  box-shadow: 0 4px 16px rgba(200, 247, 44, 0.3);
+}
+
+.yolofuck-neumorphic-btn.danger {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+.yolofuck-neumorphic-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.22);
+}
+
+.yolofuck-neumorphic-btn.full {
+  width: 100%;
+}
+
+.yolofuck-neumorphic-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Meta Rows ── */
+.yolofuck-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.yolofuck-meta-label {
+  color: #8892b0;
+}
+
+.yolofuck-meta-value {
+  color: #efede3;
+  font-weight: 500;
+}
+
+.yolofuck-meta-value.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+/* ── Alerts ── */
+.yolofuck-settings-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
   font-size: 13px;
 }
 
 .yolofuck-settings-alert.success {
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
   color: #6ee7b7;
 }
 
 .yolofuck-settings-alert.error {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
   color: #fca5a5;
 }
 
-.yolofuck-settings-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.spin {
+  animation: spin 1s linear infinite;
 }
 
-.yolofuck-settings-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
-.yolofuck-settings-input-row {
-  display: flex;
-  gap: 8px;
-}
-
-.yolofuck-settings-input {
-  flex: 1;
-  background: #141522;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  padding: 10px 12px;
-  color: #ffffff;
-  font-size: 13px;
-  outline: none;
-  transition: border-color 0.15s ease;
-}
-
-.yolofuck-settings-input:focus {
-  border-color: #10b981;
-}
-
-.yolofuck-settings-save-btn {
-  background: #10b981;
-  border: none;
-  border-radius: 8px;
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 0 16px;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-.yolofuck-settings-save-btn:hover {
-  background: #059669;
-}
-
-.yolofuck-settings-save-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.yolofuck-settings-save-btn.full {
-  width: 100%;
-  height: 38px;
-  margin-top: 4px;
+/* ── Mobile responsiveness ── */
+@media (max-width: 640px) {
+  .yolofuck-settings-topbar {
+    padding: 0 12px;
+  }
+  .yolofuck-settings-tabs-pill {
+    padding: 3px;
+  }
+  .yolofuck-settings-tab-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+    gap: 4px;
+  }
+  .yolofuck-settings-tab-btn span {
+    font-size: 12px;
+  }
+  .yolofuck-settings-viewport {
+    padding: 20px 14px 90px;
+  }
 }

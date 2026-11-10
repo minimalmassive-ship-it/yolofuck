@@ -18,9 +18,14 @@ export interface TrashClipItem {
 
 const TRASH_STORAGE_KEY = 'yolofuck_trash_bin_clips';
 
-export function getTrashClips(): TrashClipItem[] {
+function getStorageKey(userId?: string): string {
+    return userId ? `${TRASH_STORAGE_KEY}_${userId}` : TRASH_STORAGE_KEY;
+}
+
+export function getTrashClips(userId?: string): TrashClipItem[] {
     try {
-        const raw = localStorage.getItem(TRASH_STORAGE_KEY);
+        const key = getStorageKey(userId);
+        const raw = localStorage.getItem(key);
         if (!raw) return [];
         return JSON.parse(raw);
     } catch {
@@ -36,9 +41,10 @@ export function moveToTrash(clip: {
     duration_ms?: number;
     clip_date?: string;
     created_at?: string;
-}, source: 'journal' | 'share' = 'journal'): void {
+}, source: 'journal' | 'share' = 'journal', userId?: string): void {
     try {
-        const current = getTrashClips();
+        const key = getStorageKey(userId);
+        const current = getTrashClips(userId);
         const date = clip.clip_date || (clip.created_at ? clip.created_at.slice(0, 10) : new Date().toISOString().slice(0, 10));
         const item: TrashClipItem = {
             id: `trash_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -52,27 +58,29 @@ export function moveToTrash(clip: {
             source
         };
         const updated = [item, ...current];
-        localStorage.setItem(TRASH_STORAGE_KEY, JSON.stringify(updated));
+        localStorage.setItem(key, JSON.stringify(updated));
         window.dispatchEvent(new CustomEvent('yolofuck_trash_updated'));
     } catch (e) {
         console.warn('[TrashStorage] Failed to move clip to trash:', e);
     }
 }
 
-export function removeSingleTrashClip(id: string): void {
+export function removeSingleTrashClip(id: string, userId?: string): void {
     try {
-        const current = getTrashClips();
+        const key = getStorageKey(userId);
+        const current = getTrashClips(userId);
         const updated = current.filter(item => item.id !== id);
-        localStorage.setItem(TRASH_STORAGE_KEY, JSON.stringify(updated));
+        localStorage.setItem(key, JSON.stringify(updated));
         window.dispatchEvent(new CustomEvent('yolofuck_trash_updated'));
     } catch (e) {
         console.warn('[TrashStorage] Failed to remove clip from trash:', e);
     }
 }
 
-export function clearAllTrashClips(): void {
+export function clearAllTrashClips(userId?: string): void {
     try {
-        localStorage.removeItem(TRASH_STORAGE_KEY);
+        const key = getStorageKey(userId);
+        localStorage.removeItem(key);
         window.dispatchEvent(new CustomEvent('yolofuck_trash_updated'));
     } catch (e) {
         console.warn('[TrashStorage] Failed to clear trash:', e);

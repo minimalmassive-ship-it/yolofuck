@@ -456,7 +456,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
 
         // Move to trash bin first
         if (targetClip) {
-            moveToTrash(targetClip, 'journal');
+            moveToTrash(targetClip, 'journal', user?.id);
         }
 
         try {

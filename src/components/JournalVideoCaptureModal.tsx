@@ -19,6 +19,7 @@ import {
     getMediaSettingsFromProfile,
     buildMediaRecorderOptions,
     buildVideoConstraints,
+    buildAudioConstraints,
     resolveCameraLensOptions,
     CameraLensOption,
 } from '../lib/videoRecordingSettings';
@@ -78,6 +79,7 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
     const timerIntervalRef = useRef<any>(null);
     const recordStartTimeRef = useRef<number>(0);
     const mimeTypeRef = useRef<string>('');
+    const speechRecognitionRef = useRef<any>(null);
 
     // Load media settings from profile
     const mediaConfig = getMediaSettingsFromProfile(profile?.settings);
@@ -116,11 +118,7 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
 
         const candidateConstraints: MediaStreamConstraints[] = [
             {
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true,
-                },
+                audio: buildAudioConstraints(journalConfig.studioAudio),
                 video: buildVideoConstraints(journalConfig.resolution, facing, devId || undefined),
             },
             {
@@ -217,6 +215,10 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
 
     // ── Close / Exit Without Saving ──
     const handleClose = () => {
+        if (speechRecognitionRef.current) {
+            try { speechRecognitionRef.current.stop(); } catch {}
+            speechRecognitionRef.current = null;
+        }
         if (recorderRef.current && recorderRef.current.state === 'recording') {
             recorderRef.current.stop();
         }
@@ -231,6 +233,11 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
     const handleSave = useCallback(async () => {
         if (!user?.id || (recordedClips.length === 0 && !isRecording) || isSaving) return;
         setIsSaving(true);
+
+        if (speechRecognitionRef.current) {
+            try { speechRecognitionRef.current.stop(); } catch {}
+            speechRecognitionRef.current = null;
+        }
 
         try {
             if (recorderRef.current && recorderRef.current.state === 'recording') {
@@ -398,12 +405,63 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
             recorder.start(100);
             recorderRef.current = recorder;
             setIsRecording(true);
+
+            // Launch background speech recognition for live captions & searchable transcription
+            const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+            if (SpeechRec) {
+                try {
+                    if (speechRecognitionRef.current) {
+                        try { speechRecognitionRef.current.stop(); } catch {}
+                    }
+                    const rec = new SpeechRec();
+                    rec.continuous = true;
+                    rec.interimResults = true;
+                    rec.lang = navigator.language || 'en-US';
+
+                    rec.onresult = (evt: any) => {
+                        let interim = '';
+                        let finalChunk = '';
+                        for (let i = evt.resultIndex; i < evt.results.length; ++i) {
+                            if (evt.results[i].isFinal) {
+                                finalChunk += evt.results[i][0].transcript + ' ';
+                            } else {
+                                interim += evt.results[i][0].transcript;
+                            }
+                        }
+                        if (finalChunk) {
+                            setTranscription(prev => (prev + ' ' + finalChunk).trim());
+                        }
+                        setLiveWord(interim);
+                    };
+
+                    rec.onerror = (e: any) => {
+                        if (e.error !== 'no-speech' && e.error !== 'network') {
+                            console.warn('[JournalCapture] Speech recognition warning:', e.error);
+                        }
+                    };
+
+                    rec.onend = () => {
+                        if (recorderRef.current && recorderRef.current.state === 'recording') {
+                            try { rec.start(); } catch {}
+                        }
+                    };
+
+                    rec.start();
+                    speechRecognitionRef.current = rec;
+                } catch (recErr) {
+                    console.warn('[JournalCapture] Speech recognition start error:', recErr);
+                }
+            }
         } catch (err) {
             console.error('[JournalCapture] MediaRecorder start error:', err);
         }
     }, [isRecording, remainingMs, journalConfig.videoBitrateMbps, journalConfig.audioBitrateKbps]);
 
     const stopRecording = useCallback(() => {
+        if (speechRecognitionRef.current) {
+            try { speechRecognitionRef.current.stop(); } catch {}
+            speechRecognitionRef.current = null;
+        }
         if (recorderRef.current && recorderRef.current.state === 'recording') {
             recorderRef.current.stop();
             recorderRef.current = null;

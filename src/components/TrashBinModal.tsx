@@ -4,8 +4,9 @@
  * showing date above time on each film card, with options to delete single or purge all.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Trash2, X, RefreshCw, AlertTriangle, Video, ArrowLeft } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import { getTrashClips, removeSingleTrashClip, clearAllTrashClips, TrashClipItem } from '../lib/journalTrashStorage';
 import './TrashBinModal.css';
 
@@ -14,28 +15,29 @@ interface TrashBinModalProps {
 }
 
 export const TrashBinModal: React.FC<TrashBinModalProps> = ({ onClose }) => {
+    const { user } = useAuth();
     const [trashItems, setTrashItems] = useState<TrashClipItem[]>([]);
     const [activeClip, setActiveClip] = useState<TrashClipItem | null>(null);
 
-    const loadTrash = () => {
-        setTrashItems(getTrashClips());
-    };
+    const loadTrash = useCallback(() => {
+        setTrashItems(getTrashClips(user?.id));
+    }, [user?.id]);
 
     useEffect(() => {
         loadTrash();
         window.addEventListener('yolofuck_trash_updated', loadTrash);
         return () => window.removeEventListener('yolofuck_trash_updated', loadTrash);
-    }, []);
+    }, [loadTrash]);
 
     const handleDeleteSingle = (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        removeSingleTrashClip(id);
+        removeSingleTrashClip(id, user?.id);
     };
 
     const handleClearAll = () => {
         if (trashItems.length === 0) return;
         if (window.confirm('Permanently delete all videos in trash bin? They cannot be recovered.')) {
-            clearAllTrashClips();
+            clearAllTrashClips(user?.id);
         }
     };
 
