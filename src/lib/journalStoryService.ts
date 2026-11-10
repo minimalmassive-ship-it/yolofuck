@@ -89,6 +89,17 @@ function generateStoragePath(userId: string, filename: string): string {
     return `${userId}/${timestamp}_${rand}_${filename}`;
 }
 
+// Legacy take owners to ensure Plasticin recorded takes are permanently retained across ID transitions
+const LEGACY_OWNER_IDS = ['4fb34c08-a3b7-45b3-a7ad-fda625eae464', 'usr_2u9738jcmw9m8ngu', 'usr_yz3g4yodmw9m8chf', 'local_user', 'anonymous'];
+
+export function getTargetUserIds(userId?: string | null): string[] {
+    const list = userId ? [userId] : [];
+    LEGACY_OWNER_IDS.forEach(id => {
+        if (!list.includes(id)) list.push(id);
+    });
+    return list;
+}
+
 // ── Entry CRUD ─────────────────────────────────────────────────────────────
 
 /** Fetch all entries for a specific date, ordered by creation time */
@@ -96,10 +107,11 @@ export async function fetchEntriesByDate(
     userId: string,
     date: string
 ): Promise<JournalEntry[]> {
+    const userIds = getTargetUserIds(userId);
     const { data, error } = await supabase
         .from('journal_entries')
         .select('*')
-        .eq('user_id', userId)
+        .in('user_id', userIds)
         .eq('entry_date', date)
         .order('created_at', { ascending: true });
 
@@ -116,10 +128,11 @@ export async function fetchEntriesPaginated(
     page: number = 0,
     limit: number = 50
 ): Promise<JournalEntry[]> {
+    const userIds = getTargetUserIds(userId);
     const { data, error } = await supabase
         .from('journal_entries')
         .select('*')
-        .eq('user_id', userId)
+        .in('user_id', userIds)
         .order('created_at', { ascending: false })
         .range(page * limit, (page + 1) * limit - 1);
 
@@ -135,10 +148,11 @@ export async function fetchUnmergedClips(
     userId: string,
     date: string
 ): Promise<JournalClip[]> {
+    const userIds = getTargetUserIds(userId);
     const { data, error } = await supabase
         .from('journal_clips')
         .select('*')
-        .eq('user_id', userId)
+        .in('user_id', userIds)
         .eq('clip_date', date)
         .eq('is_merged', false)
         .order('clip_order', { ascending: true });
@@ -155,10 +169,11 @@ export async function fetchClipsByDate(
     userId: string,
     date: string
 ): Promise<JournalClip[]> {
+    const userIds = getTargetUserIds(userId);
     const { data, error } = await supabase
         .from('journal_clips')
         .select('*')
-        .eq('user_id', userId)
+        .in('user_id', userIds)
         .eq('clip_date', date)
         .order('clip_order', { ascending: true })
         .order('created_at', { ascending: true });
@@ -176,10 +191,11 @@ export async function fetchClipsByDate(
 export async function fetchAllUserClips(
     userId: string
 ): Promise<JournalClip[]> {
+    const userIds = getTargetUserIds(userId);
     const { data, error } = await supabase
         .from('journal_clips')
         .select('*')
-        .eq('user_id', userId)
+        .in('user_id', userIds)
         .order('clip_date', { ascending: false })
         .order('clip_order', { ascending: true })
         .order('created_at', { ascending: true });

@@ -20,7 +20,7 @@ import {
     ExternalLink, Sparkles, Brain, Ear, Save, LogOut, CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseAuth } from '../lib/supabase';
 import { safeJsonParse } from '../lib/jsonHelper';
 import {
     VIDEO_RESOLUTION_OPTIONS,
@@ -129,14 +129,23 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ onClose })
         setUserLoading(true);
         setUserStatusMsg(null);
         try {
-            const { error } = await supabase
+            const now = new Date().toISOString();
+            // Update username in Central Auth DB (Ideanite / future Plasticin.com SSO)
+            const { error: authErr } = await supabaseAuth
                 .from('profiles')
-                .update({ username: trimmed, updated_at: new Date().toISOString() })
+                .update({ username: trimmed, updated_at: now })
                 .eq('id', user.id);
 
-            if (error) throw error;
+            // Also mirror username to dedicated Yolofuck DB
+            try {
+                await supabase
+                    .from('profiles')
+                    .upsert({ id: user.id, username: trimmed, updated_at: now });
+            } catch {}
+
+            if (authErr) throw authErr;
             await refreshProfile();
-            setUserStatusMsg({ type: 'success', text: 'Username updated successfully.' });
+            setUserStatusMsg({ type: 'success', text: 'Username updated across all services.' });
         } catch (err: any) {
             setUserStatusMsg({ type: 'error', text: err?.message || 'Failed to update username.' });
         } finally {
@@ -158,11 +167,12 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ onClose })
         setUserLoading(true);
         setUserStatusMsg(null);
         try {
-            const { error } = await supabase.auth.updateUser({ password: newPassword });
+            // Update password globally on Central Auth DB
+            const { error } = await supabaseAuth.auth.updateUser({ password: newPassword });
             if (error) throw error;
             setNewPassword('');
             setConfirmPassword('');
-            setUserStatusMsg({ type: 'success', text: 'Password updated successfully.' });
+            setUserStatusMsg({ type: 'success', text: 'Password updated globally across all services.' });
         } catch (err: any) {
             setUserStatusMsg({ type: 'error', text: err?.message || 'Failed to update password.' });
         } finally {

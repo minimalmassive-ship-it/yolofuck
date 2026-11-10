@@ -7,7 +7,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseAuth } from '../lib/supabase';
 
 export interface Profile {
     id: string;
@@ -58,13 +58,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const fetchProfile = useCallback(async (userId: string): Promise<Profile | null> => {
         try {
-            const { data, error } = await supabase
+            // First check Central Auth database
+            let { data, error } = await supabaseAuth
                 .from('profiles')
                 .select('*')
                 .eq('id', userId)
                 .maybeSingle();
 
-            if (error) {
+            // Fallback check on Yolofuck dedicated database if not found
+            if (!data) {
+                const { data: yoloProfile } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', userId)
+                    .maybeSingle();
+                data = yoloProfile;
+            }
+
+            if (error && !data) {
                 return null;
             }
             return data as Profile | null;
@@ -124,30 +135,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         const fallbackUsername = currentUser.user_metadata?.username ||
                             currentUser.user_metadata?.full_name ||
                             currentUser.email?.split('@')[0] ||
-                            'Journal';
+                            'Plasticin';
 
-                        const { data: newProfile } = await supabase
+                        const profilePayload = {
+                            id: currentUser.id,
+                            username: fallbackUsername,
+                            role: 'user',
+                            created_at: new Date().toISOString()
+                        };
+
+                        // Create profile on Central Auth DB
+                        const { data: newProfile } = await supabaseAuth
                             .from('profiles')
-                            .insert({
-                                id: currentUser.id,
-                                username: fallbackUsername,
-                                role: 'user',
-                                created_at: new Date().toISOString()
-                            })
+                            .insert(profilePayload)
                             .select()
                             .single();
 
                         if (newProfile) profileData = newProfile;
+
+                        // Mirror to Yolofuck DB
+                        try {
+                            await supabase.from('profiles').upsert(profilePayload);
+                        } catch {}
                     } catch (pErr) {
                         console.warn('[Auth] Auto profile catch:', pErr);
                     }
+                } else if (profileData) {
+                    // Mirror profile to Yolofuck DB so foreign keys / relations work
+                    try {
+                        await supabase
+                            .from('profiles')
+                            .upsert({
+                                id: currentUser.id,
+                                username: profileData.username,
+                                role: profileData.role || 'user',
+                                updated_at: new Date().toISOString()
+                            });
+                    } catch {}
                 }
 
                 if (isActive && profileData) {
                     setProfile(profileData);
                 }
 
-                // If no local owner was registered for legacy recordings, attribute them to this primary user
+                // Attribute local legacy owner ID to current user so previous takes load seamlessly
                 if (!localStorage.getItem('yolofuck_local_owner_id')) {
                     localStorage.setItem('yolofuck_local_owner_id', currentUser.id);
                 }
@@ -161,13 +192,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (isActive) setLoading(false);
         };
 
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        supabaseAuth.auth.getSession().then(({ data: { session } }) => {
             if (isActive) {
                 handleAuthChange('INITIAL', session);
             }
         });
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
+        const { data: { subscription } } = supabaseAuth.auth.onAuthStateChange(handleAuthChange);
 
         return () => {
             isActive = false;
@@ -177,7 +208,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const signInWithEmail = useCallback(async (email: string, password: string) => {
         try {
-            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            const { error } = await supabaseAuth.auth.signInWithPassword({ email, password });
             if (error) return { error };
             return { error: null };
         } catch (err: any) {
@@ -187,26 +218,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const signUpWithEmail = useCallback(async (email: string, password: string, username?: string) => {
         try {
-            const { data, error } = await supabase.auth.signUp({
+            const finalUsername = username || email.split('@')[0];
+            const { data, error } = await supabaseAuth.auth.signUp({
                 email,
                 password,
                 options: {
                     data: {
-                        username: username || email.split('@')[0],
-                        full_name: username || email.split('@')[0],
+                        username: finalUsername,
+                        full_name: finalUsername,
                     }
                 }
             });
             if (error) return { data: null, error };
             if (data.user) {
-                // If auto-signed in, ensure profile
+                const profilePayload = {
+                    id: data.user.id,
+                    username: finalUsername,
+                    role: 'user',
+                    created_at: new Date().toISOString(),
+                };
+                // Upsert to Central Auth DB
                 try {
-                    await supabase.from('profiles').upsert({
-                        id: data.user.id,
-                        username: username || email.split('@')[0],
-                        role: 'user',
-                        created_at: new Date().toISOString(),
-                    });
+                    await supabaseAuth.from('profiles').upsert(profilePayload);
+                } catch {}
+                // Mirror to Yolofuck Data DB
+                try {
+                    await supabase.from('profiles').upsert(profilePayload);
                 } catch {}
             }
             return { data, error: null };
@@ -217,7 +254,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const signOut = useCallback(async () => {
         try {
-            await supabase.auth.signOut();
+            await supabaseAuth.auth.signOut();
         } catch (e) {
             console.error('[Auth] Error signing out:', e);
         }

@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Search, UserPlus, UserCheck, X, MessageCircle, Phone, Video } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseAuth } from '../lib/supabase';
 import './FriendsPageModal.css';
 
 interface FriendItem {
@@ -47,13 +47,22 @@ export const FriendsPageModal: React.FC<FriendsPageModalProps> = ({ onClose }) =
 
         setSearching(true);
         try {
-            const { data, error } = await supabase
+            let { data, error } = await supabaseAuth
                 .from('profiles')
                 .select('id, username, updated_at')
                 .ilike('username', `%${q}%`)
                 .limit(10);
 
-            if (error) throw error;
+            if (!data || data.length === 0) {
+                const { data: yoloData } = await supabase
+                    .from('profiles')
+                    .select('id, username, updated_at')
+                    .ilike('username', `%${q}%`)
+                    .limit(10);
+                if (yoloData) data = yoloData;
+            }
+
+            if (error && !data) throw error;
             // Filter out current user
             const filtered = (data || []).filter(p => p.id !== user?.id && p.username);
             setSearchResults(filtered);
