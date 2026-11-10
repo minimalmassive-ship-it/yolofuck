@@ -20,14 +20,16 @@ const DB_NAME = 'yolofuck_local_storage';
 const STORE_NAME = 'journal_recordings';
 const DB_VERSION = 1;
 
-function openDatabase(): Promise<IDBDatabase> {
+const LEGACY_DB_NAME = 'ideanite_local_storage';
+
+function openDatabaseNamed(dbName: string): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
         if (!('indexedDB' in window)) {
             reject(new Error('IndexedDB is not supported on this browser/device.'));
             return;
         }
 
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        const request = indexedDB.open(dbName, DB_VERSION);
 
         request.onupgradeneeded = () => {
             const db = request.result;
@@ -37,8 +39,12 @@ function openDatabase(): Promise<IDBDatabase> {
         };
 
         request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error || new Error('Failed to open local journal storage.'));
+        request.onerror = () => reject(request.error || new Error(`Failed to open ${dbName}.`));
     });
+}
+
+function openDatabase(): Promise<IDBDatabase> {
+    return openDatabaseNamed(DB_NAME);
 }
 
 /**
@@ -74,52 +80,83 @@ export async function saveLocalJournalRecording(entry: {
 }
 
 /**
- * Retrieves a locally stored journal recording by ID.
+ * Retrieves a locally stored journal recording by ID (checks current and legacy db).
  */
 export async function getLocalJournalRecording(id: string): Promise<LocalJournalEntry | null> {
-    const db = await openDatabase();
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readonly');
-        const store = tx.objectStore(STORE_NAME);
-        const req = store.get(id);
+    try {
+        const db = await openDatabase();
+        const entry = await new Promise<LocalJournalEntry | null>((resolve) => {
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.get(id);
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => resolve(null);
+        });
+        if (entry) return entry;
+    } catch {}
 
-        req.onsuccess = () => resolve(req.result || null);
-        req.onerror = () => reject(req.error || new Error('Failed to retrieve local journal recording.'));
-    });
+    try {
+        const legacyDb = await openDatabaseNamed(LEGACY_DB_NAME);
+        return new Promise((resolve) => {
+            const tx = legacyDb.transaction(STORE_NAME, 'readonly');
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.get(id);
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => resolve(null);
+        });
+    } catch {
+        return null;
+    }
+}
+
+async function getEntriesFromDb(dbName: string): Promise<LocalJournalEntry[]> {
+    try {
+        const db = await openDatabaseNamed(dbName);
+        return await new Promise((resolve) => {
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.getAll();
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => resolve([]);
+        });
+    } catch {
+        return [];
+    }
 }
 
 /**
- * Lists all locally saved journal entries ordered by creation date (newest first).
+ * Lists all locally saved journal entries from both current and legacy IndexedDB databases.
  */
 export async function getAllLocalJournalRecordings(): Promise<LocalJournalEntry[]> {
-    const db = await openDatabase();
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readonly');
-        const store = tx.objectStore(STORE_NAME);
-        const req = store.getAll();
+    const [currentList, legacyList] = await Promise.all([
+        getEntriesFromDb(DB_NAME),
+        getEntriesFromDb(LEGACY_DB_NAME),
+    ]);
 
-        req.onsuccess = () => {
-            const list: LocalJournalEntry[] = req.result || [];
-            list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            resolve(list);
-        };
-        req.onerror = () => reject(req.error || new Error('Failed to list local journal recordings.'));
-    });
+    const entryMap = new Map<string, LocalJournalEntry>();
+    legacyList.forEach(item => entryMap.set(item.id, item));
+    currentList.forEach(item => entryMap.set(item.id, item));
+
+    const combined = Array.from(entryMap.values());
+    combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return combined;
 }
 
 /**
  * Deletes a locally stored journal recording.
  */
 export async function deleteLocalJournalRecording(id: string): Promise<void> {
-    const db = await openDatabase();
-    return new Promise((resolve, reject) => {
+    try {
+        const db = await openDatabase();
         const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        const req = store.delete(id);
+        tx.objectStore(STORE_NAME).delete(id);
+    } catch {}
 
-        req.onsuccess = () => resolve();
-        req.onerror = () => reject(req.error || new Error('Failed to delete local journal recording.'));
-    });
+    try {
+        const legacyDb = await openDatabaseNamed(LEGACY_DB_NAME);
+        const txLegacy = legacyDb.transaction(STORE_NAME, 'readwrite');
+        txLegacy.objectStore(STORE_NAME).delete(id);
+    } catch {}
 }
 
 /**

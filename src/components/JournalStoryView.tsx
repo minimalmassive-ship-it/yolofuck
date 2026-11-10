@@ -65,6 +65,20 @@ function formatDuration(ms: number): string {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
 }
 
+/** Formats ISO string into HH:MM (e.g. 01:11) */
+function formatTakeTime(isoStr?: string): string {
+    if (!isoStr) return '';
+    try {
+        const d = new Date(isoStr);
+        if (isNaN(d.getTime())) return '';
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mm = String(d.getMinutes()).padStart(2, '0');
+        return `${hh}:${mm}`;
+    } catch {
+        return '';
+    }
+}
+
 export const JournalStoryView: React.FC<JournalStoryViewProps> = ({ 
     projectId: _projectId, 
     searchQuery = '',
@@ -885,12 +899,19 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                                                 />
                                                             )}
 
-                                                            {/* Micro Take Badge: Sequence number only */}
-                                                            <div className="yolofuck-square-overlay">
-                                                                <span className="yolofuck-square-take-idx">
+                                                            {/* Top Center Take Number: Small, standard font, centered, no shadow */}
+                                                            <div className="yolofuck-film-top-badge">
+                                                                <span className="yolofuck-film-take-num">
                                                                     {idx + 1}
                                                                 </span>
                                                             </div>
+
+                                                            {/* Bottom Start Time: e.g. 01:11 */}
+                                                            {clip.created_at && (
+                                                                <div className="yolofuck-film-bottom-time">
+                                                                    <span>{formatTakeTime(clip.created_at)}</span>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     );
                                                 })

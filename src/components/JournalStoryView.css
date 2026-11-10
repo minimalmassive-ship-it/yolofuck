@@ -246,10 +246,10 @@
   transform: rotate(-90deg);
   white-space: nowrap;
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.6px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
   color: #94a3b8;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: -apple-system, BlinkMacSystemFont, "Roboto", "Segoe UI", Arial, sans-serif;
   text-transform: uppercase;
 }
 
@@ -373,24 +373,53 @@
   pointer-events: none;
 }
 
-.yolofuck-square-overlay {
+/* ── Top Center Take Number: Small, standard font, dead center top, no shadow ── */
+.yolofuck-film-top-badge {
   position: absolute;
-  top: 0;
+  top: 4px;
   left: 0;
-  padding: 4px 6px;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   pointer-events: none;
   z-index: 2;
 }
 
-.yolofuck-square-take-idx {
-  font-size: 11px;
-  font-weight: 800;
+.yolofuck-film-take-num {
+  font-size: 10px;
+  font-weight: 500;
   color: #ffffff;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
-  background: rgba(0, 0, 0, 0.4);
-  padding: 1px 5px;
-  border-radius: 4px;
+  font-family: -apple-system, BlinkMacSystemFont, "Roboto", "Segoe UI", Arial, sans-serif;
+  text-shadow: none;
+  background: transparent;
+  padding: 0;
+  line-height: 1;
+}
+
+/* ── Bottom Timestamp (e.g. 01:11) ── */
+.yolofuck-film-bottom-time {
+  position: absolute;
+  bottom: 4px;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.yolofuck-film-bottom-time span {
+  font-size: 9px;
+  font-weight: 500;
+  color: #cbd5e1;
+  font-family: -apple-system, BlinkMacSystemFont, "Roboto", "Segoe UI", Arial, sans-serif;
+  letter-spacing: 0.3px;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 1px 4px;
+  border-radius: 3px;
+  line-height: 1.1;
 }
 
 /* ══════════════════════════════════════════════════════════════
