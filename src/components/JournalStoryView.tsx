@@ -24,7 +24,8 @@ import {
     Repeat, 
     Share2, 
     Video, 
-    Sparkles
+    Sparkles,
+    Layers
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -42,6 +43,7 @@ interface JournalStoryViewProps {
     projectId?: string | null;
     searchQuery?: string;
     onSearchChange?: (q: string) => void;
+    onOpenRecord?: () => void;
 }
 
 /** Formats YYYY-MM-DD into DD-MM-YYYY */
@@ -63,7 +65,8 @@ function formatDuration(ms: number): string {
 
 export const JournalStoryView: React.FC<JournalStoryViewProps> = ({ 
     projectId: _projectId, 
-    searchQuery = '' 
+    searchQuery = '',
+    onOpenRecord
 }) => {
     const { user, profile } = useAuth();
     const effectiveUsername = profile?.username || user?.user_metadata?.username || 'Journal';
@@ -229,6 +232,24 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
     }, [groupedDays, activeStoryDate]);
 
     const activeClip = activeDayClips[currentClipIndex] || null;
+
+    // Synchronize video element playback with active clip
+    useEffect(() => {
+        if (!showVideoPlayer || !activeClip || !videoRef.current) return;
+        const video = videoRef.current;
+        video.src = activeClip.clip_url;
+        video.currentTime = 0;
+        video.load();
+
+        if (isPlaying) {
+            const playPromise = video.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(err => {
+                    console.warn('[JournalStoryView] Autoplay blocked or deferred:', err);
+                });
+            }
+        }
+    }, [showVideoPlayer, activeClip?.id, activeClip?.clip_url]);
 
     // ── Start Full-screen Story Player ──
     const handleStartDayPlayer = useCallback((date: string, clipIdx = 0) => {
@@ -557,65 +578,45 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                             </div>
                         )}
 
-                        {/* Player Floating Bottom Controls */}
-                        <div className="yolofuck-player-bottom-bar">
+                        {/* Player Bottom Dock: Matches Journal bottom nav (Journal, Share, Record) without < and > */}
+                        <nav className="yolofuck-player-dock-bar">
                             <button
-                                className="yolofuck-player-icon-btn"
-                                onClick={() => handlePrevClip()}
-                                disabled={currentClipIndex === 0}
-                                title="Previous Take"
+                                type="button"
+                                className="yolofuck-bottom-nav-btn active"
+                                onClick={handleClosePlayer}
+                                title="Back to Journal"
                             >
-                                ◄
+                                <Layers size={19} />
+                                <span>Journal</span>
                             </button>
 
                             <button
-                                className="yolofuck-player-icon-btn"
-                                onClick={togglePlayerPlay}
-                                title={isPlaying ? 'Pause' : 'Play'}
-                            >
-                                {isPlaying ? <Pause size={20} /> : <Play size={20} fill="#ffffff" />}
-                            </button>
-
-                            <button
-                                className="yolofuck-player-icon-btn"
-                                onClick={() => handleNextClip()}
-                                disabled={currentClipIndex === activeDayClips.length - 1}
-                                title="Next Take"
-                            >
-                                ►
-                            </button>
-
-                            <button
-                                className="yolofuck-player-icon-btn"
-                                onClick={() => {
-                                    const nextMuted = !isMuted;
-                                    setIsMuted(nextMuted);
-                                    if (videoRef.current) videoRef.current.muted = nextMuted;
-                                }}
-                                title={isMuted ? 'Unmute' : 'Mute'}
-                            >
-                                {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                            </button>
-
-                            <button
-                                className={`yolofuck-player-icon-btn ${isLooping ? 'active' : ''}`}
-                                onClick={() => setIsLooping(prev => !prev)}
-                                title="Loop Take"
-                            >
-                                <Repeat size={17} />
-                            </button>
-
-                            <button
-                                className="yolofuck-player-icon-btn"
+                                type="button"
+                                className="yolofuck-bottom-nav-btn"
                                 onClick={() => {
                                     setLockedShareDate(activeStoryDate);
                                     setShowShareModal(true);
                                 }}
-                                title="Share Day Story"
+                                title="Share Story"
                             >
-                                <Share2 size={17} />
+                                <Share2 size={19} />
+                                <span>Share</span>
                             </button>
-                        </div>
+
+                            <button
+                                type="button"
+                                className="yolofuck-bottom-record-btn"
+                                onClick={() => {
+                                    handleClosePlayer();
+                                    if (onOpenRecord) onOpenRecord();
+                                }}
+                                title="Record Take"
+                            >
+                                <span className="yolofuck-rec-dot" />
+                                <Video size={19} />
+                                <span>Record</span>
+                            </button>
+                        </nav>
                     </div>
                 </div>
             ) : (

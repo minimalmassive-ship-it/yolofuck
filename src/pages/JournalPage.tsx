@@ -158,6 +158,7 @@ export const JournalPage: React.FC = () => {
                         projectId={project?.id || null} 
                         searchQuery={searchQuery}
                         onSearchChange={setSearchQuery}
+                        onOpenRecord={() => setShowCaptureModal(true)}
                     />
                 ) : (
                     <JournalSharedGrid projectId={project?.id || null} />
