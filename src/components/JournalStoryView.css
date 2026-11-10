@@ -132,10 +132,10 @@
   width: 100%;
 }
 
-/* ── Individual Day Row ── */
+/* ── Individual Day Row (9:16 aspect ratio: 128px height) ── */
 .yolofuck-grid-day-row {
   width: 100%;
-  height: 80px;
+  height: 128px;
   display: flex;
   flex-direction: row;
   align-items: stretch;
@@ -147,7 +147,7 @@
 /* ── Vertical Sideways Date Strip (Left Side) ── */
 .yolofuck-vertical-date-strip {
   width: 26px;
-  height: 80px;
+  height: 128px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -168,7 +168,7 @@
   text-transform: uppercase;
 }
 
-/* ── Horizontal Strip of Square Films ── */
+/* ── Horizontal Strip of 9:16 Films ── */
 .yolofuck-films-horizontal-strip {
   flex: 1;
   display: flex;
@@ -195,10 +195,10 @@
   font-size: 11px;
 }
 
-/* ── Square Film Card (80px x 80px, border-radius: 0) ── */
+/* ── 9:16 Film Card (72px x 128px, border-radius: 0) ── */
 .yolofuck-film-square {
-  width: 80px;
-  height: 80px;
+  width: 72px;
+  height: 128px;
   flex-shrink: 0;
   position: relative;
   background: #141522;
@@ -206,15 +206,22 @@
   overflow: hidden;
   cursor: pointer;
   touch-action: pan-x pan-y;
-  transition: transform 0.1s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-.yolofuck-film-square:active {
-  opacity: 0.88;
+.yolofuck-film-square.is-dragging {
+  opacity: 0.4;
+  transform: scale(0.94);
+}
+
+.yolofuck-film-square.drag-over {
+  box-shadow: inset 0 0 0 2px var(--yolo-lime, #c8f72c);
 }
 
 .yolofuck-film-square.is-looping {
-  box-shadow: inset 0 0 0 2px #10b981;
+  box-shadow: inset 0 0 0 2px var(--yolo-lime, #c8f72c);
 }
 
 .yolofuck-square-media {
@@ -231,59 +238,20 @@
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
-  padding: 2px 4px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  padding: 4px 6px;
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
   z-index: 2;
 }
 
 .yolofuck-square-take-idx {
-  font-size: 9px;
-  font-weight: 700;
-  color: #f1f5f9;
-  font-family: ui-monospace, monospace;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-.yolofuck-square-delete-btn {
-  pointer-events: auto;
-  background: rgba(0, 0, 0, 0.6);
-  border: none;
-  color: #ef4444;
-  border-radius: 2px;
-  width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 0;
-  transition: background 0.15s ease;
-}
-
-.yolofuck-square-delete-btn:hover {
-  background: rgba(239, 68, 68, 0.8);
+  font-size: 11px;
+  font-weight: 800;
   color: #ffffff;
-}
-
-.yolofuck-square-loop-badge {
-  position: absolute;
-  bottom: 3px;
-  right: 3px;
-  background: #10b981;
-  color: #000000;
-  border-radius: 50%;
-  width: 15px;
-  height: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
-  z-index: 3;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  background: rgba(0, 0, 0, 0.4);
+  padding: 1px 5px;
+  border-radius: 4px;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -461,4 +429,95 @@
 .yolofuck-player-icon-btn:disabled {
   opacity: 0.3;
   cursor: not-allowed;
+}
+
+/* ── Mobile Long-Press Delete Confirmation Modal ── */
+.yolofuck-delete-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: yolofuckFadeIn 0.15s ease-out;
+}
+
+@keyframes yolofuckFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.yolofuck-delete-confirm-card {
+  width: 100%;
+  max-width: 320px;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 16px;
+  padding: 24px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8);
+}
+
+.yolofuck-delete-confirm-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #f0f6fc;
+  margin: 0;
+}
+
+.yolofuck-delete-confirm-desc {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #8b949e;
+  margin: 0;
+}
+
+.yolofuck-delete-confirm-actions {
+  display: flex;
+  width: 100%;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.yolofuck-delete-btn-cancel {
+  flex: 1;
+  height: 42px;
+  border-radius: 10px;
+  background: #21262d;
+  border: 1px solid #30363d;
+  color: #c9d1d9;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.yolofuck-delete-btn-cancel:hover {
+  background: #30363d;
+  color: #ffffff;
+}
+
+.yolofuck-delete-btn-confirm {
+  flex: 1;
+  height: 42px;
+  border-radius: 10px;
+  background: #dc2626;
+  border: 1px solid #ef4444;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  box-shadow: 0 2px 10px rgba(220, 38, 38, 0.4);
+}
+
+.yolofuck-delete-btn-confirm:hover {
+  background: #b91c1c;
 }

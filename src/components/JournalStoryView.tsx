@@ -31,9 +31,10 @@ import {
     getLocalDateISO,
     fetchAllUserClips,
     deleteClip,
+    reorderDailyClips,
     type JournalClip,
 } from '../lib/journalStoryService';
-import { getAllLocalJournalRecordings } from '../lib/journalLocalStorage';
+import { getAllLocalJournalRecordings, deleteLocalJournalRecording } from '../lib/journalLocalStorage';
 import { JournalShareCommandCenter } from './JournalShareCommandCenter';
 import './JournalStoryView.css';
 
@@ -88,12 +89,25 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
     const [showShareModal, setShowShareModal] = useState(false);
     const [lockedShareDate, setLockedShareDate] = useState<string | null>(null);
 
+    // Mobile Long-Press Delete Confirmation Modal state
+    const [clipToDelete, setClipToDelete] = useState<{ id: string; date: string } | null>(null);
+
+    // Drag and Drop state for reordering films in feed
+    const [draggingClip, setDraggingClip] = useState<{ clip: JournalClip; date: string } | null>(null);
+    const [dragOverClipId, setDragOverClipId] = useState<string | null>(null);
+    const [dragEnabledClipId, setDragEnabledClipId] = useState<string | null>(null);
+
     const videoRef = useRef<HTMLVideoElement>(null);
 
-    // Pointer gesture trackers for distinguishing drag vs click vs 1.5s long-press
+    // Pointer gesture trackers for video cards: single click, drag, long-press (reorder)
     const pointerStartRef = useRef<{ x: number; y: number; time: number; clipId: string; date: string; index: number } | null>(null);
     const longPressTimerRef = useRef<any>(null);
     const isLongPressTriggeredRef = useRef(false);
+
+    // Touch gesture tracker for Full-Screen Player: Horizontal Swipe left/right
+    const playerTouchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+    const playerLongPressTimerRef = useRef<any>(null);
+    const isPlayerLongPressTriggeredRef = useRef(false);
 
     // ── Load Clips from Supabase & Local IndexedDB ──
     const loadAllClips = useCallback(async () => {
@@ -252,50 +266,147 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         }
     }, [currentClipIndex]);
 
-    const handleDeleteTake = async (clipId: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (!window.confirm('Delete this video take?')) return;
+    const togglePlayerPlay = useCallback(() => {
+        if (!videoRef.current) return;
+        if (isPlaying) {
+            videoRef.current.pause();
+            setIsPlaying(false);
+        } else {
+            videoRef.current.play().catch(console.error);
+            setIsPlaying(true);
+        }
+    }, [isPlaying]);
+
+    const handleDeleteConfirmed = async () => {
+        if (!clipToDelete) return;
+        const { id: clipId } = clipToDelete;
+        setClipToDelete(null);
 
         try {
             await deleteClip(clipId);
+            await deleteLocalJournalRecording(clipId);
             setAllClips(prev => prev.filter(c => c.id !== clipId));
-            if (loopingClipId === clipId) setLoopingClipId(null);
+            if (activeClip?.id === clipId) {
+                if (activeDayClips.length <= 1) {
+                    handleClosePlayer();
+                } else {
+                    handleNextClip();
+                }
+            }
         } catch (err) {
             console.error('[JournalStoryView] Delete take error:', err);
         }
     };
 
-    // Video playback effect for Fullscreen Story Player
-    useEffect(() => {
-        if (!showVideoPlayer || !activeClip || !videoRef.current) return;
+    // ── Drag and Drop Reordering Handlers ──
+    const handleReorderClips = async (date: string, draggedId: string, targetId: string) => {
+        if (draggedId === targetId) return;
 
-        videoRef.current.src = activeClip.clip_url;
-        videoRef.current.currentTime = 0;
-        videoRef.current.muted = isMuted;
+        const dayClips = groupedDays.find(([d]) => d === date)?.[1] || [];
+        const oldIndex = dayClips.findIndex(c => c.id === draggedId);
+        const newIndex = dayClips.findIndex(c => c.id === targetId);
 
-        if (isPlaying) {
-            videoRef.current.play().catch(err => {
-                console.warn('[Player] Autoplay prevented:', err);
-            });
+        if (oldIndex === -1 || newIndex === -1) return;
+
+        const reordered = [...dayClips];
+        const [moved] = reordered.splice(oldIndex, 1);
+        reordered.splice(newIndex, 0, moved);
+
+        // Update clip_order numbers
+        const updatedClips = reordered.map((c, idx) => ({ ...c, clip_order: idx }));
+
+        // Optimistically update allClips state
+        setAllClips(prev => {
+            const others = prev.filter(c => (c.clip_date || c.created_at.slice(0, 10)) !== date);
+            return [...others, ...updatedClips];
+        });
+
+        // Persist to Supabase if online
+        if (user?.id) {
+            try {
+                await reorderDailyClips(user.id, date, updatedClips);
+            } catch (err) {
+                console.error('[JournalStoryView] Failed to persist reordering:', err);
+            }
         }
-    }, [showVideoPlayer, activeClip]);
+    };
 
-    const togglePlayerPlay = useCallback(() => {
-        if (!videoRef.current) return;
-        if (videoRef.current.paused) {
-            videoRef.current.muted = isMuted;
-            videoRef.current.play().then(() => {
-                setIsPlaying(true);
-            }).catch(err => {
-                console.error('[Player] Play failed:', err);
-            });
-        } else {
-            videoRef.current.pause();
-            setIsPlaying(false);
+    // ── Full-Screen Player Touch & Swipe Handlers ──
+    const handlePlayerTouchStart = (e: React.TouchEvent) => {
+        isPlayerLongPressTriggeredRef.current = false;
+        const touch = e.touches[0];
+        playerTouchStartRef.current = {
+            x: touch.clientX,
+            y: touch.clientY,
+            time: Date.now()
+        };
+
+        if (playerLongPressTimerRef.current) {
+            clearTimeout(playerLongPressTimerRef.current);
         }
-    }, [isMuted]);
 
-    // ── Gesture Handlers for Video Squares: Click vs Drag vs 1.5s Long Press ──
+        // Long press on mobile in player to trigger delete prompt
+        playerLongPressTimerRef.current = setTimeout(() => {
+            isPlayerLongPressTriggeredRef.current = true;
+            if (navigator.vibrate) {
+                try { navigator.vibrate(60); } catch {}
+            }
+            if (activeClip) {
+                setClipToDelete({ id: activeClip.id, date: activeStoryDate });
+            }
+        }, 900);
+    };
+
+    const handlePlayerTouchMove = (e: React.TouchEvent) => {
+        if (!playerTouchStartRef.current) return;
+        const touch = e.touches[0];
+        const dx = Math.abs(touch.clientX - playerTouchStartRef.current.x);
+        const dy = Math.abs(touch.clientY - playerTouchStartRef.current.y);
+
+        // Cancel long-press if moving finger (e.g. initiating swipe)
+        if (dx > 10 || dy > 10) {
+            if (playerLongPressTimerRef.current) {
+                clearTimeout(playerLongPressTimerRef.current);
+                playerLongPressTimerRef.current = null;
+            }
+        }
+    };
+
+    const handlePlayerTouchEnd = (e: React.TouchEvent) => {
+        if (playerLongPressTimerRef.current) {
+            clearTimeout(playerLongPressTimerRef.current);
+            playerLongPressTimerRef.current = null;
+        }
+
+        if (isPlayerLongPressTriggeredRef.current) {
+            isPlayerLongPressTriggeredRef.current = false;
+            playerTouchStartRef.current = null;
+            return;
+        }
+
+        if (!playerTouchStartRef.current) return;
+        const touch = e.changedTouches[0];
+        const deltaX = touch.clientX - playerTouchStartRef.current.x;
+        const deltaY = touch.clientY - playerTouchStartRef.current.y;
+        playerTouchStartRef.current = null;
+
+        // Horizontal Swipe threshold: at least 40px, mostly horizontal
+        if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY)) {
+            if (deltaX < 0) {
+                // Swipe Left -> Next Take in sequence
+                handleNextClip();
+            } else {
+                // Swipe Right -> Previous Take in sequence
+                handlePrevClip();
+            }
+            return;
+        }
+
+        // Tap on player background/video: close player if tapped on the active video
+        // or toggle play if quick tap
+    };
+
+    // ── Gesture Handlers for Matrix Films (Single Tap opens full-screen loop, long-press enables drag-and-drop) ──
     const handleSquarePointerDown = (e: React.PointerEvent, clip: JournalClip, date: string, index: number) => {
         isLongPressTriggeredRef.current = false;
         pointerStartRef.current = {
@@ -311,15 +422,14 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
             clearTimeout(longPressTimerRef.current);
         }
 
-        // 1.5-second Long-Press Timer
+        // 700ms Long-Press Timer activates drag-and-drop mode
         longPressTimerRef.current = setTimeout(() => {
             isLongPressTriggeredRef.current = true;
             if (navigator.vibrate) {
-                try { navigator.vibrate(60); } catch {}
+                try { navigator.vibrate(50); } catch {}
             }
-            // Trigger full-screen daily story player for this day!
-            handleStartDayPlayer(date, index);
-        }, 1500);
+            setDragEnabledClipId(clip.id);
+        }, 700);
     };
 
     const handleSquarePointerMove = (e: React.PointerEvent) => {
@@ -327,7 +437,6 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         const dx = Math.abs(e.clientX - pointerStartRef.current.x);
         const dy = Math.abs(e.clientY - pointerStartRef.current.y);
 
-        // Cancel long-press if user moves/scrolls finger > 8px
         if (dx > 8 || dy > 8) {
             if (longPressTimerRef.current) {
                 clearTimeout(longPressTimerRef.current);
@@ -336,7 +445,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         }
     };
 
-    const handleSquarePointerUp = (e: React.PointerEvent, clip: JournalClip) => {
+    const handleSquarePointerUp = (e: React.PointerEvent, clip: JournalClip, date: string, index: number) => {
         if (longPressTimerRef.current) {
             clearTimeout(longPressTimerRef.current);
             longPressTimerRef.current = null;
@@ -353,11 +462,11 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         const dy = Math.abs(e.clientY - pointerStartRef.current.y);
         pointerStartRef.current = null;
 
-        // If dragged, it was a scroll gesture, do not toggle loop
         if (dx > 8 || dy > 8) return;
 
-        // Single Click: Toggle in-place video loop!
-        setLoopingClipId(prev => prev === clip.id ? null : clip.id);
+        // Single Click: Open full-screen player looping this short!
+        setIsLooping(true);
+        handleStartDayPlayer(date, index);
     };
 
     const handleSquarePointerCancel = () => {
@@ -376,7 +485,12 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                ══════════════════════════════════════════════════════════ */}
             {showVideoPlayer && activeClip ? (
                 <div className="yolofuck-player-container">
-                    <div className="yolofuck-player-canvas">
+                    <div 
+                        className="yolofuck-player-canvas"
+                        onTouchStart={handlePlayerTouchStart}
+                        onTouchMove={handlePlayerTouchMove}
+                        onTouchEnd={handlePlayerTouchEnd}
+                    >
                         <video
                             ref={videoRef}
                             className="yolofuck-player-video"
@@ -389,7 +503,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                 }
                             }}
                             onEnded={handleNextClip}
-                            onClick={togglePlayerPlay}
+                            onClick={handleClosePlayer}
                         />
 
                         {/* Top Overlay Bars (Segmented progress for all takes in this day) */}
@@ -586,16 +700,41 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                             ) : (
                                                 clips.map((clip, idx) => {
                                                     const isLoopingThis = loopingClipId === clip.id;
+                                                    const isDraggingThis = draggingClip?.clip.id === clip.id;
+                                                    const isDragOverThis = dragOverClipId === clip.id;
 
                                                     return (
                                                         <div 
                                                             key={clip.id}
-                                                            className={`yolofuck-film-square ${isLoopingThis ? 'is-looping' : ''}`}
+                                                            draggable={dragEnabledClipId === clip.id}
+                                                            className={`yolofuck-film-square ${isLoopingThis ? 'is-looping' : ''} ${isDraggingThis ? 'is-dragging' : ''} ${isDragOverThis ? 'drag-over' : ''}`}
                                                             onPointerDown={(e) => handleSquarePointerDown(e, clip, date, idx)}
                                                             onPointerMove={handleSquarePointerMove}
-                                                            onPointerUp={(e) => handleSquarePointerUp(e, clip)}
+                                                            onPointerUp={(e) => handleSquarePointerUp(e, clip, date, idx)}
                                                             onPointerCancel={handleSquarePointerCancel}
-                                                            title={`Take ${idx + 1} — Tap to loop, hold 1.5s to play full story`}
+                                                            onDragStart={() => setDraggingClip({ clip, date })}
+                                                            onDragOver={(e) => {
+                                                                e.preventDefault();
+                                                                if (dragOverClipId !== clip.id) setDragOverClipId(clip.id);
+                                                            }}
+                                                            onDragLeave={() => {
+                                                                if (dragOverClipId === clip.id) setDragOverClipId(null);
+                                                            }}
+                                                            onDrop={(e) => {
+                                                                e.preventDefault();
+                                                                if (draggingClip && draggingClip.date === date) {
+                                                                    handleReorderClips(date, draggingClip.clip.id, clip.id);
+                                                                }
+                                                                setDraggingClip(null);
+                                                                setDragOverClipId(null);
+                                                                setDragEnabledClipId(null);
+                                                            }}
+                                                            onDragEnd={() => {
+                                                                setDraggingClip(null);
+                                                                setDragOverClipId(null);
+                                                                setDragEnabledClipId(null);
+                                                            }}
+                                                            title={`Take ${idx + 1}`}
                                                         >
                                                             {isLoopingThis ? (
                                                                 <video
@@ -621,28 +760,12 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                                                 />
                                                             )}
 
-                                                            {/* Micro Take Badge */}
+                                                            {/* Micro Take Badge: Sequence number only */}
                                                             <div className="yolofuck-square-overlay">
                                                                 <span className="yolofuck-square-take-idx">
                                                                     {idx + 1}
                                                                 </span>
-
-                                                                <button
-                                                                    type="button"
-                                                                    className="yolofuck-square-delete-btn"
-                                                                    onClick={(e) => handleDeleteTake(clip.id, e)}
-                                                                    title="Delete Take"
-                                                                >
-                                                                    <Trash2 size={11} />
-                                                                </button>
                                                             </div>
-
-                                                            {/* In-place Loop Indicator */}
-                                                            {isLoopingThis && (
-                                                                <div className="yolofuck-square-loop-badge">
-                                                                    <Repeat size={10} />
-                                                                </div>
-                                                            )}
                                                         </div>
                                                     );
                                                 })
@@ -653,6 +776,40 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                             })}
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal for Fullscreen Long-Press or Deletion */}
+            {clipToDelete && (
+                <div 
+                    className="yolofuck-delete-confirm-overlay"
+                    onClick={() => setClipToDelete(null)}
+                >
+                    <div 
+                        className="yolofuck-delete-confirm-card"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 className="yolofuck-delete-confirm-title">Delete Take?</h3>
+                        <p className="yolofuck-delete-confirm-desc">
+                            This film will be permanently removed from your story sequence and journal.
+                        </p>
+                        <div className="yolofuck-delete-confirm-actions">
+                            <button 
+                                type="button"
+                                className="yolofuck-delete-btn-cancel" 
+                                onClick={() => setClipToDelete(null)}
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                type="button"
+                                className="yolofuck-delete-btn-confirm" 
+                                onClick={handleDeleteConfirmed}
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 
