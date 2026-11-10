@@ -349,10 +349,10 @@
     width: 32px;
     height: 32px;
     border-radius: 8px;
-    background: #10b981;
-    border: 1px solid rgba(16, 185, 129, 0.4);
-    box-shadow: 0 2px 10px rgba(16, 185, 129, 0.35);
-    color: #ffffff;
+    background: var(--yolo-lime, #c8f72c);
+    border: 1px solid rgba(200, 247, 44, 0.6);
+    box-shadow: 0 2px 12px rgba(200, 247, 44, 0.45);
+    color: #000000;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -361,8 +361,8 @@
 }
 
 .shared-story-left-play-btn:hover {
-    background: #059669;
-    transform: scale(1.04);
+    background: #b6ea17;
+    transform: scale(1.05);
 }
 
 .shared-story-left-share-btn {
@@ -389,7 +389,7 @@
 }
 
 .shared-story-left-share-btn .share-arrow-up-icon {
-    color: #10b981;
+    color: var(--yolo-lime, #c8f72c);
 }
 
 /* ── Centered Share Options Modal ── */

@@ -459,7 +459,7 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
                                             disabled={isStopped || clips.length === 0}
                                             title="Play shared story sequence"
                                         >
-                                            <Play size={18} fill="#ffffff" color="#ffffff" />
+                                            <Play size={18} fill="#000000" color="#000000" />
                                         </button>
 
                                         <button

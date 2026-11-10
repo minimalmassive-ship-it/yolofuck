@@ -26,7 +26,8 @@ import {
     Video, 
     Sparkles,
     Layers,
-    ArrowRight
+    ArrowRight,
+    ArrowLeft
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -236,11 +237,11 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         try {
             setLoading(true);
 
-            // 1. Fetch cloud clips
+            // 1. Fetch cloud clips strictly for this user
             const cloudClips = await fetchAllUserClips(user.id);
 
-            // 2. Fetch local storage clips
-            const localEntries = await getAllLocalJournalRecordings();
+            // 2. Fetch local storage clips strictly for this user
+            const localEntries = await getAllLocalJournalRecordings(user.id);
             const localMapped: JournalClip[] = localEntries.map((loc, idx) => {
                 const date = loc.createdAt ? loc.createdAt.slice(0, 10) : getLocalDateISO();
                 return {
@@ -739,89 +740,59 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                             </div>
                         )}
 
-                        {/* Floating Player Controls Bar for Single Film Playback: Play/Pause, Loop on/off, Volume slider */}
-                        {isSingleClipMode && (
-                            <div className="yolofuck-single-player-floating-controls" onClick={(e) => e.stopPropagation()}>
-                                <button
-                                    type="button"
-                                    className="yolofuck-single-ctrl-btn"
-                                    onClick={togglePlayerPlay}
-                                    title={isPlaying ? 'Pause' : 'Play'}
-                                >
-                                    {isPlaying ? <Pause size={18} /> : <Play size={18} fill="#ffffff" />}
-                                </button>
-
-                                <button
-                                    type="button"
-                                    className={`yolofuck-single-ctrl-btn ${isLooping ? 'active' : ''}`}
-                                    onClick={() => setIsLooping(prev => !prev)}
-                                    title={isLooping ? 'Loop is On' : 'Loop is Off'}
-                                >
-                                    <Repeat size={16} />
-                                </button>
-
-                                <div className="yolofuck-single-volume-group">
-                                    <button
-                                        type="button"
-                                        className="yolofuck-single-ctrl-btn"
-                                        onClick={togglePlayerMute}
-                                        title={isMuted ? 'Unmute' : 'Mute'}
-                                    >
-                                        {isMuted || volume === 0 ? <VolumeX size={17} /> : <Volume2 size={17} />}
-                                    </button>
-
-                                    <input
-                                        type="range"
-                                        min="0"
-                                        max="1"
-                                        step="0.05"
-                                        value={isMuted ? 0 : volume}
-                                        onChange={handlePlayerVolumeChange}
-                                        className="yolofuck-single-volume-slider"
-                                        title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Player Bottom Dock: Matches Journal bottom nav (Journal, Share, Record) without < and > */}
-                        <nav className="yolofuck-player-dock-bar">
+                        {/* Player Bottom Dock: Dedicated video controls (Back, Play/Pause, Loop, Volume) */}
+                        <nav className="yolofuck-player-dock-bar" onClick={(e) => e.stopPropagation()}>
                             <button
                                 type="button"
-                                className="yolofuck-bottom-nav-btn active"
+                                className="yolofuck-player-dock-btn back"
                                 onClick={handleClosePlayer}
                                 title="Back to Journal"
                             >
-                                <Layers size={19} />
-                                <span>Journal</span>
+                                <ArrowLeft size={20} />
+                                <span>Back</span>
                             </button>
 
                             <button
                                 type="button"
-                                className="yolofuck-bottom-nav-btn"
-                                onClick={() => {
-                                    setLockedShareDate(activeStoryDate);
-                                    setShowShareModal(true);
-                                }}
-                                title="Share Story"
+                                className="yolofuck-player-dock-btn play"
+                                onClick={togglePlayerPlay}
+                                title={isPlaying ? 'Pause' : 'Play'}
                             >
-                                <Share2 size={19} />
-                                <span>Share</span>
+                                {isPlaying ? <Pause size={19} /> : <Play size={19} fill="currentColor" />}
+                                <span>{isPlaying ? 'Pause' : 'Play'}</span>
                             </button>
 
                             <button
                                 type="button"
-                                className="yolofuck-bottom-record-btn"
-                                onClick={() => {
-                                    handleClosePlayer();
-                                    if (onOpenRecord) onOpenRecord();
-                                }}
-                                title="Record Take"
+                                className={`yolofuck-player-dock-btn loop ${isLooping ? 'active' : ''}`}
+                                onClick={() => setIsLooping(prev => !prev)}
+                                title={isLooping ? 'Loop is On' : 'Loop is Off'}
                             >
-                                <span className="yolofuck-rec-dot" />
-                                <Video size={19} />
-                                <span>Record</span>
+                                <Repeat size={18} />
+                                <span>Loop</span>
                             </button>
+
+                            <div className="yolofuck-player-dock-volume-group">
+                                <button
+                                    type="button"
+                                    className="yolofuck-player-dock-btn vol-btn"
+                                    onClick={togglePlayerMute}
+                                    title={isMuted ? 'Unmute' : 'Mute'}
+                                >
+                                    {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                                </button>
+
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="1"
+                                    step="0.05"
+                                    value={isMuted ? 0 : volume}
+                                    onChange={handlePlayerVolumeChange}
+                                    className="yolofuck-single-volume-slider"
+                                    title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
+                                />
+                            </div>
                         </nav>
                     </div>
                 </div>
@@ -866,7 +837,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                                     disabled={clips.length === 0}
                                                     title={`Play ${formattedDate} story in sequence`}
                                                 >
-                                                    <Play size={18} fill="#ffffff" color="#ffffff" />
+                                                    <Play size={18} fill="#000000" color="#000000" />
                                                 </button>
 
                                                 <button

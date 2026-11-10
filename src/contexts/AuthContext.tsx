@@ -147,6 +147,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setProfile(profileData);
                 }
 
+                // If no local owner was registered for legacy recordings, attribute them to this primary user
+                if (!localStorage.getItem('yolofuck_local_owner_id')) {
+                    localStorage.setItem('yolofuck_local_owner_id', currentUser.id);
+                }
+
                 await ensureJournalProject(currentUser.id);
             } else {
                 setUser(null);

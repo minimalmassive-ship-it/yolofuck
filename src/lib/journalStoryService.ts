@@ -175,25 +175,17 @@ export async function fetchClipsByDate(
 export async function fetchAllUserClips(
     userId: string
 ): Promise<JournalClip[]> {
-    const userIds = [userId, 'local_user', 'anonymous'];
     const { data, error } = await supabase
         .from('journal_clips')
         .select('*')
-        .in('user_id', userIds)
+        .eq('user_id', userId)
         .order('clip_date', { ascending: false })
         .order('clip_order', { ascending: true })
         .order('created_at', { ascending: true });
 
     if (error) {
-        console.warn('[JournalStory] fetchAllUserClips error, falling back to eq:', error);
-        const { data: fallbackData } = await supabase
-            .from('journal_clips')
-            .select('*')
-            .eq('user_id', userId)
-            .order('clip_date', { ascending: false })
-            .order('clip_order', { ascending: true })
-            .order('created_at', { ascending: true });
-        return fallbackData || [];
+        console.warn('[JournalStory] fetchAllUserClips error:', error);
+        return [];
     }
     return data || [];
 }

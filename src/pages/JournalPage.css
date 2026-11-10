@@ -258,7 +258,7 @@
 }
 
 .yolofuck-bottom-nav-btn.active {
-  color: #10b981;
+  color: var(--yolo-lime, #c8f72c);
 }
 
 .yolofuck-bottom-nav-btn.active::before {
@@ -268,9 +268,9 @@
   left: 25%;
   right: 25%;
   height: 2px;
-  background: #10b981;
+  background: var(--yolo-lime, #c8f72c);
   border-radius: 0 0 2px 2px;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  box-shadow: 0 0 10px rgba(200, 247, 44, 0.7);
 }
 
 .yolofuck-bottom-record-btn {

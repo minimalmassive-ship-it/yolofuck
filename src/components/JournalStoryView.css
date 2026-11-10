@@ -181,14 +181,15 @@
 }
 
 .yolofuck-day-info-btn.play {
-  background: #10b981;
-  border-color: rgba(16, 185, 129, 0.4);
-  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.35);
+  background: var(--yolo-lime, #c8f72c);
+  border-color: rgba(200, 247, 44, 0.6);
+  box-shadow: 0 2px 12px rgba(200, 247, 44, 0.45);
+  color: #000000;
 }
 
 .yolofuck-day-info-btn.play:hover {
-  background: #059669;
-  transform: scale(1.04);
+  background: #b6ea17;
+  transform: scale(1.05);
 }
 
 .yolofuck-day-info-btn.share {
@@ -207,7 +208,7 @@
 }
 
 .yolofuck-day-info-btn.share .share-arrow-icon {
-  color: #10b981;
+  color: var(--yolo-lime, #c8f72c);
 }
 
 .yolofuck-day-info-btn:disabled {
@@ -489,7 +490,8 @@
 
 .yolofuck-progress-segment-fill {
   height: 100%;
-  background: #10b981;
+  background: var(--yolo-lime, #c8f72c);
+  box-shadow: 0 0 8px rgba(200, 247, 44, 0.6);
   transition: width 0.1s linear;
 }
 
@@ -693,42 +695,62 @@
   z-index: 40;
 }
 
-.yolofuck-single-ctrl-btn {
-  background: transparent;
-  border: none;
-  color: #efede3;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+.yolofuck-player-dock-btn {
+  flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 3px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.yolofuck-single-ctrl-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
+.yolofuck-player-dock-btn:hover {
+  color: #f8fafc;
 }
 
-.yolofuck-single-ctrl-btn.active {
-  color: #10b981;
-  background: rgba(16, 185, 129, 0.15);
+.yolofuck-player-dock-btn.back {
+  color: #cbd5e1;
 }
 
-.yolofuck-single-volume-group {
+.yolofuck-player-dock-btn.play {
+  color: var(--yolo-lime, #c8f72c);
+}
+
+.yolofuck-player-dock-btn.play:hover {
+  transform: scale(1.06);
+}
+
+.yolofuck-player-dock-btn.loop.active {
+  color: var(--yolo-lime, #c8f72c);
+  text-shadow: 0 0 10px rgba(200, 247, 44, 0.5);
+}
+
+.yolofuck-player-dock-volume-group {
+  flex: 1.2;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding-left: 4px;
-  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  justify-content: center;
+  gap: 8px;
+  padding: 0 8px;
+}
+
+.yolofuck-player-dock-btn.vol-btn {
+  flex: none;
+  width: 32px;
+  height: 32px;
 }
 
 .yolofuck-single-volume-slider {
   -webkit-appearance: none;
   appearance: none;
-  width: 60px;
+  width: 65px;
   height: 4px;
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.25);
@@ -739,22 +761,22 @@
 .yolofuck-single-volume-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
-  background: #10b981;
+  background: var(--yolo-lime, #c8f72c);
   cursor: pointer;
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+  box-shadow: 0 0 8px rgba(200, 247, 44, 0.7);
 }
 
 .yolofuck-single-volume-slider::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
-  background: #10b981;
+  background: var(--yolo-lime, #c8f72c);
   cursor: pointer;
   border: none;
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+  box-shadow: 0 0 8px rgba(200, 247, 44, 0.7);
 }
 
 /* Grab cursor for horizontal strip */

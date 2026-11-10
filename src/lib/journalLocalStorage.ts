@@ -14,6 +14,7 @@ export interface LocalJournalEntry {
     transcription?: string;
     title?: string;
     createdAt: string;
+    userId?: string;
 }
 
 const DB_NAME = 'yolofuck_local_storage';
@@ -57,6 +58,7 @@ export async function saveLocalJournalRecording(entry: {
     durationMs: number;
     transcription?: string;
     title?: string;
+    userId?: string;
 }): Promise<string> {
     const db = await openDatabase();
     const id = entry.id || `local_journal_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -67,6 +69,7 @@ export async function saveLocalJournalRecording(entry: {
         transcription: entry.transcription || '',
         title: entry.title || `Journal Take ${new Date().toLocaleDateString()}`,
         createdAt: new Date().toISOString(),
+        userId: entry.userId,
     };
 
     return new Promise((resolve, reject) => {
@@ -126,8 +129,10 @@ async function getEntriesFromDb(dbName: string): Promise<LocalJournalEntry[]> {
 
 /**
  * Lists all locally saved journal entries from both current and legacy IndexedDB databases.
+ * If targetUserId is provided, filters strictly to entries belonging to that user
+ * (or entries with no owner for backwards compatibility with the primary owner).
  */
-export async function getAllLocalJournalRecordings(): Promise<LocalJournalEntry[]> {
+export async function getAllLocalJournalRecordings(targetUserId?: string): Promise<LocalJournalEntry[]> {
     const [currentList, legacyList] = await Promise.all([
         getEntriesFromDb(DB_NAME),
         getEntriesFromDb(LEGACY_DB_NAME),
@@ -137,7 +142,23 @@ export async function getAllLocalJournalRecordings(): Promise<LocalJournalEntry[
     legacyList.forEach(item => entryMap.set(item.id, item));
     currentList.forEach(item => entryMap.set(item.id, item));
 
-    const combined = Array.from(entryMap.values());
+    let combined = Array.from(entryMap.values());
+
+    if (targetUserId) {
+        // Enforce user isolation: only return entries belonging to this user
+        combined = combined.filter(item => {
+            if (item.userId) {
+                return item.userId === targetUserId;
+            }
+            // For legacy recordings that lacked userId, check owner tag stored in localStorage
+            const localPrimaryUser = localStorage.getItem('yolofuck_local_owner_id');
+            if (localPrimaryUser) {
+                return localPrimaryUser === targetUserId;
+            }
+            return false;
+        });
+    }
+
     combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return combined;
 }

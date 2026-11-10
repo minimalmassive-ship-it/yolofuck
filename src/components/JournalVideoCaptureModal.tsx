@@ -248,6 +248,7 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
                     durationMs: clip.durationMs,
                     transcription: fullTranscription,
                     title: `Journal Take ${i + 1} (${new Date().toLocaleDateString()})`,
+                    userId: user.id,
                 });
             }
 
