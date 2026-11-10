@@ -10,13 +10,14 @@ import { Video, Mic, Calendar, Loader2, Download, CheckCircle2, Circle, Eye, Eye
 import './LandingPage.css';
 
 export const LandingPage: React.FC = () => {
-    const { signInWithEmail, signUpWithEmail } = useAuth();
+    const { signInWithEmail, signUpWithEmail, resetPasswordForEmail } = useAuth();
 
     const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [username, setUsername] = useState('');
     const [loading, setLoading] = useState(false);
+    const [isResetting, setIsResetting] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
     const [showPassword, setShowPassword] = useState(false);
@@ -80,6 +81,29 @@ export const LandingPage: React.FC = () => {
             } else {
                 alert('To install yolofuck: tap the browser menu (⋮) and choose "Install App" or "Add to Home screen".');
             }
+        }
+    };
+
+    const handleForgotPassword = async () => {
+        const cleanEmail = email.trim();
+        if (!cleanEmail) {
+            setErrorMsg('Please enter your email address in the field below first.');
+            return;
+        }
+        setIsResetting(true);
+        setErrorMsg(null);
+        setSuccessMsg(null);
+        try {
+            const { error } = await resetPasswordForEmail(cleanEmail);
+            if (error) {
+                setErrorMsg(error.message || 'Failed to send password reset email.');
+            } else {
+                setSuccessMsg(`Password reset instructions sent to ${cleanEmail}. Please check your inbox.`);
+            }
+        } catch (err: any) {
+            setErrorMsg(err?.message || 'Failed to send password reset email.');
+        } finally {
+            setIsResetting(false);
         }
     };
 
@@ -341,7 +365,28 @@ export const LandingPage: React.FC = () => {
                         </div>
 
                         <div className="yolofuck-form-field">
-                            <label htmlFor="auth-password">Password</label>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <label htmlFor="auth-password">Password</label>
+                                {authMode === 'signin' && (
+                                    <button
+                                        type="button"
+                                        onClick={handleForgotPassword}
+                                        disabled={isResetting}
+                                        style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            padding: 0,
+                                            fontSize: '11px',
+                                            fontWeight: 500,
+                                            color: '#58a6ff',
+                                            cursor: 'pointer',
+                                            textDecoration: 'none',
+                                        }}
+                                    >
+                                        {isResetting ? 'Sending link...' : 'Forgot password?'}
+                                    </button>
+                                )}
+                            </div>
                             <div className="yolofuck-password-input-wrapper">
                                 <input
                                     id="auth-password"

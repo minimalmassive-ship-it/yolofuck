@@ -37,6 +37,7 @@ interface AuthContextType {
     closePasswordResetModal: () => void;
     signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
     signUpWithEmail: (email: string, password: string, username?: string) => Promise<{ data: any; error: Error | null }>;
+    resetPasswordForEmail: (email: string) => Promise<{ data?: any; error: Error | null }>;
     signOut: () => Promise<void>;
     refreshProfile: () => Promise<void>;
 }
@@ -208,11 +209,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const signInWithEmail = useCallback(async (email: string, password: string) => {
         try {
-            const { error } = await supabaseAuth.auth.signInWithPassword({ email, password });
-            if (error) return { error };
+            let res = await supabaseAuth.auth.signInWithPassword({ email: email.trim(), password });
+            if (res.error && (supabaseAuth as any) !== (supabase as any)) {
+                const fallback = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+                if (!fallback.error) {
+                    res = fallback;
+                }
+            }
+            if (res.error) return { error: res.error };
             return { error: null };
         } catch (err: any) {
             return { error: err };
+        }
+    }, []);
+
+    const resetPasswordForEmail = useCallback(async (email: string) => {
+        try {
+            let res = await supabaseAuth.auth.resetPasswordForEmail(email.trim(), {
+                redirectTo: `${window.location.origin}/`,
+            });
+            if (res.error && (supabaseAuth as any) !== (supabase as any)) {
+                const fallback = await supabase.auth.resetPasswordForEmail(email.trim(), {
+                    redirectTo: `${window.location.origin}/`,
+                });
+                if (!fallback.error) {
+                    res = fallback;
+                }
+            }
+            return res;
+        } catch (err: any) {
+            return { data: null, error: err };
         }
     }, []);
 
@@ -278,9 +304,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         closePasswordResetModal,
         signInWithEmail,
         signUpWithEmail,
+        resetPasswordForEmail,
         signOut,
         refreshProfile,
-    }), [user, profile, loading, showWelcomeModal, dismissWelcome, showPasswordResetModal, closePasswordResetModal, signInWithEmail, signUpWithEmail, signOut, refreshProfile]);
+    }), [user, profile, loading, showWelcomeModal, dismissWelcome, showPasswordResetModal, closePasswordResetModal, signInWithEmail, signUpWithEmail, resetPasswordForEmail, signOut, refreshProfile]);
 
     return (
         <AuthContext.Provider value={value}>
