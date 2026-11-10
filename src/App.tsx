@@ -11,6 +11,8 @@ import JournalPage from './pages/JournalPage';
 import LandingPage from './pages/LandingPage';
 import { Loader2 } from 'lucide-react';
 
+import PublicSharedStoryPage from './pages/PublicSharedStoryPage';
+
 const AppRoutes: React.FC = () => {
     const { user, loading } = useAuth();
 
@@ -38,7 +40,7 @@ const AppRoutes: React.FC = () => {
         <Routes>
             <Route path="/" element={user ? <JournalPage /> : <LandingPage />} />
             <Route path="/journal" element={user ? <JournalPage /> : <Navigate to="/" replace />} />
-            <Route path="/story/:date" element={user ? <JournalPage /> : <Navigate to="/" replace />} />
+            <Route path="/story/:slug" element={<PublicSharedStoryPage />} />
             <Route path="/shared" element={user ? <JournalPage /> : <LandingPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

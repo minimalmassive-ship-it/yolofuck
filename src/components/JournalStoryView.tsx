@@ -33,6 +33,7 @@ import {
     fetchAllUserClips,
     deleteClip,
     reorderDailyClips,
+    ensureDailyStoryIdea,
     type JournalClip,
 } from '../lib/journalStoryService';
 import { getAllLocalJournalRecordings, deleteLocalJournalRecording } from '../lib/journalLocalStorage';
@@ -44,6 +45,7 @@ interface JournalStoryViewProps {
     searchQuery?: string;
     onSearchChange?: (q: string) => void;
     onOpenRecord?: () => void;
+    onNavigateToShared?: () => void;
 }
 
 /** Formats YYYY-MM-DD into DD-MM-YYYY */
@@ -66,7 +68,8 @@ function formatDuration(ms: number): string {
 export const JournalStoryView: React.FC<JournalStoryViewProps> = ({ 
     projectId: _projectId, 
     searchQuery = '',
-    onOpenRecord
+    onOpenRecord,
+    onNavigateToShared
 }) => {
     const { user, profile } = useAuth();
     const effectiveUsername = profile?.username || user?.user_metadata?.username || 'Journal';
@@ -681,14 +684,50 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
 
                                 return (
                                     <div key={date} className="yolofuck-grid-day-row">
-                                        {/* Vertical Sideways Date Label on the Far Left */}
+                                        {/* Desktop Info Box (1:1 square, 128px height): Play & Share buttons + Date */}
                                         <div 
-                                            className="yolofuck-vertical-date-strip"
-                                            title={`Date: ${formattedDate}`}
+                                            className="yolofuck-day-info-card"
+                                            title={`Day: ${formattedDate}`}
                                         >
-                                            <span className="yolofuck-vertical-date-text">
-                                                {formattedDate}
-                                            </span>
+                                            <div className="yolofuck-day-info-top">
+                                                <button
+                                                    type="button"
+                                                    className="yolofuck-day-info-btn play"
+                                                    onClick={() => handleStartDayPlayer(date, 0)}
+                                                    disabled={clips.length === 0}
+                                                    title={`Play ${formattedDate} story in sequence`}
+                                                >
+                                                    <Play size={18} fill="#ffffff" color="#ffffff" />
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    className="yolofuck-day-info-btn share"
+                                                    onClick={async () => {
+                                                        if (clips.length > 0 && user?.id) {
+                                                            try {
+                                                                await ensureDailyStoryIdea(user.id, null, date, clips, effectiveUsername);
+                                                            } catch (err) {
+                                                                console.warn('[JournalStoryView] auto-ensure share story error:', err);
+                                                            }
+                                                        }
+                                                        if (onNavigateToShared) {
+                                                            onNavigateToShared();
+                                                        } else {
+                                                            window.dispatchEvent(new CustomEvent('journal_navigate_tab', { detail: { tab: 'shared' } }));
+                                                        }
+                                                    }}
+                                                    disabled={clips.length === 0}
+                                                    title="Open Shared stories timeline"
+                                                >
+                                                    <Share2 size={16} />
+                                                </button>
+                                            </div>
+
+                                            <div className="yolofuck-day-info-bottom">
+                                                <span className="yolofuck-day-info-date">{formattedDate}</span>
+                                                <span className="yolofuck-day-info-count">{clips.length} {clips.length === 1 ? 'take' : 'takes'}</span>
+                                            </div>
                                         </div>
 
                                         {/* Horizontal Strip of Square Films (2px gap, oldest to newest) */}

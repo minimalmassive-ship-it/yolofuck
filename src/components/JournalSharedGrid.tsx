@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
     Settings, Lock, Users, Globe, Trash2, Copy, Check, EyeOff, RotateCcw, 
-    Video, Calendar, AlertTriangle, X, Share2, Loader2, ExternalLink
+    Video, Calendar, AlertTriangle, X, Share2, Loader2, ExternalLink, Play
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -9,6 +9,7 @@ import {
     fetchUserSharedDailyStories, updateDailyStoryVisibility, 
     stopDailyStorySharing, resumeDailyStorySharing, deleteDailyStoryShare 
 } from '../lib/journalStoryService';
+import { SharedStoryPlayerModal } from './SharedStoryPlayerModal';
 import './JournalSharedGrid.css';
 
 interface JournalSharedGridProps {
@@ -24,6 +25,7 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
     const [deleteConfirmStory, setDeleteConfirmStory] = useState<any | null>(null);
     const [isActionLoading, setIsActionLoading] = useState<boolean>(false);
     const [copiedStoryId, setCopiedStoryId] = useState<string | null>(null);
+    const [previewPlayerStory, setPreviewPlayerStory] = useState<any | null>(null);
 
     const toastTimerRef = useRef<any>(null);
 
@@ -366,8 +368,37 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
                                     </div>
                                 </div>
 
-                                {/* Media Preview */}
-                                <div className="shared-story-media-preview">
+                                <div className="shared-story-row-wrapper">
+                                    {/* 1:1 Black Square on Left Side matching Journal day card with Play button */}
+                                    <div className="shared-story-left-info-square">
+                                        <button
+                                            type="button"
+                                            className="shared-story-left-play-btn"
+                                            onClick={() => setPreviewPlayerStory(story)}
+                                            disabled={isStopped || clips.length === 0}
+                                            title="Play shared story sequence"
+                                        >
+                                            <Play size={18} fill="#ffffff" color="#ffffff" />
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            className={`shared-story-left-copy-btn ${copiedStoryId === story.id ? 'copied' : ''}`}
+                                            onClick={(e) => handleCopyLink(story, e)}
+                                            disabled={isStopped}
+                                            title="Copy shareable link"
+                                        >
+                                            {copiedStoryId === story.id ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+                                        </button>
+
+                                        <div className="shared-story-left-date-info">
+                                            <span className="shared-story-left-date">{formatDate(storyDate)}</span>
+                                            <span className="shared-story-left-takes">{takesCount} {takesCount === 1 ? 'take' : 'takes'}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Media Preview & Details */}
+                                    <div className="shared-story-media-preview" onClick={() => setPreviewPlayerStory(story)}>
                                     {thumbnail ? (
                                         <img src={thumbnail} alt={story.title} className="shared-story-thumb-img" />
                                     ) : previewVideoUrl ? (
@@ -392,6 +423,7 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
                                         </div>
                                     )}
                                 </div>
+                            </div>
 
                                 {/* Card Footer & Status Badges */}
                                 <div className="shared-story-card-footer">
@@ -492,6 +524,14 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Fullscreen Shared Story Player Modal */}
+            {previewPlayerStory && (
+                <SharedStoryPlayerModal
+                    story={previewPlayerStory}
+                    onClose={() => setPreviewPlayerStory(null)}
+                />
             )}
         </div>
     );

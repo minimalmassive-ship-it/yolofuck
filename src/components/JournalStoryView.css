@@ -144,28 +144,114 @@
   overflow: hidden;
 }
 
-/* ── Vertical Sideways Date Strip (Left Side) ── */
-.yolofuck-vertical-date-strip {
-  width: 26px;
+/* ── Day Info Card: 1:1 Black Square (128px x 128px) on Left Side ── */
+.yolofuck-day-info-card {
+  width: 128px;
   height: 128px;
   flex-shrink: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #000000;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #090a0f;
   border-right: 1px solid #21262d;
-  overflow: hidden;
+  padding: 10px;
+  box-sizing: border-box;
+  user-select: none;
 }
 
-.yolofuck-vertical-date-text {
-  transform: rotate(-90deg);
-  white-space: nowrap;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.6px;
+.yolofuck-day-info-top {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.yolofuck-day-info-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #141522;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.yolofuck-day-info-btn.play {
+  background: #10b981;
+  border-color: rgba(16, 185, 129, 0.4);
+  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.35);
+}
+
+.yolofuck-day-info-btn.play:hover {
+  background: #059669;
+  transform: scale(1.04);
+}
+
+.yolofuck-day-info-btn.share {
+  background: #161826;
   color: #94a3b8;
+}
+
+.yolofuck-day-info-btn.share:hover {
+  background: #202438;
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.yolofuck-day-info-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.yolofuck-day-info-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.yolofuck-day-info-date {
+  font-size: 11px;
+  font-weight: 700;
+  color: #efede3;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  text-transform: uppercase;
+}
+
+.yolofuck-day-info-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: #10b981;
+}
+
+/* Fallback for narrow mobile screens: narrower card if viewport is tight */
+@media (max-width: 480px) {
+  .yolofuck-day-info-card {
+    width: 64px;
+    padding: 6px 4px;
+    align-items: center;
+  }
+  .yolofuck-day-info-top {
+    align-items: center;
+    gap: 6px;
+  }
+  .yolofuck-day-info-btn {
+    width: 28px;
+    height: 28px;
+  }
+  .yolofuck-day-info-bottom {
+    align-items: center;
+  }
+  .yolofuck-day-info-date {
+    font-size: 9px;
+  }
+  .yolofuck-day-info-count {
+    display: none;
+  }
 }
 
 /* ── Horizontal Strip of 9:16 Films ── */
