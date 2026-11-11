@@ -267,10 +267,28 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
                 setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
             }
         } else if (initStage === 2) {
-            // Already at Stage 2 (4 buttons + Play revealed at 146px). Swiping left closes back towards stage 1 or 0
+            // Already at Stage 2 (4 buttons + Play revealed at 146px). Swiping left closes towards stage 3 (72px, hiding Play button)
             const base = 146;
-            const pullAmount = Math.max(0, Math.min(152, base + deltaX * 0.7));
-            setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
+            if (deltaX <= 0) {
+                const pullAmount = Math.max(0, base + deltaX * 0.7);
+                setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
+            } else {
+                const pullAmount = base + Math.min(6, deltaX * 0.15);
+                setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
+            }
+        } else if (initStage === 3) {
+            // Already at Stage 3 (4 buttons only revealed at 72px, Play button hidden).
+            const base = 72;
+            if (deltaX >= 0) {
+                // Swiping right re-reveals Play button towards stage 2 (146px)
+                const raw = base + deltaX * 0.7;
+                const pullAmount = raw <= 146 ? raw : 146 + Math.min(6, (raw - 146) * 0.15);
+                setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
+            } else {
+                // Swiping left closes 4 buttons towards stage 0 (0px)
+                const pullAmount = Math.max(0, base + deltaX * 0.7);
+                setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
+            }
         }
     };
 
@@ -295,17 +313,25 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
             if (currentPull >= 105) {
                 nextStage = 2; // Second swipe reveals 4 buttons next to Play card (146px)
             } else if (currentPull < 35) {
-                nextStage = 0;
+                nextStage = 0; // Swiped left: close
             } else {
                 nextStage = 1;
             }
         } else if (initStage === 2) {
-            if (currentPull < 40) {
-                nextStage = 0; // Swiped left far: close
+            if (currentPull < 35) {
+                nextStage = 0; // Swiped left far: close completely
             } else if (currentPull < 110) {
-                nextStage = 1; // Swiped left partially: back to stage 1 (Play card only)
+                nextStage = 3; // First swipe left: hide Play button, keep 4 buttons only (72px)
             } else {
                 nextStage = 2; // Stay at stage 2
+            }
+        } else if (initStage === 3) {
+            if (currentPull >= 105) {
+                nextStage = 2; // Swiped right: re-reveal Play button alongside 4 buttons (146px)
+            } else if (currentPull < 35) {
+                nextStage = 0; // Second swipe left: hide 4 buttons as well (completely closed)
+            } else {
+                nextStage = 3; // Stay at stage 3
             }
         }
 
@@ -381,11 +407,32 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
                         const stage = storyDrawerStages[story.id] || 0;
                         const currentWidth = isDragging 
                             ? storyPullDistances[story.id] 
-                            : (stage === 2 ? 146 : stage === 1 ? 72 : 0);
+                            : (stage === 2 ? 146 : (stage === 1 || stage === 3) ? 72 : 0);
 
                         if (currentWidth <= 0 && stage === 0) return null;
 
-                        const showFourButtons = stage === 2 || (stage === 1 && isDragging && currentWidth >= 95);
+                        let showPlay = false;
+                        let showFourButtons = false;
+
+                        if (isDragging) {
+                            const initStage = storyTouchStartRef.current?.initialStage ?? stage;
+                            if (initStage === 0) {
+                                showPlay = true;
+                                showFourButtons = false;
+                            } else if (initStage === 1) {
+                                showPlay = true;
+                                showFourButtons = currentWidth >= 95;
+                            } else if (initStage === 2) {
+                                showFourButtons = true;
+                                showPlay = currentWidth >= 110;
+                            } else if (initStage === 3) {
+                                showFourButtons = true;
+                                showPlay = currentWidth >= 105;
+                            }
+                        } else {
+                            showPlay = stage === 1 || stage === 2;
+                            showFourButtons = stage === 2 || stage === 3;
+                        }
 
                         return (
                             <div key={story.id} className="shared-story-row">
@@ -488,21 +535,23 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
                                             </div>
                                         )}
 
-                                        {/* Play Card: ALWAYS VISIBLE on the RIGHT next to the video preview images strip */}
-                                        <button
-                                            type="button"
-                                            className="shared-drawer-play-card"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setStoryDrawerStages(prev => ({ ...prev, [story.id]: 0 }));
-                                                setPreviewPlayerStory({ ...story, startClipIndex: 0 });
-                                            }}
-                                            title="Play story"
-                                        >
-                                            <div className="shared-drawer-play-circle">
-                                                <Play size={20} fill="currentColor" color="#000000" />
-                                            </div>
-                                        </button>
+                                        {/* Play Card: Visible on Stage 1 and Stage 2; hidden on Stage 3 */}
+                                        {showPlay && (
+                                            <button
+                                                type="button"
+                                                className="shared-drawer-play-card"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setStoryDrawerStages(prev => ({ ...prev, [story.id]: 0 }));
+                                                    setPreviewPlayerStory({ ...story, startClipIndex: 0 });
+                                                }}
+                                                title="Play story"
+                                            >
+                                                <div className="shared-drawer-play-circle">
+                                                    <Play size={20} fill="currentColor" color="#000000" />
+                                                </div>
+                                            </button>
+                                        )}
                                     </div>
                                 )}
 
