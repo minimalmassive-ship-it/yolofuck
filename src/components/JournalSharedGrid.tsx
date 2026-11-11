@@ -246,7 +246,7 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
         if (!storyTouchStartRef.current.isTracking) return;
 
         if (initStage === 0) {
-            // First swipe: clamped to stage 1 (72px card)
+            // First swipe: clamped to stage 1 (72px Play card)
             if (currentScrollLeft <= 2 && deltaX > 0) {
                 const raw = deltaX * 0.7;
                 const pullAmount = raw <= 72 ? raw : 72 + Math.min(4, (raw - 72) * 0.15);
@@ -255,19 +255,21 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
                 setStoryPullDistances(prev => prev[storyId] ? { ...prev, [storyId]: 0 } : prev);
             }
         } else if (initStage === 1) {
-            // Already at Stage 1 (Play). Second swipe right pulls further to reveal 4 buttons
+            // Already at Stage 1 (Play card revealed). Second swipe right pulls further to reveal 4-button card next to it
             const base = 72;
             if (deltaX >= 0) {
                 const raw = base + deltaX * 0.7;
-                const pullAmount = raw <= 84 ? raw : 84 + Math.min(4, (raw - 84) * 0.15);
+                const pullAmount = raw <= 146 ? raw : 146 + Math.min(6, (raw - 146) * 0.15);
                 setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
             } else {
+                // Swiping left closes back towards stage 0
                 const pullAmount = Math.max(0, base + deltaX * 0.7);
                 setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
             }
         } else if (initStage === 2) {
-            const base = 72;
-            const pullAmount = Math.max(0, Math.min(84, base + deltaX * 0.7));
+            // Already at Stage 2 (4 buttons + Play revealed at 146px). Swiping left closes back towards stage 1 or 0
+            const base = 146;
+            const pullAmount = Math.max(0, Math.min(152, base + deltaX * 0.7));
             setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
         }
     };
@@ -284,26 +286,26 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
 
         let nextStage = 0;
         if (initStage === 0) {
-            if (currentPull >= 30) {
+            if (currentPull >= 28) {
                 nextStage = 1; // First swipe reveals Play card (72px)
             } else {
                 nextStage = 0;
             }
         } else if (initStage === 1) {
-            if (currentPull >= 78) {
-                nextStage = 2; // Second swipe reveals 4 buttons in 72px card
+            if (currentPull >= 105) {
+                nextStage = 2; // Second swipe reveals 4 buttons next to Play card (146px)
             } else if (currentPull < 35) {
                 nextStage = 0;
             } else {
                 nextStage = 1;
             }
         } else if (initStage === 2) {
-            if (currentPull < 35) {
-                nextStage = 0;
-            } else if (currentPull < 70) {
-                nextStage = 1;
+            if (currentPull < 40) {
+                nextStage = 0; // Swiped left far: close
+            } else if (currentPull < 110) {
+                nextStage = 1; // Swiped left partially: back to stage 1 (Play card only)
             } else {
-                nextStage = 2;
+                nextStage = 2; // Stay at stage 2
             }
         }
 
@@ -379,9 +381,11 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
                         const stage = storyDrawerStages[story.id] || 0;
                         const currentWidth = isDragging 
                             ? storyPullDistances[story.id] 
-                            : (stage >= 1 ? 72 : 0);
+                            : (stage === 2 ? 146 : stage === 1 ? 72 : 0);
 
-                        const showFourButtons = stage === 2 || (stage === 1 && isDragging && currentWidth >= 78);
+                        if (currentWidth <= 0 && stage === 0) return null;
+
+                        const showFourButtons = stage === 2 || (stage === 1 && isDragging && currentWidth >= 95);
 
                         return (
                             <div key={story.id} className="shared-story-row">
@@ -395,14 +399,14 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
                                     </span>
                                 </div>
 
-                                {/* Progressive 2-Stage Reveal Drawer (Exact 72px x 128px 9:16 Card) */}
+                                {/* Progressive 2-Stage Reveal Drawer (Stage 1: 72px Play card, Stage 2: 146px 4-button card + Play card) */}
                                 {currentWidth > 0 && (
                                     <div 
                                         className={`shared-swipe-drawer ${isDragging ? 'is-dragging' : 'snapped'}`}
                                         style={{ width: `${currentWidth}px` }}
                                     >
-                                        {showFourButtons ? (
-                                            /* Stage 2: 4 Buttons Grid filling the entire 72px x 128px space */
+                                        {/* Stage 2 Card on the LEFT: 4 Buttons Grid filling 72px x 128px space */}
+                                        {showFourButtons && (
                                             <div className="shared-drawer-card-grid">
                                                 {/* Top-Left: Share */}
                                                 <button
@@ -482,23 +486,23 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
                                                     <ExternalLink size={18} />
                                                 </button>
                                             </div>
-                                        ) : (
-                                            /* Stage 1: Play Card filling the entire 72px x 128px space */
-                                            <button
-                                                type="button"
-                                                className="shared-drawer-play-card"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setStoryDrawerStages(prev => ({ ...prev, [story.id]: 0 }));
-                                                    setPreviewPlayerStory({ ...story, startClipIndex: 0 });
-                                                }}
-                                                title="Play story"
-                                            >
-                                                <div className="shared-drawer-play-circle">
-                                                    <Play size={20} fill="currentColor" color="#000000" />
-                                                </div>
-                                            </button>
                                         )}
+
+                                        {/* Play Card: ALWAYS VISIBLE on the RIGHT next to the video preview images strip */}
+                                        <button
+                                            type="button"
+                                            className="shared-drawer-play-card"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setStoryDrawerStages(prev => ({ ...prev, [story.id]: 0 }));
+                                                setPreviewPlayerStory({ ...story, startClipIndex: 0 });
+                                            }}
+                                            title="Play story"
+                                        >
+                                            <div className="shared-drawer-play-circle">
+                                                <Play size={20} fill="currentColor" color="#000000" />
+                                            </div>
+                                        </button>
                                     </div>
                                 )}
 

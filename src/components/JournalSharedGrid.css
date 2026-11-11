@@ -66,9 +66,9 @@
   position: relative;
   display: flex;
   align-items: stretch;
-  justify-content: center;
+  justify-content: flex-end;
+  gap: 2px;
   height: 128px;
-  overflow: visible;
   flex-shrink: 0;
   background: #000000;
   border-right: 1px solid #21262d;
@@ -78,10 +78,12 @@
 
 .shared-swipe-drawer.snapped {
   transition: width 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  overflow: visible;
 }
 
 .shared-swipe-drawer.is-dragging {
   transition: none;
+  overflow: hidden;
 }
 
 /* ── Stage 1: Play Card (72px x 128px matching 9:16 video card) ── */

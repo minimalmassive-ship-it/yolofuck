@@ -321,6 +321,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  gap: 2px;
   height: 128px;
   overflow: hidden;
   flex-shrink: 0;
@@ -431,6 +432,11 @@
 
 .yolofuck-card-grid-tile.settings:hover {
   color: #ffffff;
+  background: #141724;
+}
+
+.yolofuck-card-grid-tile.reset:hover {
+  color: #f59e0b;
   background: #141724;
 }
 
