@@ -144,7 +144,7 @@ export const LandingPage: React.FC = () => {
                 if (error) {
                     const msg = error.message || 'Failed to sign in. Please check your credentials.';
                     if (msg.toLowerCase().includes('email not confirmed')) {
-                        setErrorMsg('Email not confirmed yet. In Supabase Dashboard, disable "Confirm email" under Authentication -> Providers -> Email for instant access.');
+                        setErrorMsg('Email address has not been confirmed yet. Please verify your inbox to sign in.');
                     } else if (msg.toLowerCase().includes('invalid login credentials')) {
                         setErrorMsg('Invalid email or password. If you do not have an account yet, switch to "Create Account".');
                     } else {
@@ -171,24 +171,24 @@ export const LandingPage: React.FC = () => {
 
                 // If session was returned immediately (Confirm email is disabled)
                 if (session) {
-                    setSuccessMsg('Account created successfully! Session established.');
+                    setSuccessMsg('Account created successfully! Logging you in...');
                     return;
                 }
 
-                // If user was created but session is null (Confirm email is still enabled on the server)
-                if (user && !session) {
-                    const isConfirmed = Boolean(user.email_confirmed_at || user.confirmed_at);
-                    if (!isConfirmed) {
-                        setErrorMsg('Account registration received, but Supabase requires email confirmation before you can sign in. Please disable "Confirm email" in Supabase Dashboard (Authentication -> Providers -> Email) or verify your inbox.');
-                    } else {
-                        setSuccessMsg('Account registered! Signing you in...');
-                        await signInWithEmail(cleanEmail, cleanPassword);
-                    }
+                // If user was created but session is not attached directly, sign in immediately
+                const signInRes = await signInWithEmail(cleanEmail, cleanPassword);
+                if (!signInRes.error) {
+                    setSuccessMsg('Account created successfully! Logging you in...');
                     return;
                 }
 
-                // Fallback for unexpected empty response
-                setErrorMsg('Supabase did not return an active user account. Please check your credentials and project settings.');
+                // If sign in failed because email confirmation is pending on this account
+                if (signInRes.error.message?.toLowerCase().includes('email not confirmed')) {
+                    setSuccessMsg(`Account created! A confirmation link has been sent to ${cleanEmail}. Please check your inbox to sign in.`);
+                    return;
+                }
+
+                setErrorMsg(signInRes.error.message || 'Account created, but could not sign in automatically. Please click "Sign In".');
             }
         } catch (err: any) {
             setErrorMsg(err.message || 'An unexpected error occurred.');
