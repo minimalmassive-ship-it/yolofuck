@@ -471,9 +471,16 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
 
     // Notify parent when player state changes (to hide/show top and bottom bars)
     useEffect(() => {
-        window.dispatchEvent(new CustomEvent('journal_video_player_state', {
-            detail: { isOpen: showVideoPlayer }
-        }));
+        try {
+            window.dispatchEvent(new CustomEvent('journal_video_player_state', {
+                bubbles: true,
+                composed: true,
+                cancelable: true,
+                detail: { isOpen: Boolean(showVideoPlayer) }
+            }));
+        } catch (err) {
+            console.warn('[JournalStoryView] player state event dispatch error:', err);
+        }
     }, [showVideoPlayer]);
 
     // ── Group Clips by Day (Today at the top, past days below) ──
@@ -535,13 +542,13 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
     }, [allClips, searchQuery, user?.id, reorderVersion]);
 
     const todayDate = getLocalDateISO();
-    const todayEntry = groupedDays.find(([d]) => d === todayDate);
+    const todayEntry = groupedDays.find(item => item && item[0] === todayDate);
     const todayClips = todayEntry ? todayEntry[1] : [];
     const todayTotalMs = todayClips.reduce((acc, c) => acc + (c.duration_ms || 0), 0);
 
     // Active day clips for full-screen video player
     const activeDayClips = useMemo(() => {
-        const found = groupedDays.find(([d]) => d === activeStoryDate);
+        const found = groupedDays.find(item => item && item[0] === activeStoryDate);
         return found ? found[1] : [];
     }, [groupedDays, activeStoryDate]);
 
@@ -1084,6 +1091,8 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                             >
                                 <video
                                     ref={videoRef}
+                                    tabIndex={-1}
+                                    aria-hidden="true"
                                     poster={activeClip.thumbnail_url || undefined}
                                     className="yolofuck-player-video"
                                     playsInline

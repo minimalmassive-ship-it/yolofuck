@@ -14,6 +14,27 @@
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="Capture short video clips throughout your day. Yolofuck compiles your daily clips into a seamless story with live speech-to-text transcription." />
     <title>yolofuck — Daily Video Journal</title>
+    <script>
+      // Defensive guard against third-party toolbar instrumentation (e.g. Vercel Toolbar focus-trap / tabbable crawler)
+      // which calls Array.from on undefined shadowRoot / media child collections
+      (function() {
+        if (typeof Array !== 'undefined' && Array.from) {
+          var _origFrom = Array.from;
+          Array.from = function(items, mapFn, thisArg) {
+            if (items === undefined || items === null) {
+              return [];
+            }
+            return _origFrom.apply(this, arguments);
+          };
+        }
+        window.addEventListener('error', function(event) {
+          if (event && event.filename && event.filename.indexOf('instrument') !== -1 && event.message && event.message.indexOf('not iterable') !== -1) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }, true);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
