@@ -409,8 +409,6 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
                             ? storyPullDistances[story.id] 
                             : (stage === 2 ? 146 : (stage === 1 || stage === 3) ? 72 : 0);
 
-                        if (currentWidth <= 0 && stage === 0) return null;
-
                         let showPlay = false;
                         let showFourButtons = false;
 
