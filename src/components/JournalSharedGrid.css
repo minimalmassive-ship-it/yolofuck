@@ -61,72 +61,88 @@
   text-transform: uppercase;
 }
 
-/* ── Progressive 2-Stage Reveal Drawer ── */
+/* ── Progressive 2-Stage Reveal Drawer (Exact 72px x 128px 9:16 Card) ── */
 .shared-swipe-drawer {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
   height: 128px;
   overflow: visible;
   flex-shrink: 0;
   background: #000000;
-  border-right: 1px solid rgba(200, 247, 44, 0.25);
+  border-right: 1px solid #21262d;
   box-sizing: border-box;
   z-index: 40;
 }
 
 .shared-swipe-drawer.snapped {
-  transition: width 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: width 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .shared-swipe-drawer.is-dragging {
   transition: none;
 }
 
-/* ── Stage 1: Play Circle Button ── */
-.shared-swipe-action-circle.play {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
+/* ── Stage 1: Play Card (72px x 128px matching 9:16 video card) ── */
+.shared-drawer-play-card {
+  width: 72px;
+  height: 128px;
+  background: #0d0f17;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  transition: background 0.15s ease;
+  flex-shrink: 0;
+}
+
+.shared-drawer-play-card:hover {
+  background: #141724;
+}
+
+.shared-drawer-play-circle {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
   border-radius: 50%;
   background: var(--yolo-lime, #c8f72c);
-  border: none;
-  box-shadow: 0 0 16px rgba(200, 247, 44, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #000000;
-  cursor: pointer;
-  flex-shrink: 0;
+  box-shadow: 0 0 16px rgba(200, 247, 44, 0.6);
   transform: scale(0.95);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.shared-swipe-action-circle.play:hover,
-.shared-swipe-action-circle.play:active {
+.shared-drawer-play-card:hover .shared-drawer-play-circle {
   transform: scale(1.08);
   box-shadow: 0 0 24px rgba(200, 247, 44, 0.95);
 }
 
-/* ── Stage 2: 4 Icon Buttons in 2 Rows (No text) ── */
-.shared-drawer-2x2-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  padding: 0 6px;
+/* ── Stage 2: 4-Button Grid Card (72px x 128px, 2x2 filling whole space) ── */
+.shared-drawer-card-grid {
+  width: 72px;
+  height: 128px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 1px;
+  background: #1c2030; /* Hairline dividers between tiles */
   box-sizing: border-box;
-  animation: shared-fade-in 0.18s ease;
+  flex-shrink: 0;
+  overflow: visible;
+  animation: action-grid-fade-in 0.16s ease;
 }
 
-@keyframes shared-fade-in {
+@keyframes action-grid-fade-in {
   from {
     opacity: 0;
-    transform: scale(0.85);
+    transform: scale(0.92);
   }
   to {
     opacity: 1;
@@ -134,69 +150,64 @@
   }
 }
 
-.shared-drawer-icon-row {
-  display: flex;
-  flex-direction: row;
-  gap: 8px;
-  align-items: center;
-  justify-content: center;
+.shared-card-grid-tile {
   width: 100%;
-}
-
-.shared-drawer-icon-btn {
-  width: 34px;
-  height: 34px;
-  min-width: 34px;
-  border-radius: 8px;
-  background: #141622;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #cbd5e1;
+  height: 100%;
+  background: #0d0f17;
+  border: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #94a3b8;
   cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-}
-
-.shared-drawer-icon-btn:hover {
-  background: #202438;
-  color: #ffffff;
-  border-color: rgba(200, 247, 44, 0.4);
-  transform: scale(1.06);
-}
-
-.shared-drawer-icon-btn.share:hover {
-  color: var(--yolo-lime, #c8f72c);
-  border-color: var(--yolo-lime, #c8f72c);
-}
-
-.shared-drawer-icon-btn.gear.active {
-  background: #202438;
-  color: var(--yolo-lime, #c8f72c);
-  border-color: var(--yolo-lime, #c8f72c);
-  box-shadow: 0 0 10px rgba(200, 247, 44, 0.35);
-}
-
-.shared-drawer-icon-btn.copy:hover {
-  color: #10b981;
-  border-color: #10b981;
-}
-
-.shared-drawer-icon-btn.external:hover {
-  color: #60a5fa;
-  border-color: #60a5fa;
-}
-
-/* ── Gear Dropdown Menu Container ── */
-.shared-drawer-menu-container {
+  transition: background 0.12s ease, color 0.12s ease;
   position: relative;
 }
 
+.shared-card-grid-tile:hover {
+  background: #181b29;
+  color: #ffffff;
+}
+
+.shared-card-grid-tile:active {
+  background: #202436;
+}
+
+.shared-card-grid-tile.share:hover {
+  color: var(--yolo-lime, #c8f72c);
+}
+
+.shared-card-grid-tile.gear.active {
+  background: #181b29;
+  color: var(--yolo-lime, #c8f72c);
+}
+
+.shared-card-grid-tile.copy:hover {
+  color: #10b981;
+}
+
+.shared-card-grid-tile.external:hover {
+  color: #60a5fa;
+}
+
+.shared-card-grid-menu-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.shared-card-grid-menu-wrap .shared-card-grid-tile {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Gear Dropdown Menu Container ── */
 .shared-story-dropdown-menu {
   position: absolute;
-  top: -10px;
-  left: 44px;
+  top: 0;
+  left: 74px;
   background: #12131e;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 12px;
@@ -287,15 +298,17 @@
 
 .shared-film-square {
   position: relative;
-  width: 128px;
+  width: 72px;
   height: 128px;
-  min-width: 128px;
-  max-width: 128px;
-  background: #000000;
+  min-width: 72px;
+  max-width: 72px;
+  background: #141522;
+  border-radius: 0;
   overflow: hidden;
   cursor: pointer;
   flex-shrink: 0;
   user-select: none;
+  -webkit-user-select: none;
   transition: filter 0.12s ease;
 }
 
@@ -308,32 +321,58 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  border-radius: 0;
+  background: #000000;
+  pointer-events: none;
+}
+
+/* ── Top Center Take Number: Small, standard font, dead center top, no shadow (Identical to Journal) ── */
+.shared-film-top-badge {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 2;
 }
 
 .shared-film-take-num {
-  position: absolute;
-  top: 4px;
-  right: 6px;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 10px;
+  font-weight: 500;
   color: #ffffff;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9), 0 0 2px #000000;
-  font-family: -apple-system, BlinkMacSystemFont, "Roboto", sans-serif;
-  pointer-events: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Roboto", "Segoe UI", Arial, sans-serif;
+  text-shadow: none;
+  background: transparent;
+  padding: 0;
+  line-height: 1;
 }
 
-.shared-film-start-time {
+/* ── Bottom Timestamp Badge (Identical to Journal) ── */
+.shared-film-bottom-time {
   position: absolute;
   bottom: 4px;
-  left: 5px;
-  right: 5px;
-  text-align: center;
-  font-size: 10px;
-  font-weight: 600;
-  color: #ffffff;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9), 0 0 2px #000000;
-  font-family: ui-monospace, SFMono-Regular, monospace;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   pointer-events: none;
+  z-index: 2;
+}
+
+.shared-film-bottom-time span {
+  font-size: 9px;
+  font-weight: 500;
+  color: #cbd5e1;
+  font-family: -apple-system, BlinkMacSystemFont, "Roboto", "Segoe UI", Arial, sans-serif;
+  letter-spacing: 0.3px;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 1px 4px;
+  border-radius: 3px;
+  line-height: 1.1;
 }
 
 .shared-film-placeholder,

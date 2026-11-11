@@ -60,6 +60,11 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
             const list = Array.isArray(data) ? data.map(hydrateStoryProvenance) : [];
             // Strictly sort with newest shared sequence at the very top (index 0)
             list.sort((a: any, b: any) => {
+                const dateA = (a.provenance_log as any)?.date || (a.created_at ? a.created_at.split('T')[0] : '');
+                const dateB = (b.provenance_log as any)?.date || (b.created_at ? b.created_at.split('T')[0] : '');
+                if (dateA && dateB && dateA !== dateB) {
+                    return dateB.localeCompare(dateA);
+                }
                 const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
                 const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
                 return timeB - timeA;
@@ -241,29 +246,28 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
         if (!storyTouchStartRef.current.isTracking) return;
 
         if (initStage === 0) {
-            // First swipe: strictly clamped to stage 1 (Play button only: max 52px)
+            // First swipe: clamped to stage 1 (72px card)
             if (currentScrollLeft <= 2 && deltaX > 0) {
                 const raw = deltaX * 0.7;
-                const pullAmount = raw <= 52 ? raw : 52 + Math.min(4, (raw - 52) * 0.15);
+                const pullAmount = raw <= 72 ? raw : 72 + Math.min(4, (raw - 72) * 0.15);
                 setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
             } else {
                 setStoryPullDistances(prev => prev[storyId] ? { ...prev, [storyId]: 0 } : prev);
             }
         } else if (initStage === 1) {
-            // Already at Stage 1 (Play revealed). Second swipe right reveals 4 buttons in 2 rows (88px)
-            const base = 52;
+            // Already at Stage 1 (Play). Second swipe right pulls further to reveal 4 buttons
+            const base = 72;
             if (deltaX >= 0) {
                 const raw = base + deltaX * 0.7;
-                const pullAmount = raw <= 88 ? raw : 88 + Math.min(6, (raw - 88) * 0.15);
+                const pullAmount = raw <= 84 ? raw : 84 + Math.min(4, (raw - 84) * 0.15);
                 setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
             } else {
                 const pullAmount = Math.max(0, base + deltaX * 0.7);
                 setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
             }
         } else if (initStage === 2) {
-            // Already at Stage 2 (4 buttons revealed). Swiping left closes back
-            const base = 88;
-            const pullAmount = Math.max(0, Math.min(94, base + deltaX * 0.7));
+            const base = 72;
+            const pullAmount = Math.max(0, Math.min(84, base + deltaX * 0.7));
             setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
         }
     };
@@ -280,23 +284,23 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
 
         let nextStage = 0;
         if (initStage === 0) {
-            if (currentPull >= 24) {
-                nextStage = 1; // First swipe reveals Play button only
+            if (currentPull >= 30) {
+                nextStage = 1; // First swipe reveals Play card (72px)
             } else {
                 nextStage = 0;
             }
         } else if (initStage === 1) {
-            if (currentPull >= 68) {
-                nextStage = 2; // Second swipe reveals 4 buttons in 2 rows
-            } else if (currentPull < 25) {
+            if (currentPull >= 78) {
+                nextStage = 2; // Second swipe reveals 4 buttons in 72px card
+            } else if (currentPull < 35) {
                 nextStage = 0;
             } else {
                 nextStage = 1;
             }
         } else if (initStage === 2) {
-            if (currentPull < 30) {
+            if (currentPull < 35) {
                 nextStage = 0;
-            } else if (currentPull < 65) {
+            } else if (currentPull < 70) {
                 nextStage = 1;
             } else {
                 nextStage = 2;
@@ -375,9 +379,9 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
                         const stage = storyDrawerStages[story.id] || 0;
                         const currentWidth = isDragging 
                             ? storyPullDistances[story.id] 
-                            : (stage === 2 ? 88 : stage === 1 ? 52 : 0);
+                            : (stage >= 1 ? 72 : 0);
 
-                        const showFourButtons = (stage === 1 && isDragging && currentWidth >= 62) || stage === 2;
+                        const showFourButtons = stage === 2 || (stage === 1 && isDragging && currentWidth >= 78);
 
                         return (
                             <div key={story.id} className="shared-story-row">
@@ -391,100 +395,98 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
                                     </span>
                                 </div>
 
-                                {/* Progressive 2-Stage Reveal Drawer */}
+                                {/* Progressive 2-Stage Reveal Drawer (Exact 72px x 128px 9:16 Card) */}
                                 {currentWidth > 0 && (
                                     <div 
                                         className={`shared-swipe-drawer ${isDragging ? 'is-dragging' : 'snapped'}`}
                                         style={{ width: `${currentWidth}px` }}
                                     >
                                         {showFourButtons ? (
-                                            /* Stage 2: 4 Icon Buttons in 2 Rows (No text) */
-                                            <div className="shared-drawer-2x2-grid">
-                                                {/* Top Row: Share Button (Left) & Gear Icon (Right) */}
-                                                <div className="shared-drawer-icon-row">
+                                            /* Stage 2: 4 Buttons Grid filling the entire 72px x 128px space */
+                                            <div className="shared-drawer-card-grid">
+                                                {/* Top-Left: Share */}
+                                                <button
+                                                    type="button"
+                                                    className="shared-card-grid-tile share"
+                                                    onClick={(e) => handleNativeShare(story, e)}
+                                                    title="Share"
+                                                >
+                                                    <Share2 size={18} />
+                                                </button>
+
+                                                {/* Top-Right: Gear Options */}
+                                                <div className="shared-card-grid-menu-wrap">
                                                     <button
                                                         type="button"
-                                                        className="shared-drawer-icon-btn share"
-                                                        onClick={(e) => handleNativeShare(story, e)}
-                                                        title="Share"
-                                                    >
-                                                        <Share2 size={16} />
-                                                    </button>
-
-                                                    <div className="shared-drawer-menu-container">
-                                                        <button
-                                                            type="button"
-                                                            className={`shared-drawer-icon-btn gear ${openMenuStoryId === story.id ? 'active' : ''}`}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setOpenMenuStoryId(openMenuStoryId === story.id ? null : story.id);
-                                                            }}
-                                                            title="Options"
-                                                        >
-                                                            <Settings size={16} />
-                                                        </button>
-
-                                                        {openMenuStoryId === story.id && (
-                                                            <div className="shared-story-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                                                                <button 
-                                                                    type="button" 
-                                                                    className="shared-dropdown-item"
-                                                                    onClick={() => handleRefreshLink(story)}
-                                                                >
-                                                                    <RotateCw size={15} color="var(--yolo-lime, #c8f72c)" />
-                                                                    <div className="shared-dropdown-item-labels">
-                                                                        <span>Refresh Share Link</span>
-                                                                        <small>Invalidates old link and generates new URL</small>
-                                                                    </div>
-                                                                </button>
-
-                                                                <div className="shared-dropdown-divider" />
-
-                                                                <button 
-                                                                    type="button" 
-                                                                    className="shared-dropdown-item delete"
-                                                                    onClick={() => handleDeleteStory(story)}
-                                                                >
-                                                                    <Trash2 size={15} color="#f87171" />
-                                                                    <div className="shared-dropdown-item-labels">
-                                                                        <span style={{ color: '#f87171' }}>Delete from Shared</span>
-                                                                        <small>Keeps original journal takes intact</small>
-                                                                    </div>
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                {/* Bottom Row: Copy Link (Left) & External Link (Right) */}
-                                                <div className="shared-drawer-icon-row">
-                                                    <button
-                                                        type="button"
-                                                        className="shared-drawer-icon-btn copy"
-                                                        onClick={(e) => handleCopyLink(story, e)}
-                                                        title="Copy link"
-                                                    >
-                                                        {copiedStoryId === story.id ? <Check size={16} color="#10b981" /> : <Copy size={16} />}
-                                                    </button>
-
-                                                    <button
-                                                        type="button"
-                                                        className="shared-drawer-icon-btn external"
+                                                        className={`shared-card-grid-tile gear ${openMenuStoryId === story.id ? 'active' : ''}`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            window.open(shareUrl, '_blank');
+                                                            setOpenMenuStoryId(openMenuStoryId === story.id ? null : story.id);
                                                         }}
-                                                        title="Open in new tab"
+                                                        title="Options"
                                                     >
-                                                        <ExternalLink size={16} />
+                                                        <Settings size={18} />
                                                     </button>
+
+                                                    {openMenuStoryId === story.id && (
+                                                        <div className="shared-story-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                                                            <button 
+                                                                type="button" 
+                                                                className="shared-dropdown-item"
+                                                                onClick={() => handleRefreshLink(story)}
+                                                            >
+                                                                <RotateCw size={15} color="var(--yolo-lime, #c8f72c)" />
+                                                                <div className="shared-dropdown-item-labels">
+                                                                    <span>Refresh Share Link</span>
+                                                                    <small>Invalidates old link and generates new URL</small>
+                                                                </div>
+                                                            </button>
+
+                                                            <div className="shared-dropdown-divider" />
+
+                                                            <button 
+                                                                type="button" 
+                                                                className="shared-dropdown-item delete"
+                                                                onClick={() => handleDeleteStory(story)}
+                                                            >
+                                                                <Trash2 size={15} color="#f87171" />
+                                                                <div className="shared-dropdown-item-labels">
+                                                                    <span style={{ color: '#f87171' }}>Delete from Shared</span>
+                                                                    <small>Keeps original journal takes intact</small>
+                                                                </div>
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
+
+                                                {/* Bottom-Left: Copy Link */}
+                                                <button
+                                                    type="button"
+                                                    className="shared-card-grid-tile copy"
+                                                    onClick={(e) => handleCopyLink(story, e)}
+                                                    title="Copy link"
+                                                >
+                                                    {copiedStoryId === story.id ? <Check size={18} color="#10b981" /> : <Copy size={18} />}
+                                                </button>
+
+                                                {/* Bottom-Right: External Link */}
+                                                <button
+                                                    type="button"
+                                                    className="shared-card-grid-tile external"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        window.open(shareUrl, '_blank');
+                                                    }}
+                                                    title="Open in new tab"
+                                                >
+                                                    <ExternalLink size={18} />
+                                                </button>
                                             </div>
                                         ) : (
-                                            /* Stage 1: Single Circular Lime Play Button */
+                                            /* Stage 1: Play Card filling the entire 72px x 128px space */
                                             <button
                                                 type="button"
-                                                className="shared-swipe-action-circle play"
+                                                className="shared-drawer-play-card"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     setStoryDrawerStages(prev => ({ ...prev, [story.id]: 0 }));
@@ -492,13 +494,15 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
                                                 }}
                                                 title="Play story"
                                             >
-                                                <Play size={18} fill="currentColor" color="#000000" />
+                                                <div className="shared-drawer-play-circle">
+                                                    <Play size={20} fill="currentColor" color="#000000" />
+                                                </div>
                                             </button>
                                         )}
                                     </div>
                                 )}
 
-                                {/* Horizontal Strip of Square Films (2px gap, identical to Journal page) */}
+                                {/* Horizontal Strip of 9:16 Films (2px gap, identical to Journal page) */}
                                 <div 
                                     className="shared-films-horizontal-strip"
                                     onTouchStart={(e) => handleSharedTouchStart(story.id, e)}
@@ -540,7 +544,7 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
                                                     title={`Take ${idx + 1}`}
                                                 >
                                                     {clipThumb ? (
-                                                        <img src={clipThumb} alt={`Take ${idx + 1}`} className="shared-square-media" />
+                                                        <img src={clipThumb} alt="" className="shared-square-media" />
                                                     ) : clipVideo ? (
                                                         <video src={clipVideo} className="shared-square-media" preload="metadata" muted />
                                                     ) : (
@@ -549,13 +553,17 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
                                                         </div>
                                                     )}
 
-                                                    <div className="shared-film-take-num">
-                                                        {idx + 1}
+                                                    {/* Top Center Take Number Badge (Identical to Journal) */}
+                                                    <div className="shared-film-top-badge">
+                                                        <span className="shared-film-take-num">
+                                                            {clip.original_take_number || (idx + 1)}
+                                                        </span>
                                                     </div>
 
+                                                    {/* Bottom Timestamp Badge (Identical to Journal) */}
                                                     {startTimeStr && (
-                                                        <div className="shared-film-start-time">
-                                                            {startTimeStr}
+                                                        <div className="shared-film-bottom-time">
+                                                            <span>{startTimeStr}</span>
                                                         </div>
                                                     )}
                                                 </div>

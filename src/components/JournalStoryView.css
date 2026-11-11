@@ -315,20 +315,19 @@
   }
 }
 
-/* ── Progressive 2-Stage Swipe Reveal Drawer (Stage 1: Play, Stage 2: Share Right Arrow) ── */
+/* ── Progressive 2-Stage Swipe Reveal Drawer (Stage 1: Play Card, Stage 2: 4-Button Quadrant Grid) ── */
 .yolofuck-swipe-play-drawer {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: flex-end; /* Anchors play button on the right next to film strip; share emerges on the left */
-  padding: 0 6px;
-  gap: 8px;
+  justify-content: flex-end;
   height: 128px;
   overflow: hidden;
   flex-shrink: 0;
   background: #000000;
   border-right: 1px solid rgba(200, 247, 44, 0.25);
   box-sizing: border-box;
+  padding: 0;
 }
 
 .yolofuck-swipe-play-drawer.snapped {
@@ -339,47 +338,135 @@
   transition: none;
 }
 
-.yolofuck-swipe-action-circle {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
+/* Stage 1: Play Card (Exact 72px x 128px space, matching 9:16 card proportions) */
+.yolofuck-drawer-play-card {
+  width: 72px;
+  height: 128px;
+  min-width: 72px;
+  max-width: 72px;
+  background: #090a12;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  transition: background 0.15s ease;
+}
+
+.yolofuck-drawer-play-card:hover {
+  background: #121422;
+}
+
+.yolofuck-drawer-play-circle {
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: var(--yolo-lime, #c8f72c);
-  border: none;
-  box-shadow: 0 0 16px rgba(200, 247, 44, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #000000;
-  cursor: pointer;
-  flex-shrink: 0;
-  transform: scale(0.95);
+  box-shadow: 0 0 16px rgba(200, 247, 44, 0.5);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.yolofuck-swipe-action-circle.share-forward {
-  animation: yolofuck-share-slide-in 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+.yolofuck-drawer-play-card:hover .yolofuck-drawer-play-circle {
+  transform: scale(1.08);
+  box-shadow: 0 0 24px rgba(200, 247, 44, 0.9);
 }
 
-@keyframes yolofuck-share-slide-in {
+/* Stage 2: 4 Buttons Grid filling the entire 72px x 128px space edge-to-edge */
+.yolofuck-drawer-card-grid {
+  width: 72px;
+  height: 128px;
+  min-width: 72px;
+  max-width: 72px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 1px;
+  background: #1c2030;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.yolofuck-card-grid-tile {
+  background: #090a12;
+  border: none;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.yolofuck-card-grid-tile:hover {
+  background: #161826;
+  color: #ffffff;
+}
+
+.yolofuck-card-grid-tile.play:hover {
+  color: var(--yolo-lime, #c8f72c);
+  background: #141724;
+}
+
+.yolofuck-card-grid-tile.share:hover {
+  color: var(--yolo-lime, #c8f72c);
+  background: #141724;
+}
+
+.yolofuck-card-grid-tile.copy:hover {
+  color: #10b981;
+  background: #141724;
+}
+
+.yolofuck-card-grid-tile.settings:hover {
+  color: #ffffff;
+  background: #141724;
+}
+
+.yolofuck-card-grid-tile:active {
+  transform: scale(0.92);
+}
+
+/* Toast notice for clipboard actions in Journal view */
+.yolofuck-toast-notice {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 17, 26, 0.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--yolo-lime, #c8f72c);
+  color: #efede3;
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 9999;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 12px rgba(200, 247, 44, 0.25);
+  pointer-events: none;
+  animation: yolofuck-toast-pop 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes yolofuck-toast-pop {
   from {
     opacity: 0;
-    transform: scale(0.7) translateX(-10px);
+    transform: translate(-50%, -10px) scale(0.95);
   }
   to {
     opacity: 1;
-    transform: scale(0.95) translateX(0);
+    transform: translate(-50%, 0) scale(1);
   }
-}
-
-.yolofuck-swipe-action-circle:hover,
-.yolofuck-swipe-action-circle:active {
-  transform: scale(1.08);
-  box-shadow: 0 0 24px rgba(200, 247, 44, 0.95);
-}
-
-.yolofuck-swipe-action-circle svg {
-  display: block;
 }
 
 /* ── Horizontal Strip of 9:16 Films ── */

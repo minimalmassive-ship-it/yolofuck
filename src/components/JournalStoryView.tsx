@@ -28,7 +28,10 @@ import {
     Layers,
     ArrowRight,
     ArrowLeft,
-    RotateCcw
+    RotateCcw,
+    Copy,
+    Check,
+    Settings
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -118,6 +121,10 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
     // Share Modal state
     const [showShareModal, setShowShareModal] = useState(false);
     const [lockedShareDate, setLockedShareDate] = useState<string | null>(null);
+
+    // Clipboard copy feedback & Toast notice
+    const [copiedDate, setCopiedDate] = useState<string | null>(null);
+    const [toastNotice, setToastNotice] = useState<string | null>(null);
 
     // Mobile Long-Press Delete Confirmation Modal state
     const [clipToDelete, setClipToDelete] = useState<{ id: string; date: string } | null>(null);
@@ -233,20 +240,20 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
 
         // Progressive 2-stage resistance calculation:
         if (initStage === 0) {
-            // First swipe: strictly clamped to stage 1 (Play button only). Cannot reveal share in 1 gesture!
+            // First swipe: strictly clamped to stage 1 (Play card only, 72px).
             if (currentScrollLeft <= 2 && deltaX > 0) {
                 const raw = deltaX * 0.7;
-                const pullAmount = raw <= 52 ? raw : 52 + Math.min(4, (raw - 52) * 0.15);
+                const pullAmount = raw <= 72 ? raw : 72 + Math.min(4, (raw - 72) * 0.15);
                 setRowPullDistances(prev => ({ ...prev, [date]: pullAmount }));
             } else {
                 setRowPullDistances(prev => prev[date] ? { ...prev, [date]: 0 } : prev);
             }
         } else if (initStage === 1) {
-            // Already at Stage 1 (Play revealed). Second swipe right pulls to reveal Share button on the left
-            const base = 52;
+            // Already at Stage 1 (Play revealed). Second swipe right pulls further to reveal 4 buttons
+            const base = 72;
             if (deltaX >= 0) {
                 const raw = base + deltaX * 0.7;
-                const pullAmount = raw <= 104 ? raw : 104 + Math.min(6, (raw - 104) * 0.15);
+                const pullAmount = raw <= 84 ? raw : 84 + Math.min(4, (raw - 84) * 0.15);
                 setRowPullDistances(prev => ({ ...prev, [date]: pullAmount }));
             } else {
                 // Swiping left closes back towards stage 0
@@ -254,9 +261,9 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                 setRowPullDistances(prev => ({ ...prev, [date]: pullAmount }));
             }
         } else if (initStage === 2) {
-            // Already at Stage 2 (Share + Play revealed). Swipe left closes back towards stage 1 or 0
-            const base = 104;
-            const pullAmount = Math.max(0, Math.min(110, base + deltaX * 0.7));
+            // Already at Stage 2 (4 buttons revealed). Swipe left closes back towards stage 1 or 0
+            const base = 72;
+            const pullAmount = Math.max(0, Math.min(84, base + deltaX * 0.7));
             setRowPullDistances(prev => ({ ...prev, [date]: pullAmount }));
         }
     };
@@ -279,16 +286,16 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         // Determine destination snap stage based on pull distance
         let nextStage = 0;
         if (initStage === 0) {
-            // Only stage 1 (Play) can ever be unlocked from the initial closed state
-            if (currentPull >= 24) {
-                nextStage = 1; // First swipe: reveal Play button only
+            // First swipe: reveal 72px Play card
+            if (currentPull >= 30) {
+                nextStage = 1;
             } else {
                 nextStage = 0;
             }
         } else if (initStage === 1) {
-            if (currentPull >= 75) {
-                nextStage = 2; // Second swipe: reveal Share button to the left of Play button
-            } else if (currentPull < 25) {
+            if (currentPull >= 78) {
+                nextStage = 2; // Second swipe: reveal 4 buttons grid in 72px card
+            } else if (currentPull < 35) {
                 nextStage = 0; // Swiped left: close drawer
             } else {
                 nextStage = 1; // Stay at stage 1
@@ -296,8 +303,8 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         } else if (initStage === 2) {
             if (currentPull < 35) {
                 nextStage = 0; // Swiped left far: close
-            } else if (currentPull < 78) {
-                nextStage = 1; // Swiped left partially: back to stage 1 (hide Share, keep Play)
+            } else if (currentPull < 70) {
+                nextStage = 1; // Swiped left partially: back to stage 1 (Play card)
             } else {
                 nextStage = 2; // Stay at stage 2
             }
@@ -314,6 +321,21 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
     const handlePlayFromDrawer = (date: string) => {
         setRevealedDrawerStages(prev => ({ ...prev, [date]: 0 }));
         handleStartDayPlayer(date, 0);
+    };
+
+    const handleCopyDayLink = async (date: string, _clips: JournalClip[]) => {
+        try {
+            const origin = window.location.origin;
+            const link = `${origin}/#story_date=${date}`;
+            await navigator.clipboard.writeText(link);
+            setCopiedDate(date);
+            setToastNotice(`Story link for ${formatVerticalDate(date)} copied to clipboard!`);
+            setTimeout(() => setCopiedDate(null), 2000);
+            setTimeout(() => setToastNotice(null), 2500);
+        } catch {
+            setToastNotice('Failed to copy story link');
+            setTimeout(() => setToastNotice(null), 2000);
+        }
     };
 
     const handleForwardToShared = async (date: string, clips: JournalClip[]) => {
@@ -978,6 +1000,11 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
 
     return (
         <div className={`yolofuck-storyview-root ${showVideoPlayer ? 'player-active' : ''}`}>
+            {toastNotice && (
+                <div className="yolofuck-toast-notice">
+                    <span>{toastNotice}</span>
+                </div>
+            )}
             {/* ══════════════════════════════════════════════════════════
                 1. FULL-SCREEN 9:16 VIDEO PLAYER VIEW
                ══════════════════════════════════════════════════════════ */}
@@ -1280,50 +1307,96 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                             </span>
                                         </div>
 
-                                        {/* Progressive 2-Stage Reveal Drawer (Stage 1: Play, Stage 2: Share emerges on the left of Play) */}
+                                        {/* Progressive 2-Stage Reveal Drawer (Exact 72px x 128px 9:16 Card) */}
                                         {(() => {
                                             const isDragging = (rowPullDistances[date] || 0) > 0;
                                             const stage = revealedDrawerStages[date] || 0;
                                             const currentWidth = isDragging 
                                                 ? rowPullDistances[date] 
-                                                : (stage === 2 ? 104 : stage === 1 ? 52 : 0);
+                                                : (stage >= 1 ? 72 : 0);
                                             
                                             if (currentWidth <= 0 && stage === 0) return null;
 
-                                            const showShareBtn = (stage === 1 && isDragging && currentWidth >= 68) || stage === 2;
+                                            const showFourButtons = stage === 2 || (stage === 1 && isDragging && currentWidth >= 78);
 
                                             return (
                                                 <div 
                                                     className={`yolofuck-swipe-play-drawer ${isDragging ? 'is-dragging' : 'snapped'}`}
                                                     style={{ width: `${currentWidth}px` }}
                                                 >
-                                                    {/* Stage 2: Share Right Arrow Button (Emerges on the LEFT of Play button) */}
-                                                    {showShareBtn && (
+                                                    {showFourButtons ? (
+                                                        /* Stage 2: 4 Buttons Grid filling the entire 72px x 128px space edge-to-edge */
+                                                        <div className="yolofuck-drawer-card-grid">
+                                                            {/* Top-Left: Play */}
+                                                            <button
+                                                                type="button"
+                                                                className="yolofuck-card-grid-tile play"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handlePlayFromDrawer(date);
+                                                                }}
+                                                                title="Play day story"
+                                                            >
+                                                                <Play size={18} fill="currentColor" color="var(--yolo-lime, #c8f72c)" />
+                                                            </button>
+
+                                                            {/* Top-Right: Forward to Shared */}
+                                                            <button
+                                                                type="button"
+                                                                className="yolofuck-card-grid-tile share"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleShareFromDrawer(date, clips);
+                                                                }}
+                                                                title="Forward sequence to Shared tab"
+                                                            >
+                                                                <ArrowRight size={18} color="var(--yolo-lime, #c8f72c)" strokeWidth={2.4} />
+                                                            </button>
+
+                                                            {/* Bottom-Left: Copy Story Link */}
+                                                            <button
+                                                                type="button"
+                                                                className="yolofuck-card-grid-tile copy"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleCopyDayLink(date, clips);
+                                                                }}
+                                                                title="Copy story link"
+                                                            >
+                                                                {copiedDate === date ? <Check size={18} color="#10b981" /> : <Copy size={18} />}
+                                                            </button>
+
+                                                            {/* Bottom-Right: Share Options / Command Center */}
+                                                            <button
+                                                                type="button"
+                                                                className="yolofuck-card-grid-tile settings"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setRevealedDrawerStages(prev => ({ ...prev, [date]: 0 }));
+                                                                    setLockedShareDate(date);
+                                                                    setShowShareModal(true);
+                                                                }}
+                                                                title="Share Command Center & Options"
+                                                            >
+                                                                <Settings size={18} />
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        /* Stage 1: Play Card filling the entire 72px x 128px space */
                                                         <button
                                                             type="button"
-                                                            className="yolofuck-swipe-action-circle share-forward"
+                                                            className="yolofuck-drawer-play-card"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                handleShareFromDrawer(date, clips);
+                                                                handlePlayFromDrawer(date);
                                                             }}
-                                                            title="Copy sequence to Share page"
+                                                            title="Play day story"
                                                         >
-                                                            <ArrowRight size={20} color="#000000" strokeWidth={2.5} />
+                                                            <div className="yolofuck-drawer-play-circle">
+                                                                <Play size={20} fill="currentColor" color="#000000" />
+                                                            </div>
                                                         </button>
                                                     )}
-
-                                                    {/* Stage 1: Play Button (Lime Circle, anchored on right next to film strip) */}
-                                                    <button
-                                                        type="button"
-                                                        className="yolofuck-swipe-action-circle play"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handlePlayFromDrawer(date);
-                                                        }}
-                                                        title="Play day story"
-                                                    >
-                                                        <Play size={18} fill="currentColor" color="#000000" />
-                                                    </button>
                                                 </div>
                                             );
                                         })()}
