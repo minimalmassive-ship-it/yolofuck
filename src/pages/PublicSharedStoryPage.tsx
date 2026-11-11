@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { hydrateStoryProvenance } from '../lib/journalStoryService';
 import { Play, Pause, Volume2, VolumeX, Repeat, X, Loader2 } from 'lucide-react';
 import '../components/SharedStoryPlayerModal.css';
 
@@ -56,6 +57,8 @@ export const PublicSharedStoryPage: React.FC = () => {
                     }
                     return;
                 }
+
+                data = hydrateStoryProvenance(data);
 
                 const isStopped = data.visibility === 'stopped' || (data.provenance_log as any)?.is_stopped === true;
                 if (isStopped) {

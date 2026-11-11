@@ -59,24 +59,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const fetchProfile = useCallback(async (userId: string): Promise<Profile | null> => {
         try {
-            // First check Central Auth database
-            let { data, error } = await supabaseAuth
+            const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', userId)
                 .maybeSingle();
 
-            // Fallback check on Yolofuck dedicated database if not found
-            if (!data) {
-                const { data: yoloProfile } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', userId)
-                    .maybeSingle();
-                data = yoloProfile;
-            }
-
-            if (error && !data) {
+            if (error || !data) {
                 return null;
             }
             return data as Profile | null;

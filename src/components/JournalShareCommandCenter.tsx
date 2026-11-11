@@ -5,7 +5,8 @@ import {
 } from 'lucide-react';
 import { 
     JournalClip, updateDailyStoryVisibility, stopDailyStorySharing,
-    ensureDailyStoryIdea, generateUniqueStorySlug, getLocalDateISO 
+    ensureDailyStoryIdea, generateUniqueStorySlug, getLocalDateISO,
+    hydrateStoryProvenance
 } from '../lib/journalStoryService';
 import { supabase } from '../lib/supabase';
 import './JournalShareCommandCenter.css';
@@ -72,17 +73,18 @@ export const JournalShareCommandCenter: React.FC<JournalShareCommandCenterProps>
                 if (entry?.published_idea_id) {
                     setPublishedIdeaId(entry.published_idea_id);
 
-                    const { data: idea } = await supabase
+                    const { data: rawIdea } = await supabase
                         .from('ideas')
-                        .select('id, slug, visibility, is_public, allow_link_access, provenance_log')
+                        .select('id, slug, visibility, is_public, description')
                         .eq('id', entry.published_idea_id)
                         .maybeSingle();
 
                     if (!isMounted) return;
 
-                    if (idea) {
+                    if (rawIdea) {
+                        const idea = hydrateStoryProvenance(rawIdea);
                         if (idea.slug) setPublishedSlug(idea.slug);
-                        const isStopped = idea.visibility === 'stopped' || idea.allow_link_access === false || idea.provenance_log?.is_stopped;
+                        const isStopped = idea.visibility === 'stopped' || idea.provenance_log?.is_stopped === true;
                         setIsLinkActive(!isStopped);
 
                         const vis = idea.visibility as 'private' | 'network' | 'public';

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, Volume2, VolumeX, Repeat, X } from 'lucide-react';
+import { hydrateStoryProvenance } from '../lib/journalStoryService';
 import './SharedStoryPlayerModal.css';
 
 interface SharedStoryPlayerModalProps {
@@ -17,10 +18,12 @@ export const SharedStoryPlayerModal: React.FC<SharedStoryPlayerModalProps> = ({ 
     const [currentTime, setCurrentTime] = useState<number>(0);
     const [clipDuration, setClipDuration] = useState<number>(0);
 
+    const safeStory = hydrateStoryProvenance(story);
+
     // Extract clip list from story provenance_log or single video_url
     const clips: Array<{ clip_url: string; duration_ms?: number }> = 
-        (story?.provenance_log as any)?.clips || 
-        (story?.video_url ? [{ clip_url: story.video_url }] : []);
+        (safeStory?.provenance_log as any)?.clips || 
+        (safeStory?.video_url ? [{ clip_url: safeStory.video_url }] : []);
 
     const activeClip = clips[currentClipIndex] || null;
 

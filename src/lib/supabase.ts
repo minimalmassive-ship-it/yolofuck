@@ -18,8 +18,8 @@ const DEFAULT_ANON_KEY = 'sb_publishable_OTOXvTGJejxfXyClIEPjmg_vmx6tjy_';
 export const dataSupabaseUrl = import.meta.env.VITE_SUPABASE_URL || DEFAULT_URL;
 export const dataSupabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || DEFAULT_ANON_KEY;
 
-export const authSupabaseUrl = import.meta.env.VITE_AUTH_SUPABASE_URL || dataSupabaseUrl;
-export const authSupabaseAnonKey = import.meta.env.VITE_AUTH_SUPABASE_ANON_KEY || dataSupabaseAnonKey;
+export const authSupabaseUrl = dataSupabaseUrl;
+export const authSupabaseAnonKey = dataSupabaseAnonKey;
 
 // Primary client for Yolofuck data tables, storage buckets & auth session
 export const supabase = createClient(
@@ -38,22 +38,9 @@ export const supabase = createClient(
 
 export const supabaseData = supabase;
 
-// Auth client: Reuses primary client if auth URL matches data URL, or initializes secondary client
-export const supabaseAuth = (authSupabaseUrl === dataSupabaseUrl)
-    ? supabase
-    : createClient(
-        authSupabaseUrl,
-        authSupabaseAnonKey,
-        {
-            auth: {
-                persistSession: true,
-                autoRefreshToken: true,
-                detectSessionInUrl: true,
-                storageKey: 'yolofuck-auth-token',
-                storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-            }
-        }
-    );
+// Auth client: strictly reuses the primary client to avoid multiple GoTrueClient instances
+// and ensure all auth tokens and session refreshes target the dedicated Yolofuck database.
+export const supabaseAuth = supabase;
 
 // Lightweight client for public data queries (e.g. shared public stories)
 export const supabasePublic = createClient(

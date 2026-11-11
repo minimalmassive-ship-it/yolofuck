@@ -58,6 +58,44 @@ export function getPendingStoryDate(): string | null {
     return d;
 }
 
+// ── Story Provenance Hydration & Description Serialization ──────────────────
+
+/**
+ * Hydrates story provenance (clips list, date, take count, is_stopped flag)
+ * from idea.description JSON or idea.provenance_log.
+ * Since the dedicated Supabase ideas table does not have a provenance_log column,
+ * the full sequence metadata is safely encoded and stored inside description.
+ */
+export function hydrateStoryProvenance(idea: any): any {
+    if (!idea) return idea;
+    if (idea.provenance_log && typeof idea.provenance_log === 'object' && !Array.isArray(idea.provenance_log)) {
+        return idea;
+    }
+    if (typeof idea.description === 'string' && idea.description.trim().startsWith('{')) {
+        try {
+            const parsed = JSON.parse(idea.description);
+            if (parsed && typeof parsed === 'object') {
+                return {
+                    ...idea,
+                    provenance_log: parsed,
+                    transcription: parsed.transcription || idea.transcription || ''
+                };
+            }
+        } catch {}
+    }
+    return idea;
+}
+
+/**
+ * Encodes sequence provenance metadata and transcription into a JSON string for description.
+ */
+export function encodeStoryDescription(transcription: string, provenance: any): string {
+    return JSON.stringify({
+        ...provenance,
+        transcription: transcription || ''
+    });
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 /** Get today's date in ISO format (YYYY-MM-DD) using local timezone */
@@ -729,23 +767,25 @@ export async function ensureDailyStoryIdea(
             const isPublic = existingIdea.visibility === 'public' && existingIdea.is_public === true;
             const visibilityVal = isPublic ? 'public' : (existingIdea.visibility === 'network' ? 'network' : 'private');
 
-            // Update clips provenance and ensure link access
+            const descJson = encodeStoryDescription(transcription, {
+                clips,
+                date,
+                takes_count: clips.length,
+                published_via: 'journal_share',
+                is_stopped: false
+            });
+
+            // Update clips provenance inside description and ensure link access
             await supabase
                 .from('ideas')
                 .update({
                     slug: finalSlug,
-                    description: transcription,
+                    description: descJson,
+                    media_url: clips[0]?.clip_url || '',
                     thumbnail_url: coverThumb,
                     image_url: coverThumb,
                     is_public: isPublic,
                     visibility: visibilityVal,
-                    provenance_log: {
-                        clips,
-                        date,
-                        takes_count: clips.length,
-                        published_via: 'journal_share',
-                        is_stopped: false
-                    },
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', existingIdea.id);
@@ -755,10 +795,18 @@ export async function ensureDailyStoryIdea(
     }
 
     // Create new unlisted idea record for link sharing with author-bound unique slug
-    // Matching exact schema of public.ideas table (no allow_link_access or category columns)
+    // Matching exact schema of public.ideas table (no allow_link_access or provenance_log columns)
+    const descJson = encodeStoryDescription(transcription, {
+        clips,
+        date,
+        takes_count: clips.length,
+        published_via: 'journal_share',
+        is_stopped: false
+    });
+
     const ideaPayload: any = {
         title,
-        description: transcription,
+        description: descJson,
         media_type: 'video',
         media_url: clips[0]?.clip_url || '',
         thumbnail_url: coverThumb,
@@ -769,12 +817,6 @@ export async function ensureDailyStoryIdea(
         project_id: projectId || null,
         level: 1,
         slug: targetSlug,
-        provenance_log: {
-            clips,
-            date,
-            takes_count: clips.length,
-            published_via: 'journal_share'
-        },
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
     };
@@ -833,7 +875,7 @@ export async function reorderDailyClips(
             .eq('entry_date', date)
             .eq('entry_type', 'video');
 
-        // If story idea exists, update provenance_log.clips
+        // If story idea exists, update provenance inside description
         const { data: entry } = await supabase
             .from('journal_entries')
             .select('published_idea_id')
@@ -843,16 +885,28 @@ export async function reorderDailyClips(
             .maybeSingle();
 
         if (entry?.published_idea_id) {
+            const { data: currentIdea } = await supabase
+                .from('ideas')
+                .select('description')
+                .eq('id', entry.published_idea_id)
+                .maybeSingle();
+
+            const hydrated = hydrateStoryProvenance(currentIdea);
+            const prov = hydrated?.provenance_log || {};
+            const newProv = {
+                ...prov,
+                clips: reorderedClips,
+                date,
+                takes_count: reorderedClips.length,
+                updated_at: new Date().toISOString()
+            };
+
             await supabase
                 .from('ideas')
                 .update({
-                    video_url: clipUrls[0] || '',
-                    provenance_log: {
-                        clips: reorderedClips,
-                        date,
-                        takes_count: reorderedClips.length,
-                        updated_at: new Date().toISOString()
-                    }
+                    media_url: clipUrls[0] || '',
+                    description: encodeStoryDescription(newProv.transcription || '', newProv),
+                    updated_at: new Date().toISOString()
                 })
                 .eq('id', entry.published_idea_id);
         }
@@ -978,10 +1032,18 @@ export async function publishDailyStory(
         }
     }
 
+    const descJson = encodeStoryDescription(transcription, {
+        clips,
+        date,
+        takes_count: clips.length,
+        published_via: 'journal_share_modal',
+        is_stopped: false
+    });
+
     // Build payload matching exact columns in public.ideas table
     const ideaPayload: any = {
         title,
-        description: transcription,
+        description: descJson,
         media_type: 'video',
         media_url: clips[0]?.clip_url || '',
         thumbnail_url: coverThumb,
@@ -991,13 +1053,6 @@ export async function publishDailyStory(
         user_id: userId,
         project_id: projectId || null,
         level: 1,
-        provenance_log: {
-            clips,
-            date,
-            takes_count: clips.length,
-            published_via: 'journal_share_modal',
-            is_stopped: false
-        },
         updated_at: new Date().toISOString()
     };
 
@@ -1065,7 +1120,7 @@ export async function unpublishDailyStory(userId: string, date: string): Promise
     if (existingEntry.published_idea_id) {
         await supabase
             .from('ideas')
-            .update({ is_public: false, visibility: 'private', allow_link_access: true })
+            .update({ is_public: false, visibility: 'private' })
             .eq('id', existingEntry.published_idea_id);
     }
 
@@ -1145,24 +1200,24 @@ export async function stopDailyStorySharing(userId: string, date: string, ideaId
     // Fetch current provenance to preserve it with is_stopped flag
     const { data: idea } = await supabase
         .from('ideas')
-        .select('provenance_log')
+        .select('description')
         .eq('id', targetIdeaId)
         .maybeSingle();
 
-    const prov = (idea?.provenance_log && typeof idea.provenance_log === 'object' && !Array.isArray(idea.provenance_log))
-        ? idea.provenance_log
-        : {};
+    const hydrated = hydrateStoryProvenance(idea);
+    const prov = hydrated?.provenance_log || {};
+    const newProv = {
+        ...prov,
+        is_stopped: true,
+        stopped_at: new Date().toISOString()
+    };
 
     const { error } = await supabase
         .from('ideas')
         .update({
             visibility: 'stopped',
             is_public: false,
-            provenance_log: {
-                ...prov,
-                is_stopped: true,
-                stopped_at: new Date().toISOString()
-            },
+            description: encodeStoryDescription(newProv.transcription || '', newProv),
             updated_at: new Date().toISOString()
         })
         .eq('id', targetIdeaId);
@@ -1202,13 +1257,17 @@ export async function resumeDailyStorySharing(
 ): Promise<boolean> {
     const { data: idea } = await supabase
         .from('ideas')
-        .select('provenance_log')
+        .select('description')
         .eq('id', ideaId)
         .maybeSingle();
 
-    const prov = (idea?.provenance_log && typeof idea.provenance_log === 'object' && !Array.isArray(idea.provenance_log))
-        ? idea.provenance_log
-        : {};
+    const hydrated = hydrateStoryProvenance(idea);
+    const prov = hydrated?.provenance_log || {};
+    const newProv = {
+        ...prov,
+        is_stopped: false,
+        resumed_at: new Date().toISOString()
+    };
 
     const isPublic = restoreVisibility === 'public';
     const { error } = await supabase
@@ -1216,11 +1275,7 @@ export async function resumeDailyStorySharing(
         .update({
             visibility: restoreVisibility,
             is_public: isPublic,
-            provenance_log: {
-                ...prov,
-                is_stopped: false,
-                resumed_at: new Date().toISOString()
-            },
+            description: encodeStoryDescription(newProv.transcription || '', newProv),
             updated_at: new Date().toISOString()
         })
         .eq('id', ideaId);
@@ -1309,12 +1364,13 @@ export async function fetchUserSharedDailyStories(userId: string): Promise<any[]
             .order('updated_at', { ascending: false });
 
         if (!error && data && data.length > 0) {
-            // Filter to journal stories (identified by provenance_log or media_type)
-            const journalStories = data.filter((item: any) => {
+            const hydrated = data.map(hydrateStoryProvenance);
+            // Filter to journal stories (identified by provenance_log, slug or media_type)
+            const journalStories = hydrated.filter((item: any) => {
                 if (item.provenance_log?.clips || item.provenance_log?.published_via) return true;
                 if (item.slug && item.slug.includes('-story-')) return true;
                 if (item.media_type === 'video') return true;
-                return true;
+                return false;
             });
             if (journalStories.length > 0) {
                 // Strictly sort so that newly forwarded or modified stories appear at the very top
@@ -1327,27 +1383,35 @@ export async function fetchUserSharedDailyStories(userId: string): Promise<any[]
             }
         }
 
-        // Fallback: check journal_entries table for published stories
+        // Fallback: check journal_entries table for published stories without invalid join
         const { data: entries } = await supabase
             .from('journal_entries')
-            .select('*, idea:ideas(*)')
+            .select('*')
             .eq('user_id', userId)
             .not('published_idea_id', 'is', null)
             .order('created_at', { ascending: false });
 
         if (entries && entries.length > 0) {
-            const mapped = entries
-                .map((e: any) => e.idea || e)
-                .filter(Boolean);
-            mapped.sort((a: any, b: any) => {
-                const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
-                const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
-                return timeB - timeA;
-            });
-            return mapped;
+            const ideaIds = entries.map((e: any) => e.published_idea_id).filter(Boolean);
+            if (ideaIds.length > 0) {
+                const { data: linkedIdeas } = await supabase
+                    .from('ideas')
+                    .select('*')
+                    .in('id', ideaIds);
+
+                if (linkedIdeas && linkedIdeas.length > 0) {
+                    const mapped = linkedIdeas.map(hydrateStoryProvenance);
+                    mapped.sort((a: any, b: any) => {
+                        const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
+                        const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
+                        return timeB - timeA;
+                    });
+                    return mapped;
+                }
+            }
         }
 
-        return data || [];
+        return [];
     } catch (err) {
         console.error('[JournalStory] fetchUserSharedDailyStories exception:', err);
         return [];

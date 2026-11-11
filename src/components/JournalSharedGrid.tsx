@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabase';
 import { 
     fetchUserSharedDailyStories, updateDailyStoryVisibility, 
     stopDailyStorySharing, resumeDailyStorySharing, deleteDailyStoryShare,
-    getLocalDateISO
+    getLocalDateISO, hydrateStoryProvenance
 } from '../lib/journalStoryService';
 import { SharedStoryPlayerModal } from './SharedStoryPlayerModal';
 import { JournalShareCommandCenter } from './JournalShareCommandCenter';
@@ -163,7 +163,7 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
         try {
             setLoading(true);
             const data = await fetchUserSharedDailyStories(user.id);
-            const list = Array.isArray(data) ? [...data] : [];
+            const list = Array.isArray(data) ? data.map(hydrateStoryProvenance) : [];
             // Strictly sort with most recently updated or created story at the very top (index 0)
             list.sort((a: any, b: any) => {
                 const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
