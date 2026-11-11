@@ -74,20 +74,30 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
         if (!storyTouchStartRef.current.isTracking) return;
 
         if (initStage === 0) {
+            // First swipe: strictly clamped to stage 1 (Play button only). Cannot reveal share in 1 gesture!
             if (deltaX > 0) {
-                const pullAmount = Math.min(125, deltaX * 0.7);
+                const raw = deltaX * 0.7;
+                const pullAmount = raw <= 52 ? raw : 52 + Math.min(4, (raw - 52) * 0.15);
                 setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
             } else {
                 setStoryPullDistances(prev => prev[storyId] ? { ...prev, [storyId]: 0 } : prev);
             }
         } else if (initStage === 1) {
-            // Swiping right further pushes towards stage 2 (Share Options)
+            // Already at Stage 1 (Play revealed). Second swipe right pulls to reveal Share Options on the left
             const base = 52;
-            const pullAmount = Math.max(0, Math.min(125, base + deltaX * 0.7));
-            setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
+            if (deltaX >= 0) {
+                const raw = base + deltaX * 0.7;
+                const pullAmount = raw <= 104 ? raw : 104 + Math.min(6, (raw - 104) * 0.15);
+                setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
+            } else {
+                // Swiping left closes back towards stage 0
+                const pullAmount = Math.max(0, base + deltaX * 0.7);
+                setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
+            }
         } else if (initStage === 2) {
+            // Already at Stage 2 (Share + Play revealed). Swipe left closes back towards stage 1 or 0
             const base = 104;
-            const pullAmount = Math.max(0, Math.min(125, base + deltaX * 0.7));
+            const pullAmount = Math.max(0, Math.min(110, base + deltaX * 0.7));
             setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
         }
     };
@@ -104,16 +114,15 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
 
         let nextStage = 0;
         if (initStage === 0) {
-            if (currentPull >= 75) {
-                nextStage = 2; // Swiped far: reveal both Play and Share Options
-            } else if (currentPull >= 28) {
-                nextStage = 1; // First swipe: reveal Play button
+            // Only stage 1 (Play) can ever be unlocked from the initial closed state
+            if (currentPull >= 24) {
+                nextStage = 1; // First swipe: reveal Play button only
             } else {
                 nextStage = 0;
             }
         } else if (initStage === 1) {
             if (currentPull >= 75) {
-                nextStage = 2; // Second swipe: reveal Share Options
+                nextStage = 2; // Second swipe: reveal Share Options to the left of Play button
             } else if (currentPull < 25) {
                 nextStage = 0; // Swiped left: close
             } else {
@@ -122,8 +131,8 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
         } else if (initStage === 2) {
             if (currentPull < 35) {
                 nextStage = 0; // Swiped left far: close
-            } else if (currentPull < 75) {
-                nextStage = 1; // Swiped left partially: back to stage 1
+            } else if (currentPull < 78) {
+                nextStage = 1; // Swiped left partially: back to stage 1 (hide Share, keep Play)
             } else {
                 nextStage = 2;
             }
@@ -560,28 +569,14 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
 
                                         if (currentWidth <= 0 && stage === 0) return null;
 
-                                        const showShareBtn = currentWidth >= 70 || stage === 2;
+                                        const showShareBtn = (stage === 1 && isDragging && currentWidth >= 68) || stage === 2;
 
                                         return (
                                             <div 
                                                 className={`shared-swipe-play-drawer ${isDragging ? 'is-dragging' : 'snapped'}`}
                                                 style={{ width: `${currentWidth}px` }}
                                             >
-                                                {/* Stage 1: Play Button (Lime Circle, Black Play Icon) */}
-                                                <button
-                                                    type="button"
-                                                    className="shared-swipe-action-circle play"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setStoryDrawerStages(prev => ({ ...prev, [story.id]: 0 }));
-                                                        setPreviewPlayerStory(story);
-                                                    }}
-                                                    title="Play story"
-                                                >
-                                                    <Play size={18} fill="currentColor" color="#000000" />
-                                                </button>
-
-                                                {/* Stage 2: Share Options Button (Lime Circle, Black Share2 Icon) */}
+                                                {/* Stage 2: Share Options Button (Emerges on the LEFT of Play button) */}
                                                 {showShareBtn && (
                                                     <button
                                                         type="button"
@@ -596,6 +591,20 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
                                                         <Share2 size={18} color="#000000" strokeWidth={2.5} />
                                                     </button>
                                                 )}
+
+                                                {/* Stage 1: Play Button (Lime Circle, anchored on right next to film strip) */}
+                                                <button
+                                                    type="button"
+                                                    className="shared-swipe-action-circle play"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setStoryDrawerStages(prev => ({ ...prev, [story.id]: 0 }));
+                                                        setPreviewPlayerStory(story);
+                                                    }}
+                                                    title="Play story"
+                                                >
+                                                    <Play size={18} fill="currentColor" color="#000000" />
+                                                </button>
                                             </div>
                                         );
                                     })()}

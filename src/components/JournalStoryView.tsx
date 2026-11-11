@@ -233,21 +233,30 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
 
         // Progressive 2-stage resistance calculation:
         if (initStage === 0) {
+            // First swipe: strictly clamped to stage 1 (Play button only). Cannot reveal share in 1 gesture!
             if (currentScrollLeft <= 2 && deltaX > 0) {
-                const pullAmount = Math.min(125, deltaX * 0.7);
+                const raw = deltaX * 0.7;
+                const pullAmount = raw <= 52 ? raw : 52 + Math.min(4, (raw - 52) * 0.15);
                 setRowPullDistances(prev => ({ ...prev, [date]: pullAmount }));
             } else {
                 setRowPullDistances(prev => prev[date] ? { ...prev, [date]: 0 } : prev);
             }
         } else if (initStage === 1) {
-            // Already at Stage 1 (Play revealed). Swipe right further pulls towards Stage 2 (Share)
+            // Already at Stage 1 (Play revealed). Second swipe right pulls to reveal Share button on the left
             const base = 52;
-            const pullAmount = Math.max(0, Math.min(125, base + deltaX * 0.7));
-            setRowPullDistances(prev => ({ ...prev, [date]: pullAmount }));
+            if (deltaX >= 0) {
+                const raw = base + deltaX * 0.7;
+                const pullAmount = raw <= 104 ? raw : 104 + Math.min(6, (raw - 104) * 0.15);
+                setRowPullDistances(prev => ({ ...prev, [date]: pullAmount }));
+            } else {
+                // Swiping left closes back towards stage 0
+                const pullAmount = Math.max(0, base + deltaX * 0.7);
+                setRowPullDistances(prev => ({ ...prev, [date]: pullAmount }));
+            }
         } else if (initStage === 2) {
-            // Already at Stage 2 (Play + Share revealed). Swipe left closes back
+            // Already at Stage 2 (Share + Play revealed). Swipe left closes back towards stage 1 or 0
             const base = 104;
-            const pullAmount = Math.max(0, Math.min(125, base + deltaX * 0.7));
+            const pullAmount = Math.max(0, Math.min(110, base + deltaX * 0.7));
             setRowPullDistances(prev => ({ ...prev, [date]: pullAmount }));
         }
     };
@@ -270,16 +279,15 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         // Determine destination snap stage based on pull distance
         let nextStage = 0;
         if (initStage === 0) {
-            if (currentPull >= 75) {
-                nextStage = 2; // Swiped far in one go: reveal both Play and Share
-            } else if (currentPull >= 28) {
-                nextStage = 1; // First swipe: reveal Play button
+            // Only stage 1 (Play) can ever be unlocked from the initial closed state
+            if (currentPull >= 24) {
+                nextStage = 1; // First swipe: reveal Play button only
             } else {
                 nextStage = 0;
             }
         } else if (initStage === 1) {
             if (currentPull >= 75) {
-                nextStage = 2; // Second swipe: reveal Share button with right arrow
+                nextStage = 2; // Second swipe: reveal Share button to the left of Play button
             } else if (currentPull < 25) {
                 nextStage = 0; // Swiped left: close drawer
             } else {
@@ -288,8 +296,8 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         } else if (initStage === 2) {
             if (currentPull < 35) {
                 nextStage = 0; // Swiped left far: close
-            } else if (currentPull < 75) {
-                nextStage = 1; // Swiped left partially: back to stage 1
+            } else if (currentPull < 78) {
+                nextStage = 1; // Swiped left partially: back to stage 1 (hide Share, keep Play)
             } else {
                 nextStage = 2; // Stay at stage 2
             }
@@ -1272,7 +1280,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                             </span>
                                         </div>
 
-                                        {/* Progressive 2-Stage Reveal Drawer (Stage 1: Play, Stage 2: Share Right Arrow) */}
+                                        {/* Progressive 2-Stage Reveal Drawer (Stage 1: Play, Stage 2: Share emerges on the left of Play) */}
                                         {(() => {
                                             const isDragging = (rowPullDistances[date] || 0) > 0;
                                             const stage = revealedDrawerStages[date] || 0;
@@ -1282,27 +1290,14 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                             
                                             if (currentWidth <= 0 && stage === 0) return null;
 
-                                            const showShareBtn = currentWidth >= 70 || stage === 2;
+                                            const showShareBtn = (stage === 1 && isDragging && currentWidth >= 68) || stage === 2;
 
                                             return (
                                                 <div 
                                                     className={`yolofuck-swipe-play-drawer ${isDragging ? 'is-dragging' : 'snapped'}`}
                                                     style={{ width: `${currentWidth}px` }}
                                                 >
-                                                    {/* Stage 1: Play Button (Lime Circle, Black Play Icon) */}
-                                                    <button
-                                                        type="button"
-                                                        className="yolofuck-swipe-action-circle play"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handlePlayFromDrawer(date);
-                                                        }}
-                                                        title="Play day story"
-                                                    >
-                                                        <Play size={18} fill="currentColor" color="#000000" />
-                                                    </button>
-
-                                                    {/* Stage 2: Share Right Arrow Button (Lime Circle, Black Right Arrow) */}
+                                                    {/* Stage 2: Share Right Arrow Button (Emerges on the LEFT of Play button) */}
                                                     {showShareBtn && (
                                                         <button
                                                             type="button"
@@ -1316,6 +1311,19 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                                             <ArrowRight size={20} color="#000000" strokeWidth={2.5} />
                                                         </button>
                                                     )}
+
+                                                    {/* Stage 1: Play Button (Lime Circle, anchored on right next to film strip) */}
+                                                    <button
+                                                        type="button"
+                                                        className="yolofuck-swipe-action-circle play"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handlePlayFromDrawer(date);
+                                                        }}
+                                                        title="Play day story"
+                                                    >
+                                                        <Play size={18} fill="currentColor" color="#000000" />
+                                                    </button>
                                                 </div>
                                             );
                                         })()}

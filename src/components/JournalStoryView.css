@@ -320,7 +320,7 @@
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: flex-end; /* Anchors play button on the right next to film strip; share emerges on the left */
   padding: 0 6px;
   gap: 8px;
   height: 128px;
@@ -355,6 +355,21 @@
   flex-shrink: 0;
   transform: scale(0.95);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.yolofuck-swipe-action-circle.share-forward {
+  animation: yolofuck-share-slide-in 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes yolofuck-share-slide-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7) translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(0.95) translateX(0);
+  }
 }
 
 .yolofuck-swipe-action-circle:hover,
