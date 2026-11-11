@@ -5,16 +5,17 @@ import './SharedStoryPlayerModal.css';
 
 interface SharedStoryPlayerModalProps {
     story: any;
+    initialClipIndex?: number;
     onClose: () => void;
 }
 
-export const SharedStoryPlayerModal: React.FC<SharedStoryPlayerModalProps> = ({ story, onClose }) => {
+export const SharedStoryPlayerModal: React.FC<SharedStoryPlayerModalProps> = ({ story, initialClipIndex = 0, onClose }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState<boolean>(true);
     const [isMuted, setIsMuted] = useState<boolean>(false);
     const [volume, setVolume] = useState<number>(1);
     const [isLooping, setIsLooping] = useState<boolean>(false);
-    const [currentClipIndex, setCurrentClipIndex] = useState<number>(0);
+    const [currentClipIndex, setCurrentClipIndex] = useState<number>(initialClipIndex || story?.startClipIndex || 0);
     const [currentTime, setCurrentTime] = useState<number>(0);
     const [clipDuration, setClipDuration] = useState<number>(0);
 
@@ -41,7 +42,10 @@ export const SharedStoryPlayerModal: React.FC<SharedStoryPlayerModalProps> = ({ 
             const playPromise = video.play();
             if (playPromise !== undefined) {
                 playPromise.catch(err => {
-                    console.warn('[SharedStoryPlayerModal] Autoplay deferred:', err);
+                    console.warn('[SharedStoryPlayerModal] Autoplay deferred, retrying muted:', err);
+                    video.muted = true;
+                    setIsMuted(true);
+                    video.play().catch(e => console.warn('[SharedStoryPlayerModal] Muted playback deferred:', e));
                 });
             }
         }

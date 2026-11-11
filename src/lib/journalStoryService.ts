@@ -1294,7 +1294,40 @@ export async function resumeDailyStorySharing(
     return true;
 }
 
-/** Permanently delete daily story share */
+/** Refresh share link for a daily story with a new unique slug (invalidates old link) */
+export async function refreshDailyStorySlug(
+    userId: string,
+    ideaId: string,
+    username?: string,
+    date?: string
+): Promise<{ success: boolean; newSlug?: string }> {
+    if (!ideaId) return { success: false };
+    try {
+        const baseSlug = generateUniqueStorySlug(username, userId, date);
+        const salt = Math.random().toString(36).slice(2, 8);
+        const newSlug = `${baseSlug}-${salt}`;
+
+        const { error } = await supabase
+            .from('ideas')
+            .update({
+                slug: newSlug,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', ideaId);
+
+        if (error) {
+            console.error('[JournalStory] refreshDailyStorySlug error:', error);
+            return { success: false };
+        }
+
+        return { success: true, newSlug };
+    } catch (err) {
+        console.error('[JournalStory] refreshDailyStorySlug error:', err);
+        return { success: false };
+    }
+}
+
+/** Permanently delete daily story share (removes from Shared page only, keeps journal clips/entry intact) */
 export async function deleteDailyStoryShare(userId: string, date: string, ideaId?: string): Promise<boolean> {
     let targetIdeaId = ideaId;
 
@@ -1312,14 +1345,13 @@ export async function deleteDailyStoryShare(userId: string, date: string, ideaId
 
     if (!targetIdeaId) return false;
 
-    // 1. Detach from journal_entries and clear compiled video
+    // 1. Detach from journal_entries without deleting video_url or clips
     await supabase
         .from('journal_entries')
         .update({
             published_idea_id: null,
             is_public: false,
-            published_at: null,
-            video_url: null
+            published_at: null
         })
         .eq('user_id', userId)
         .eq('entry_date', date);
@@ -1329,8 +1361,7 @@ export async function deleteDailyStoryShare(userId: string, date: string, ideaId
         .update({
             published_idea_id: null,
             is_public: false,
-            published_at: null,
-            video_url: null
+            published_at: null
         })
         .eq('published_idea_id', targetIdeaId);
 

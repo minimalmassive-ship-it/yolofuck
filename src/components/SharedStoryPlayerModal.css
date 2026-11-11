@@ -181,3 +181,37 @@
   accent-color: var(--yolo-lime, #c8f72c);
   cursor: pointer;
 }
+
+/* Floating Unmute Badge */
+.shared-player-unmute-badge {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 20px);
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(200, 247, 44, 0.35);
+  color: var(--yolo-lime, #c8f72c);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 30;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  transition: all 0.2s ease;
+  animation: shared-pulse-subtle 2s infinite ease-in-out;
+}
+
+.shared-player-unmute-badge:hover {
+  background: rgba(200, 247, 44, 0.15);
+  border-color: var(--yolo-lime, #c8f72c);
+  transform: scale(1.04);
+}
+
+@keyframes shared-pulse-subtle {
+  0%, 100% { opacity: 0.95; }
+  50% { opacity: 0.7; }
+}

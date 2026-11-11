@@ -78,6 +78,20 @@
     box-shadow: 0 0 12px rgba(52, 211, 153, 0.4);
 }
 
+.journal-share-act-btn.refresh {
+    background: rgba(200, 247, 44, 0.12);
+    border: 1px solid rgba(200, 247, 44, 0.35);
+    color: var(--yolo-lime, #c8f72c);
+    box-shadow: 0 2px 8px rgba(200, 247, 44, 0.15);
+}
+
+.journal-share-act-btn.refresh:hover {
+    background: rgba(200, 247, 44, 0.22);
+    border-color: var(--yolo-lime, #c8f72c);
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(200, 247, 44, 0.4);
+}
+
 .journal-share-act-btn.disable {
     background: linear-gradient(135deg, rgba(239, 68, 68, 0.18), rgba(185, 28, 28, 0.15));
     border: 1px solid rgba(248, 113, 113, 0.4);
@@ -182,56 +196,6 @@
     box-shadow: none;
 }
 
-/* Visibility Segmented Control */
-.journal-share-vis-pills {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    background: #121218;
-    padding: 2px;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    flex-shrink: 0;
-}
-
-.journal-share-vis-pill {
-    height: 26px;
-    padding: 0 10px;
-    border-radius: 6px;
-    background: transparent;
-    border: none;
-    color: #888;
-    font-size: 11px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    white-space: nowrap;
-}
-
-.journal-share-vis-pill:hover:not(.active) {
-    color: #bbb;
-}
-
-.journal-share-vis-pill.active {
-    background: linear-gradient(145deg, #242432, #1a1a24);
-    color: #ffffff;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
-}
-
-.journal-share-vis-pill.network.active {
-    background: rgba(163, 230, 53, 0.15);
-    border: 1px solid rgba(163, 230, 53, 0.4);
-    color: #bef264;
-}
-
-.journal-share-vis-pill.public.active {
-    background: rgba(59, 130, 246, 0.15);
-    border: 1px solid rgba(59, 130, 246, 0.4);
-    color: #93c5fd;
-}
 
 /* ── Rows 2 & 3: Apps & Messengers ──────────────────────────────────── */
 .journal-share-row-apps {
@@ -301,112 +265,4 @@
 .journal-share-app-pill.instagram:hover { color: #e1306c; border-color: rgba(225, 48, 108, 0.4); }
 .journal-share-app-pill.linkedin:hover { color: #0077b5; border-color: rgba(0, 119, 181, 0.4); }
 
-/* Confirmation Dialog */
-.journal-confirm-dialog-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.75);
-    backdrop-filter: blur(6px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100000;
-    padding: 16px;
-    animation: journalOverlayFade 0.2s ease forwards;
-}
 
-@keyframes journalOverlayFade {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-.journal-confirm-dialog-card {
-    width: 100%;
-    max-width: 440px;
-    background: #181818;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 18px;
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 12px;
-    box-shadow:
-        -6px -6px 20px rgba(255, 255, 255, 0.03),
-        8px 8px 30px rgba(0, 0, 0, 0.9),
-        inset 1px 1px 1px rgba(255, 255, 255, 0.15);
-    animation: journalCardPop 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes journalCardPop {
-    from { transform: scale(0.95); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
-}
-
-.journal-confirm-dialog-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: rgba(245, 158, 11, 0.12);
-    border: 1px solid rgba(245, 158, 11, 0.3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.journal-confirm-dialog-title {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 700;
-    color: #efede3;
-}
-
-.journal-confirm-dialog-body {
-    margin: 0;
-    font-size: 12px;
-    color: #9999a5;
-    line-height: 1.5;
-}
-
-.journal-confirm-dialog-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    margin-top: 8px;
-}
-
-.journal-confirm-dialog-btn {
-    flex: 1;
-    height: 38px;
-    border-radius: 10px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
-    transition: all 0.15s ease;
-}
-
-.journal-confirm-dialog-btn.cancel {
-    background: #1e1e28;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #aaa;
-}
-
-.journal-confirm-dialog-btn.cancel:hover {
-    background: #252532;
-    color: #fff;
-}
-
-.journal-confirm-dialog-btn.confirm.network {
-    background: linear-gradient(135deg, rgba(163, 230, 53, 0.3), rgba(132, 204, 22, 0.25));
-    border: 1px solid rgba(163, 230, 53, 0.5);
-    color: #bef264;
-}
-
-.journal-confirm-dialog-btn.confirm.public {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(37, 99, 235, 0.25));
-    border: 1px solid rgba(59, 130, 246, 0.5);
-    color: #93c5fd;
-}

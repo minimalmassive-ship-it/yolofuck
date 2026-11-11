@@ -1,150 +1,44 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
-    Settings, Lock, Users, Globe, Trash2, Copy, Check, EyeOff, RotateCcw, 
-    Video, Calendar, AlertTriangle, X, Share2, Loader2, ExternalLink, Play, ArrowUp
+    Settings, Trash2, Copy, Check, Video,
+    Share2, Loader2, ExternalLink, Play, RotateCw 
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
 import { 
-    fetchUserSharedDailyStories, updateDailyStoryVisibility, 
-    stopDailyStorySharing, resumeDailyStorySharing, deleteDailyStoryShare,
-    getLocalDateISO, hydrateStoryProvenance
+    fetchUserSharedDailyStories, deleteDailyStoryShare, 
+    refreshDailyStorySlug, hydrateStoryProvenance 
 } from '../lib/journalStoryService';
 import { SharedStoryPlayerModal } from './SharedStoryPlayerModal';
-import { JournalShareCommandCenter } from './JournalShareCommandCenter';
-import { moveToTrash } from '../lib/journalTrashStorage';
 import './JournalSharedGrid.css';
 
 interface JournalSharedGridProps {
     projectId?: string | null;
 }
 
-export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId }) => {
+export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
     const { user } = useAuth();
     const [stories, setStories] = useState<any[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [openMenuStoryId, setOpenMenuStoryId] = useState<string | null>(null);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
-    const [deleteConfirmStory, setDeleteConfirmStory] = useState<any | null>(null);
-    const [isActionLoading, setIsActionLoading] = useState<boolean>(false);
     const [copiedStoryId, setCopiedStoryId] = useState<string | null>(null);
     const [previewPlayerStory, setPreviewPlayerStory] = useState<any | null>(null);
-    const [shareModalStory, setShareModalStory] = useState<any | null>(null);
+    const [isActionLoading, setIsActionLoading] = useState<boolean>(false);
 
-    // Mobile Swipe-Right pull-to-play gesture state per shared story
+    // Progressive 2-stage swipe reveal gesture state per shared story
     const [storyPullDistances, setStoryPullDistances] = useState<{ [storyId: string]: number }>({});
     const [storyDrawerStages, setStoryDrawerStages] = useState<{ [storyId: string]: number }>({});
     const storyTouchStartRef = useRef<{ 
         id: string; 
         startX: number; 
         startY: number; 
+        scrollLeftStart: number;
         initialStage: number;
-        isTracking: boolean 
+        isTracking: boolean;
     } | null>(null);
 
-    const handleSharedTouchStart = (storyId: string, e: React.TouchEvent) => {
-        const touch = e.touches[0];
-        if (!touch) return;
-        const currentStage = storyDrawerStages[storyId] || 0;
-        storyTouchStartRef.current = {
-            id: storyId,
-            startX: touch.clientX,
-            startY: touch.clientY,
-            initialStage: currentStage,
-            isTracking: true
-        };
-    };
-
-    const handleSharedTouchMove = (storyId: string, e: React.TouchEvent) => {
-        if (!storyTouchStartRef.current || storyTouchStartRef.current.id !== storyId) return;
-        const touch = e.touches[0];
-        if (!touch) return;
-
-        const deltaX = touch.clientX - storyTouchStartRef.current.startX;
-        const deltaY = touch.clientY - storyTouchStartRef.current.startY;
-        const initStage = storyTouchStartRef.current.initialStage;
-
-        // If vertical scrolling, cancel tracking
-        if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 10) {
-            storyTouchStartRef.current.isTracking = false;
-            setStoryPullDistances(prev => prev[storyId] ? { ...prev, [storyId]: 0 } : prev);
-            return;
-        }
-
-        if (!storyTouchStartRef.current.isTracking) return;
-
-        if (initStage === 0) {
-            // First swipe: strictly clamped to stage 1 (Play button only). Cannot reveal share in 1 gesture!
-            if (deltaX > 0) {
-                const raw = deltaX * 0.7;
-                const pullAmount = raw <= 52 ? raw : 52 + Math.min(4, (raw - 52) * 0.15);
-                setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
-            } else {
-                setStoryPullDistances(prev => prev[storyId] ? { ...prev, [storyId]: 0 } : prev);
-            }
-        } else if (initStage === 1) {
-            // Already at Stage 1 (Play revealed). Second swipe right pulls to reveal Share Options on the left
-            const base = 52;
-            if (deltaX >= 0) {
-                const raw = base + deltaX * 0.7;
-                const pullAmount = raw <= 104 ? raw : 104 + Math.min(6, (raw - 104) * 0.15);
-                setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
-            } else {
-                // Swiping left closes back towards stage 0
-                const pullAmount = Math.max(0, base + deltaX * 0.7);
-                setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
-            }
-        } else if (initStage === 2) {
-            // Already at Stage 2 (Share + Play revealed). Swipe left closes back towards stage 1 or 0
-            const base = 104;
-            const pullAmount = Math.max(0, Math.min(110, base + deltaX * 0.7));
-            setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
-        }
-    };
-
-    const handleSharedTouchEnd = (story: any) => {
-        if (!storyTouchStartRef.current || storyTouchStartRef.current.id !== story.id) {
-            setStoryPullDistances(prev => ({ ...prev, [story.id]: 0 }));
-            return;
-        }
-        const currentPull = storyPullDistances[story.id] || 0;
-        const initStage = storyTouchStartRef.current.initialStage;
-        storyTouchStartRef.current = null;
-        setStoryPullDistances(prev => ({ ...prev, [story.id]: 0 }));
-
-        let nextStage = 0;
-        if (initStage === 0) {
-            // Only stage 1 (Play) can ever be unlocked from the initial closed state
-            if (currentPull >= 24) {
-                nextStage = 1; // First swipe: reveal Play button only
-            } else {
-                nextStage = 0;
-            }
-        } else if (initStage === 1) {
-            if (currentPull >= 75) {
-                nextStage = 2; // Second swipe: reveal Share Options to the left of Play button
-            } else if (currentPull < 25) {
-                nextStage = 0; // Swiped left: close
-            } else {
-                nextStage = 1;
-            }
-        } else if (initStage === 2) {
-            if (currentPull < 35) {
-                nextStage = 0; // Swiped left far: close
-            } else if (currentPull < 78) {
-                nextStage = 1; // Swiped left partially: back to stage 1 (hide Share, keep Play)
-            } else {
-                nextStage = 2;
-            }
-        }
-
-        if (nextStage !== initStage && navigator.vibrate) {
-            try { navigator.vibrate(25); } catch {}
-        }
-
-        // Snap to target stage - NEVER auto-play; wait for user tap
-        setStoryDrawerStages(prev => ({ ...prev, [story.id]: nextStage }));
-    };
+    // Desktop mouse drag-to-scroll on horizontal strip
+    const stripMouseDragRef = useRef<{ id: string; startX: number; scrollLeftStart: number; isDragging: boolean } | null>(null);
 
     const toastTimerRef = useRef<any>(null);
 
@@ -164,7 +58,7 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
             setLoading(true);
             const data = await fetchUserSharedDailyStories(user.id);
             const list = Array.isArray(data) ? data.map(hydrateStoryProvenance) : [];
-            // Strictly sort with most recently updated or created story at the very top (index 0)
+            // Strictly sort with newest shared sequence at the very top (index 0)
             list.sort((a: any, b: any) => {
                 const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
                 const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
@@ -189,11 +83,11 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
         return () => window.removeEventListener('journal_shared_updated', handleSharedUpdated);
     }, [loadStories]);
 
-    // Close gear dropdown menu on click outside
+    // Close gear dropdown menu on outside click
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
-            if (!target.closest('.shared-story-gear-wrapper')) {
+            if (!target.closest('.shared-drawer-menu-container')) {
                 setOpenMenuStoryId(null);
             }
         };
@@ -202,20 +96,18 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
         return () => window.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Format date title
-    const formatDate = (dateStr: string) => {
-        try {
-            if (!dateStr) return 'Daily Story';
-            const d = new Date(dateStr + 'T00:00:00');
-            if (isNaN(d.getTime())) return dateStr;
-            return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-        } catch {
-            return dateStr;
-        }
-    };
-
     const getStoryDate = (story: any): string => {
         return (story.provenance_log as any)?.date || (story.created_at ? story.created_at.split('T')[0] : '');
+    };
+
+    // Format date vertically to DD-MM-YYYY (e.g. 11-11-2026) matching Journal page
+    const formatDateVertical = (dateStr: string): string => {
+        if (!dateStr) return '';
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+            return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+        return dateStr;
     };
 
     const getShareUrl = (story: any): string => {
@@ -240,509 +132,441 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
         }
     };
 
-    const handleChangeVisibility = async (story: any, newVis: 'private' | 'network' | 'public') => {
-        if (!user?.id) return;
+    const handleNativeShare = async (story: any, e?: React.MouseEvent) => {
+        if (e) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+        const url = getShareUrl(story);
+        const storyDate = getStoryDate(story);
+        if (typeof navigator !== 'undefined' && navigator.share) {
+            try {
+                await navigator.share({
+                    title: `Yolofuck Daily Story • ${storyDate}`,
+                    url
+                });
+                return;
+            } catch (err: any) {
+                if (err.name === 'AbortError') return;
+            }
+        }
+        await handleCopyLink(story);
+    };
+
+    const handleRefreshLink = async (story: any) => {
+        if (!user?.id || isActionLoading) return;
         setIsActionLoading(true);
         try {
             const storyDate = getStoryDate(story);
-            const res = await updateDailyStoryVisibility(user.id, storyDate, newVis);
-            if (res.success) {
-                setStories(prev => prev.map(s => s.id === story.id ? { 
-                    ...s, 
-                    visibility: newVis, 
-                    is_public: newVis === 'public',
-                    allow_link_access: true,
-                    provenance_log: { ...(s.provenance_log || {}), is_stopped: false }
-                } : s));
-
-                if (newVis === 'private') {
-                    showToast('Set to Private (Link only)');
-                    await handleCopyLink(story);
-                } else if (newVis === 'network') {
-                    showToast('Visible to your Network on Home Page');
-                } else {
-                    showToast('Visible Publicly on Home Page');
-                }
+            const res = await refreshDailyStorySlug(
+                user.id,
+                story.id,
+                user.user_metadata?.username,
+                storyDate
+            );
+            if (res.success && res.newSlug) {
+                setStories(prev => prev.map(s => s.id === story.id ? { ...s, slug: res.newSlug } : s));
+                const origin = typeof window !== 'undefined' && window.location ? window.location.origin : '';
+                const newUrl = origin ? `${origin}/story/${res.newSlug}` : `/story/${res.newSlug}`;
+                try {
+                    await navigator.clipboard.writeText(newUrl);
+                } catch {}
+                showToast('Share link refreshed! Previous links are now disabled.');
             } else {
-                showToast('Failed to update visibility');
+                showToast('Failed to refresh share link');
             }
         } catch (err) {
-            console.error('[JournalSharedGrid] change visibility error:', err);
-            showToast('Error updating visibility');
+            console.error('[JournalSharedGrid] refresh link error:', err);
+            showToast('Error refreshing link');
         } finally {
             setIsActionLoading(false);
             setOpenMenuStoryId(null);
         }
     };
 
-    const handleToggleStopSharing = async (story: any) => {
-        if (!user?.id) return;
+    const handleDeleteStory = async (story: any) => {
+        if (!user?.id || isActionLoading) return;
         setIsActionLoading(true);
         const storyDate = getStoryDate(story);
-        const isCurrentlyStopped = story.visibility === 'stopped' || (story.provenance_log as any)?.is_stopped === true;
-
         try {
-            if (isCurrentlyStopped) {
-                // Resume sharing as private
-                const ok = await resumeDailyStorySharing(user.id, storyDate, story.id, 'private');
-                if (ok) {
-                    setStories(prev => prev.map(s => s.id === story.id ? {
-                        ...s,
-                        visibility: 'private',
-                        is_public: false,
-                        allow_link_access: true,
-                        provenance_log: { ...(s.provenance_log || {}), is_stopped: false }
-                    } : s));
-                    showToast('Sharing resumed as Private (Link active)');
-                } else {
-                    showToast('Failed to resume sharing');
-                }
-            } else {
-                // Stop sharing immediately
-                const ok = await stopDailyStorySharing(user.id, storyDate, story.id);
-                if (ok) {
-                    setStories(prev => prev.map(s => s.id === story.id ? {
-                        ...s,
-                        visibility: 'stopped',
-                        is_public: false,
-                        allow_link_access: false,
-                        provenance_log: { ...(s.provenance_log || {}), is_stopped: true }
-                    } : s));
-                    showToast('Sharing stopped. Link deactivated.');
-                } else {
-                    showToast('Failed to stop sharing');
-                }
-            }
-        } catch (err) {
-            console.error('[JournalSharedGrid] toggle stop error:', err);
-            showToast('Error modifying sharing state');
-        } finally {
-            setIsActionLoading(false);
-            setOpenMenuStoryId(null);
-        }
-    };
-
-    const handleConfirmDelete = async () => {
-        if (!user?.id || !deleteConfirmStory) return;
-        setIsActionLoading(true);
-        const storyDate = getStoryDate(deleteConfirmStory);
-        const storyClips = (deleteConfirmStory.provenance_log as any)?.clips || [];
-
-        // Move clips to trash bin
-        if (Array.isArray(storyClips) && storyClips.length > 0) {
-            storyClips.forEach(c => moveToTrash(c, 'share', user.id));
-        } else if (deleteConfirmStory.video_url) {
-            moveToTrash({
-                id: deleteConfirmStory.id,
-                clip_url: deleteConfirmStory.video_url,
-                thumbnail_url: deleteConfirmStory.thumbnail_url,
-                clip_date: storyDate
-            }, 'share', user.id);
-        }
-
-        try {
-            const ok = await deleteDailyStoryShare(user.id, storyDate, deleteConfirmStory.id);
+            const ok = await deleteDailyStoryShare(user.id, storyDate, story.id);
             if (ok) {
-                setStories(prev => prev.filter(s => s.id !== deleteConfirmStory.id));
-                showToast('Shared story moved to Trash Bin');
+                setStories(prev => prev.filter(s => s.id !== story.id));
+                showToast('Removed from Shared. Original journal takes preserved.');
             } else {
-                showToast('Failed to delete shared story');
+                showToast('Failed to remove from Shared');
             }
         } catch (err) {
             console.error('[JournalSharedGrid] delete error:', err);
-            showToast('Error deleting story');
+            showToast('Error removing story');
         } finally {
             setIsActionLoading(false);
-            setDeleteConfirmStory(null);
             setOpenMenuStoryId(null);
         }
     };
 
-    if (loading) {
-        return (
-            <div className="shared-grid-loading-container">
-                <Loader2 className="animate-spin" size={28} color="#efede3" />
-                <span>Loading shared daily stories...</span>
-            </div>
-        );
-    }
+    // ── Progressive 2-Stage Touch Gesture Handlers ──
+    const handleSharedTouchStart = (storyId: string, e: React.TouchEvent<HTMLDivElement>) => {
+        const touch = e.touches[0];
+        if (!touch) return;
+        const currentScrollLeft = e.currentTarget.scrollLeft;
+        const currentStage = storyDrawerStages[storyId] || 0;
+        storyTouchStartRef.current = {
+            id: storyId,
+            startX: touch.clientX,
+            startY: touch.clientY,
+            scrollLeftStart: currentScrollLeft,
+            initialStage: currentStage,
+            isTracking: currentScrollLeft <= 2 || currentStage > 0
+        };
+    };
+
+    const handleSharedTouchMove = (storyId: string, e: React.TouchEvent<HTMLDivElement>) => {
+        if (!storyTouchStartRef.current || storyTouchStartRef.current.id !== storyId) return;
+        const touch = e.touches[0];
+        if (!touch) return;
+
+        const currentScrollLeft = e.currentTarget.scrollLeft;
+        const deltaX = touch.clientX - storyTouchStartRef.current.startX;
+        const deltaY = touch.clientY - storyTouchStartRef.current.startY;
+        const initStage = storyTouchStartRef.current.initialStage;
+
+        // Cancel on vertical scrolling
+        if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 10) {
+            storyTouchStartRef.current.isTracking = false;
+            setStoryPullDistances(prev => prev[storyId] ? { ...prev, [storyId]: 0 } : prev);
+            return;
+        }
+
+        if (!storyTouchStartRef.current.isTracking) return;
+
+        if (initStage === 0) {
+            // First swipe: strictly clamped to stage 1 (Play button only: max 52px)
+            if (currentScrollLeft <= 2 && deltaX > 0) {
+                const raw = deltaX * 0.7;
+                const pullAmount = raw <= 52 ? raw : 52 + Math.min(4, (raw - 52) * 0.15);
+                setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
+            } else {
+                setStoryPullDistances(prev => prev[storyId] ? { ...prev, [storyId]: 0 } : prev);
+            }
+        } else if (initStage === 1) {
+            // Already at Stage 1 (Play revealed). Second swipe right reveals 4 buttons in 2 rows (88px)
+            const base = 52;
+            if (deltaX >= 0) {
+                const raw = base + deltaX * 0.7;
+                const pullAmount = raw <= 88 ? raw : 88 + Math.min(6, (raw - 88) * 0.15);
+                setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
+            } else {
+                const pullAmount = Math.max(0, base + deltaX * 0.7);
+                setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
+            }
+        } else if (initStage === 2) {
+            // Already at Stage 2 (4 buttons revealed). Swiping left closes back
+            const base = 88;
+            const pullAmount = Math.max(0, Math.min(94, base + deltaX * 0.7));
+            setStoryPullDistances(prev => ({ ...prev, [storyId]: pullAmount }));
+        }
+    };
+
+    const handleSharedTouchEnd = (storyId: string) => {
+        if (!storyTouchStartRef.current || storyTouchStartRef.current.id !== storyId) {
+            setStoryPullDistances(prev => ({ ...prev, [storyId]: 0 }));
+            return;
+        }
+        const currentPull = storyPullDistances[storyId] || 0;
+        const initStage = storyTouchStartRef.current.initialStage;
+        storyTouchStartRef.current = null;
+        setStoryPullDistances(prev => ({ ...prev, [storyId]: 0 }));
+
+        let nextStage = 0;
+        if (initStage === 0) {
+            if (currentPull >= 24) {
+                nextStage = 1; // First swipe reveals Play button only
+            } else {
+                nextStage = 0;
+            }
+        } else if (initStage === 1) {
+            if (currentPull >= 68) {
+                nextStage = 2; // Second swipe reveals 4 buttons in 2 rows
+            } else if (currentPull < 25) {
+                nextStage = 0;
+            } else {
+                nextStage = 1;
+            }
+        } else if (initStage === 2) {
+            if (currentPull < 30) {
+                nextStage = 0;
+            } else if (currentPull < 65) {
+                nextStage = 1;
+            } else {
+                nextStage = 2;
+            }
+        }
+
+        if (nextStage !== initStage && navigator.vibrate) {
+            try { navigator.vibrate(25); } catch {}
+        }
+
+        setStoryDrawerStages(prev => ({ ...prev, [storyId]: nextStage }));
+    };
+
+    // ── Desktop Strip Mouse Drag-to-Scroll ──
+    const handleStripMouseDown = (storyId: string, e: React.MouseEvent<HTMLDivElement>) => {
+        if (e.button !== 0) return;
+        const target = e.target as HTMLElement;
+        if (target.closest('button')) return;
+
+        stripMouseDragRef.current = {
+            id: storyId,
+            startX: e.pageX - e.currentTarget.offsetLeft,
+            scrollLeftStart: e.currentTarget.scrollLeft,
+            isDragging: true
+        };
+        e.currentTarget.style.cursor = 'grabbing';
+    };
+
+    const handleStripMouseMove = (storyId: string, e: React.MouseEvent<HTMLDivElement>) => {
+        if (!stripMouseDragRef.current || !stripMouseDragRef.current.isDragging || stripMouseDragRef.current.id !== storyId) return;
+        e.preventDefault();
+        const x = e.pageX - e.currentTarget.offsetLeft;
+        const walk = (x - stripMouseDragRef.current.startX) * 1.5;
+        e.currentTarget.scrollLeft = stripMouseDragRef.current.scrollLeftStart - walk;
+    };
+
+    const handleStripMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (stripMouseDragRef.current) {
+            stripMouseDragRef.current.isDragging = false;
+            stripMouseDragRef.current = null;
+        }
+        e.currentTarget.style.cursor = 'grab';
+    };
 
     return (
-        <div className="shared-stories-tab-container">
-            {/* Toast Feedback */}
+        <div className="shared-grid-root">
             {toastMessage && (
-                <div className="shared-grid-toast">
-                    {toastMessage}
+                <div className="shared-toast-notice">
+                    <span>{toastMessage}</span>
                 </div>
             )}
 
-            {/* Header info */}
-            <div className="shared-grid-header">
-                <div className="shared-grid-header-info">
-                    <h2>Shared Daily Stories</h2>
-                    <p>Manage your shared stories, configure privacy, and control link access in real time.</p>
+            {/* Main Shared Matrix: Exactly identical frameless rows as Journal feed */}
+            {loading ? (
+                <div className="shared-loading-wrap">
+                    <Loader2 size={24} className="vizja-spin" color="var(--yolo-lime, #c8f72c)" />
+                    <span>Loading shared stories...</span>
                 </div>
-                <div className="shared-grid-header-count">
-                    <span>{stories.length} {stories.length === 1 ? 'Story' : 'Stories'}</span>
-                </div>
-            </div>
-
-            {/* Empty State */}
-            {stories.length === 0 ? (
+            ) : stories.length === 0 ? (
                 <div className="shared-grid-empty-state">
                     <div className="shared-empty-icon-box">
                         <Share2 size={32} color="#a1a1aa" />
                     </div>
                     <h3>No Shared Stories Yet</h3>
-                    <p>When you click "Share Story" in your daily journal, your created links and shared stories will appear here.</p>
+                    <p>Swipe a daily sequence to the right in your journal and click share to make it available here.</p>
                 </div>
             ) : (
-                <div className="shared-stories-grid">
+                <div className="shared-matrix-container">
                     {stories.map(story => {
                         const storyDate = getStoryDate(story);
-                        const isStopped = story.visibility === 'stopped' || (story.provenance_log as any)?.is_stopped === true;
-                        const clips = (story.provenance_log as any)?.clips || [];
-                        const takesCount = (story.provenance_log as any)?.takes_count || clips.length || 1;
-                        const thumbnail = story.thumbnail_url || (clips[0]?.thumbnail_url) || null;
-                        const previewVideoUrl = story.video_url || (clips[0]?.clip_url) || null;
+                        const formattedDate = formatDateVertical(storyDate);
+                        const clips: any[] = (story.provenance_log as any)?.clips || [];
                         const shareUrl = getShareUrl(story);
 
+                        const isDragging = (storyPullDistances[story.id] || 0) > 0;
+                        const stage = storyDrawerStages[story.id] || 0;
+                        const currentWidth = isDragging 
+                            ? storyPullDistances[story.id] 
+                            : (stage === 2 ? 88 : stage === 1 ? 52 : 0);
+
+                        const showFourButtons = (stage === 1 && isDragging && currentWidth >= 62) || stage === 2;
+
                         return (
-                            <div 
-                                key={story.id} 
-                                className={`shared-story-card ${isStopped ? 'is-stopped' : ''}`}
-                            >
-                                {/* Card Header with Date and Gear Menu */}
-                                <div className="shared-story-card-header">
-                                    <div className="shared-story-date-badge">
-                                        <Calendar size={13} />
-                                        <span>{formatDate(storyDate)}</span>
-                                    </div>
-
-                                    {/* Gear Menu */}
-                                    <div className="shared-story-gear-wrapper">
-                                        <button 
-                                            type="button" 
-                                            className={`shared-story-gear-btn ${openMenuStoryId === story.id ? 'active' : ''}`}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setOpenMenuStoryId(openMenuStoryId === story.id ? null : story.id);
-                                            }}
-                                            title="Sharing options"
-                                        >
-                                            <Settings size={15} />
-                                        </button>
-
-                                        {openMenuStoryId === story.id && (
-                                            <div className="shared-story-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                                                <div className="shared-dropdown-section-title">Privacy Setting</div>
-                                                
-                                                <button 
-                                                    type="button" 
-                                                    className={`shared-dropdown-item ${story.visibility === 'private' && !isStopped ? 'selected' : ''}`}
-                                                    onClick={() => handleChangeVisibility(story, 'private')}
-                                                >
-                                                    <Lock size={14} />
-                                                    <div className="shared-dropdown-item-labels">
-                                                        <span>Private (Copy Link)</span>
-                                                        <small>Only people with link</small>
-                                                    </div>
-                                                    {story.visibility === 'private' && !isStopped && <Check size={14} color="#4ade80" className="check-icon" />}
-                                                </button>
-
-                                                <button 
-                                                    type="button" 
-                                                    className={`shared-dropdown-item ${story.visibility === 'network' && !isStopped ? 'selected' : ''}`}
-                                                    onClick={() => handleChangeVisibility(story, 'network')}
-                                                >
-                                                    <Users size={14} />
-                                                    <div className="shared-dropdown-item-labels">
-                                                        <span>Network</span>
-                                                        <small>Visible to your network on Home</small>
-                                                    </div>
-                                                    {story.visibility === 'network' && !isStopped && <Check size={14} color="#4ade80" className="check-icon" />}
-                                                </button>
-
-                                                <button 
-                                                    type="button" 
-                                                    className={`shared-dropdown-item ${story.visibility === 'public' && !isStopped ? 'selected' : ''}`}
-                                                    onClick={() => handleChangeVisibility(story, 'public')}
-                                                >
-                                                    <Globe size={14} />
-                                                    <div className="shared-dropdown-item-labels">
-                                                        <span>Public</span>
-                                                        <small>Visible to all users on Home</small>
-                                                    </div>
-                                                    {story.visibility === 'public' && !isStopped && <Check size={14} color="#4ade80" className="check-icon" />}
-                                                </button>
-
-                                                <div className="shared-dropdown-divider" />
-
-                                                {/* Stop Sharing / Resume Sharing */}
-                                                <button 
-                                                    type="button" 
-                                                    className={`shared-dropdown-item warning ${isStopped ? 'resume' : ''}`}
-                                                    onClick={() => handleToggleStopSharing(story)}
-                                                >
-                                                    {isStopped ? (
-                                                        <>
-                                                            <RotateCcw size={14} />
-                                                            <span>Resume Sharing</span>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <EyeOff size={14} />
-                                                            <span>Stop Sharing</span>
-                                                        </>
-                                                    )}
-                                                </button>
-
-                                                {/* Delete */}
-                                                <button 
-                                                    type="button" 
-                                                    className="shared-dropdown-item danger"
-                                                    onClick={() => {
-                                                        setDeleteConfirmStory(story);
-                                                        setOpenMenuStoryId(null);
-                                                    }}
-                                                >
-                                                    <Trash2 size={14} color="#f87171" />
-                                                    <span>Delete</span>
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
+                            <div key={story.id} className="shared-story-row">
+                                {/* Vertical Sideways Date Strip (Matching Journal page exactly) */}
+                                <div 
+                                    className="yolofuck-vertical-date-strip shared-date-strip"
+                                    title={`Date: ${formattedDate}`}
+                                >
+                                    <span className="yolofuck-vertical-date-text">
+                                        {formattedDate}
+                                    </span>
                                 </div>
 
-                                 <div 
-                                    className="shared-story-row-wrapper"
-                                    onTouchStart={(e) => handleSharedTouchStart(story.id, e)}
-                                    onTouchMove={(e) => handleSharedTouchMove(story.id, e)}
-                                    onTouchEnd={() => handleSharedTouchEnd(story)}
-                                >
-                                    {/* 1:1 Black Square on Left Side matching Journal day card with Play button (Desktop only) */}
-                                    <div className="shared-story-left-info-square">
-                                        <button
-                                            type="button"
-                                            className="shared-story-left-play-btn"
-                                            onClick={() => setPreviewPlayerStory(story)}
-                                            disabled={isStopped || clips.length === 0}
-                                            title="Play shared story sequence"
-                                        >
-                                            <Play size={18} fill="#000000" color="#000000" />
-                                        </button>
-
-                                        <button
-                                            type="button"
-                                            className="shared-story-left-share-btn"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setShareModalStory(story);
-                                            }}
-                                            disabled={isStopped}
-                                            title="Open Share Options"
-                                        >
-                                            <Share2 size={13} />
-                                            <ArrowUp size={12} className="share-arrow-up-icon" />
-                                        </button>
-
-                                        <div className="shared-story-left-date-info">
-                                            <span className="shared-story-left-date">{formatDate(storyDate)}</span>
-                                            <span className="shared-story-left-takes">{takesCount} {takesCount === 1 ? 'take' : 'takes'}</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Vertical Sideways Date Strip (Mobile only: e.g. 09-11-2026) */}
-                                    <div className="shared-story-vertical-date-strip" title={`Date: ${storyDate}`}>
-                                        <span className="shared-story-vertical-date-text">
-                                            {storyDate ? storyDate.split('-').reverse().join('-') : 'STORY'}
-                                        </span>
-                                    </div>
-
-                                    {/* Progressive 2-Stage Reveal Drawer (Stage 1: Play, Stage 2: Share Options Modal) */}
-                                    {(() => {
-                                        const isDragging = (storyPullDistances[story.id] || 0) > 0;
-                                        const stage = storyDrawerStages[story.id] || 0;
-                                        const currentWidth = isDragging 
-                                            ? storyPullDistances[story.id] 
-                                            : (stage === 2 ? 104 : stage === 1 ? 52 : 0);
-
-                                        if (currentWidth <= 0 && stage === 0) return null;
-
-                                        const showShareBtn = (stage === 1 && isDragging && currentWidth >= 68) || stage === 2;
-
-                                        return (
-                                            <div 
-                                                className={`shared-swipe-play-drawer ${isDragging ? 'is-dragging' : 'snapped'}`}
-                                                style={{ width: `${currentWidth}px` }}
-                                            >
-                                                {/* Stage 2: Share Options Button (Emerges on the LEFT of Play button) */}
-                                                {showShareBtn && (
+                                {/* Progressive 2-Stage Reveal Drawer */}
+                                {currentWidth > 0 && (
+                                    <div 
+                                        className={`shared-swipe-drawer ${isDragging ? 'is-dragging' : 'snapped'}`}
+                                        style={{ width: `${currentWidth}px` }}
+                                    >
+                                        {showFourButtons ? (
+                                            /* Stage 2: 4 Icon Buttons in 2 Rows (No text) */
+                                            <div className="shared-drawer-2x2-grid">
+                                                {/* Top Row: Share Button (Left) & Gear Icon (Right) */}
+                                                <div className="shared-drawer-icon-row">
                                                     <button
                                                         type="button"
-                                                        className="shared-swipe-action-circle share-options"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setStoryDrawerStages(prev => ({ ...prev, [story.id]: 0 }));
-                                                            setShareModalStory(story);
-                                                        }}
-                                                        title="Open share options"
+                                                        className="shared-drawer-icon-btn share"
+                                                        onClick={(e) => handleNativeShare(story, e)}
+                                                        title="Share"
                                                     >
-                                                        <Share2 size={18} color="#000000" strokeWidth={2.5} />
+                                                        <Share2 size={16} />
                                                     </button>
-                                                )}
 
-                                                {/* Stage 1: Play Button (Lime Circle, anchored on right next to film strip) */}
-                                                <button
-                                                    type="button"
-                                                    className="shared-swipe-action-circle play"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setStoryDrawerStages(prev => ({ ...prev, [story.id]: 0 }));
-                                                        setPreviewPlayerStory(story);
-                                                    }}
-                                                    title="Play story"
-                                                >
-                                                    <Play size={18} fill="currentColor" color="#000000" />
-                                                </button>
-                                            </div>
-                                        );
-                                    })()}
+                                                    <div className="shared-drawer-menu-container">
+                                                        <button
+                                                            type="button"
+                                                            className={`shared-drawer-icon-btn gear ${openMenuStoryId === story.id ? 'active' : ''}`}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setOpenMenuStoryId(openMenuStoryId === story.id ? null : story.id);
+                                                            }}
+                                                            title="Options"
+                                                        >
+                                                            <Settings size={16} />
+                                                        </button>
 
-                                    {/* Horizontal Sequence of 9:16 Shorts just like in Journal feed */}
-                                    <div 
-                                        className="shared-story-films-strip" 
-                                        onClick={() => {
-                                            if (storyDrawerStages[story.id]) {
-                                                setStoryDrawerStages(prev => ({ ...prev, [story.id]: 0 }));
-                                                return;
-                                            }
-                                            setPreviewPlayerStory(story);
-                                        }}
-                                    >
-                                        {clips && clips.length > 0 ? (
-                                            clips.map((clip: any, idx: number) => {
-                                                const clipThumb = clip.thumbnail_url || null;
-                                                const clipVideo = clip.clip_url || null;
-                                                const clipCreatedAt = clip.created_at || '';
-                                                let startTimeStr = '';
-                                                if (clipCreatedAt) {
-                                                    try {
-                                                        const d = new Date(clipCreatedAt);
-                                                        if (!isNaN(d.getTime())) {
-                                                            const hh = String(d.getHours()).padStart(2, '0');
-                                                            const mm = String(d.getMinutes()).padStart(2, '0');
-                                                            startTimeStr = `${hh}:${mm}`;
-                                                        }
-                                                    } catch {}
-                                                }
+                                                        {openMenuStoryId === story.id && (
+                                                            <div className="shared-story-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                                                                <button 
+                                                                    type="button" 
+                                                                    className="shared-dropdown-item"
+                                                                    onClick={() => handleRefreshLink(story)}
+                                                                >
+                                                                    <RotateCw size={15} color="var(--yolo-lime, #c8f72c)" />
+                                                                    <div className="shared-dropdown-item-labels">
+                                                                        <span>Refresh Share Link</span>
+                                                                        <small>Invalidates old link and generates new URL</small>
+                                                                    </div>
+                                                                </button>
 
-                                                return (
-                                                    <div key={clip.id || idx} className="shared-film-square">
-                                                        {clipThumb ? (
-                                                            <img src={clipThumb} alt={`Take ${idx + 1}`} className="shared-square-media" />
-                                                        ) : clipVideo ? (
-                                                            <video src={clipVideo} className="shared-square-media" preload="metadata" muted />
-                                                        ) : (
-                                                            <div className="shared-film-placeholder">
-                                                                <Video size={16} color="#64748b" />
-                                                            </div>
-                                                        )}
+                                                                <div className="shared-dropdown-divider" />
 
-                                                        <div className="shared-film-take-num">
-                                                            {idx + 1}
-                                                        </div>
-
-                                                        {startTimeStr && (
-                                                            <div className="shared-film-start-time">
-                                                                {startTimeStr}
+                                                                <button 
+                                                                    type="button" 
+                                                                    className="shared-dropdown-item delete"
+                                                                    onClick={() => handleDeleteStory(story)}
+                                                                >
+                                                                    <Trash2 size={15} color="#f87171" />
+                                                                    <div className="shared-dropdown-item-labels">
+                                                                        <span style={{ color: '#f87171' }}>Delete from Shared</span>
+                                                                        <small>Keeps original journal takes intact</small>
+                                                                    </div>
+                                                                </button>
                                                             </div>
                                                         )}
                                                     </div>
-                                                );
-                                            })
-                                        ) : thumbnail ? (
-                                            <div className="shared-film-single-cover">
-                                                <img src={thumbnail} alt={story.title} className="shared-story-thumb-img" />
-                                                <div className="shared-story-takes-pill">
-                                                    {takesCount} {takesCount === 1 ? 'Take' : 'Takes'}
                                                 </div>
-                                            </div>
-                                        ) : previewVideoUrl ? (
-                                            <div className="shared-film-single-cover">
-                                                <video src={previewVideoUrl} className="shared-story-thumb-video" preload="metadata" />
-                                                <div className="shared-story-takes-pill">
-                                                    {takesCount} {takesCount === 1 ? 'Take' : 'Takes'}
+
+                                                {/* Bottom Row: Copy Link (Left) & External Link (Right) */}
+                                                <div className="shared-drawer-icon-row">
+                                                    <button
+                                                        type="button"
+                                                        className="shared-drawer-icon-btn copy"
+                                                        onClick={(e) => handleCopyLink(story, e)}
+                                                        title="Copy link"
+                                                    >
+                                                        {copiedStoryId === story.id ? <Check size={16} color="#10b981" /> : <Copy size={16} />}
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        className="shared-drawer-icon-btn external"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            window.open(shareUrl, '_blank');
+                                                        }}
+                                                        title="Open in new tab"
+                                                    >
+                                                        <ExternalLink size={16} />
+                                                    </button>
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div className="shared-film-empty-box">
-                                                <Video size={24} color="#64748b" />
-                                                <span>No takes in sequence</span>
-                                            </div>
-                                        )}
-
-                                        {/* Stopped Overlay */}
-                                        {isStopped && (
-                                            <div className="shared-story-stopped-overlay">
-                                                <EyeOff size={22} color="#f87171" />
-                                                <span>Sharing Stopped</span>
-                                                <small>Link Deactivated</small>
-                                            </div>
-                                        )}
-                                    </div>
-                            </div>
-
-                                {/* Card Footer & Status Badges */}
-                                <div className="shared-story-card-footer">
-                                    <div className="shared-story-status-row">
-                                        {isStopped ? (
-                                            <span className="shared-status-badge stopped">
-                                                <EyeOff size={11} />
-                                                <span>Stopped</span>
-                                            </span>
-                                        ) : story.visibility === 'network' ? (
-                                            <span className="shared-status-badge network">
-                                                <Users size={11} />
-                                                <span>Network</span>
-                                            </span>
-                                        ) : story.visibility === 'public' ? (
-                                            <span className="shared-status-badge public">
-                                                <Globe size={11} />
-                                                <span>Public</span>
-                                            </span>
-                                        ) : (
-                                            <span className="shared-status-badge private">
-                                                <Lock size={11} />
-                                                <span>Private (Link)</span>
-                                            </span>
+                                            /* Stage 1: Single Circular Lime Play Button */
+                                            <button
+                                                type="button"
+                                                className="shared-swipe-action-circle play"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setStoryDrawerStages(prev => ({ ...prev, [story.id]: 0 }));
+                                                    setPreviewPlayerStory({ ...story, startClipIndex: 0 });
+                                                }}
+                                                title="Play story"
+                                            >
+                                                <Play size={18} fill="currentColor" color="#000000" />
+                                            </button>
                                         )}
                                     </div>
+                                )}
 
-                                    {/* Action row with Copy Link & External Open */}
-                                    <div className="shared-story-link-actions">
-                                        <button 
-                                            type="button" 
-                                            className={`shared-card-copy-btn ${copiedStoryId === story.id ? 'copied' : ''}`}
-                                            onClick={(e) => handleCopyLink(story, e)}
-                                            disabled={isStopped}
-                                            title={isStopped ? "Sharing is stopped" : "Copy shareable link"}
-                                        >
-                                            {copiedStoryId === story.id ? <Check size={12} /> : <Copy size={12} />}
-                                            <span>{copiedStoryId === story.id ? 'Copied' : 'Copy Link'}</span>
-                                        </button>
+                                {/* Horizontal Strip of Square Films (2px gap, identical to Journal page) */}
+                                <div 
+                                    className="shared-films-horizontal-strip"
+                                    onTouchStart={(e) => handleSharedTouchStart(story.id, e)}
+                                    onTouchMove={(e) => handleSharedTouchMove(story.id, e)}
+                                    onTouchEnd={() => handleSharedTouchEnd(story.id)}
+                                    onMouseDown={(e) => handleStripMouseDown(story.id, e)}
+                                    onMouseMove={(e) => handleStripMouseMove(story.id, e)}
+                                    onMouseUp={handleStripMouseUp}
+                                    onMouseLeave={handleStripMouseUp}
+                                >
+                                    {clips && clips.length > 0 ? (
+                                        clips.map((clip: any, idx: number) => {
+                                            const clipThumb = clip.thumbnail_url || null;
+                                            const clipVideo = clip.clip_url || null;
+                                            const clipCreatedAt = clip.created_at || '';
+                                            let startTimeStr = '';
+                                            if (clipCreatedAt) {
+                                                try {
+                                                    const d = new Date(clipCreatedAt);
+                                                    if (!isNaN(d.getTime())) {
+                                                        const hh = String(d.getHours()).padStart(2, '0');
+                                                        const mm = String(d.getMinutes()).padStart(2, '0');
+                                                        startTimeStr = `${hh}:${mm}`;
+                                                    }
+                                                } catch {}
+                                            }
 
-                                        <a 
-                                            href={isStopped ? undefined : shareUrl} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            className={`shared-card-open-link ${isStopped ? 'disabled' : ''}`}
-                                            title="Open story page"
-                                            onClick={(e) => isStopped && e.preventDefault()}
-                                        >
-                                            <ExternalLink size={14} />
-                                        </a>
-                                    </div>
+                                            return (
+                                                <div 
+                                                    key={clip.id || idx} 
+                                                    className="shared-film-square"
+                                                    onClick={() => {
+                                                        if (storyDrawerStages[story.id]) {
+                                                            setStoryDrawerStages(prev => ({ ...prev, [story.id]: 0 }));
+                                                            return;
+                                                        }
+                                                        setPreviewPlayerStory({ ...story, startClipIndex: idx });
+                                                    }}
+                                                    title={`Take ${idx + 1}`}
+                                                >
+                                                    {clipThumb ? (
+                                                        <img src={clipThumb} alt={`Take ${idx + 1}`} className="shared-square-media" />
+                                                    ) : clipVideo ? (
+                                                        <video src={clipVideo} className="shared-square-media" preload="metadata" muted />
+                                                    ) : (
+                                                        <div className="shared-film-placeholder">
+                                                            <Video size={16} color="#64748b" />
+                                                        </div>
+                                                    )}
+
+                                                    <div className="shared-film-take-num">
+                                                        {idx + 1}
+                                                    </div>
+
+                                                    {startTimeStr && (
+                                                        <div className="shared-film-start-time">
+                                                            {startTimeStr}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })
+                                    ) : (
+                                        <div className="shared-film-empty-box">
+                                            <Video size={20} color="#475569" />
+                                            <span>No takes in sequence</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         );
@@ -750,105 +574,13 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = ({ projectId 
                 </div>
             )}
 
-            {/* Permanent Delete Confirmation Dialog */}
-            {deleteConfirmStory && (
-                <div className="shared-delete-dialog-backdrop" onClick={() => setDeleteConfirmStory(null)}>
-                    <div className="shared-delete-dialog" onClick={(e) => e.stopPropagation()}>
-                        <div className="shared-delete-dialog-header">
-                            <div className="shared-delete-icon-box">
-                                <AlertTriangle size={20} color="#f87171" />
-                            </div>
-                            <h3>Delete Shared Story?</h3>
-                            <button 
-                                className="shared-delete-close-btn"
-                                onClick={() => setDeleteConfirmStory(null)}
-                            >
-                                <X size={16} />
-                            </button>
-                        </div>
-
-                        <p className="shared-delete-desc">
-                            Are you sure you want to delete this shared story? 
-                            The link will be <strong>permanently deactivated</strong>, and it will be completely removed from your Shared list and the Home Page.
-                        </p>
-
-                        <div className="shared-delete-actions">
-                            <button 
-                                type="button" 
-                                className="shared-delete-cancel-btn"
-                                onClick={() => setDeleteConfirmStory(null)}
-                                disabled={isActionLoading}
-                            >
-                                Cancel
-                            </button>
-                            <button 
-                                type="button" 
-                                className="shared-delete-confirm-btn"
-                                onClick={handleConfirmDelete}
-                                disabled={isActionLoading}
-                            >
-                                {isActionLoading ? 'Deleting...' : 'Delete Permanently'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Fullscreen Shared Story Player Modal */}
+            {/* Full-Screen Continuous Story Player Modal */}
             {previewPlayerStory && (
                 <SharedStoryPlayerModal
                     story={previewPlayerStory}
+                    initialClipIndex={previewPlayerStory.startClipIndex || 0}
                     onClose={() => setPreviewPlayerStory(null)}
                 />
-            )}
-
-            {/* Centered Share Options Modal */}
-            {shareModalStory && (
-                <div 
-                    className="shared-options-modal-backdrop" 
-                    onClick={() => setShareModalStory(null)}
-                >
-                    <div 
-                        className="shared-options-modal-window" 
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="shared-options-modal-header">
-                            <div className="shared-options-modal-title">
-                                <Share2 size={16} color="#10b981" />
-                                <span>Share Story Options</span>
-                            </div>
-                            <button 
-                                type="button" 
-                                className="shared-options-modal-close" 
-                                onClick={() => setShareModalStory(null)}
-                                title="Close"
-                            >
-                                <X size={18} />
-                            </button>
-                        </div>
-
-                        <div className="shared-options-modal-content">
-                            <JournalShareCommandCenter
-                                date={getStoryDate(shareModalStory)}
-                                clips={(shareModalStory.provenance_log as any)?.clips || (shareModalStory.video_url ? [{ clip_url: shareModalStory.video_url, id: shareModalStory.id, clip_date: getStoryDate(shareModalStory), is_merged: false, clip_order: 0, created_at: shareModalStory.created_at, duration_ms: 5000, project_id: null, thumbnail_url: shareModalStory.thumbnail_url, transcription: null, user_id: user?.id || '' }] : [])}
-                                projectId={null}
-                                userId={user?.id || 'local_user'}
-                                username={user?.user_metadata?.username || ''}
-                                onClose={() => setShareModalStory(null)}
-                            />
-                        </div>
-
-                        <div className="shared-options-modal-footer">
-                            <button 
-                                type="button" 
-                                className="shared-options-modal-cancel-btn" 
-                                onClick={() => setShareModalStory(null)}
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
             )}
         </div>
     );

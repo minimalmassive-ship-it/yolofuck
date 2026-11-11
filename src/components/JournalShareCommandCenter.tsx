@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-    Copy, Check, Link, Unlink, Lock, Users, Globe, AlertTriangle, 
-    X, Share2, ExternalLink
+    Copy, Check, Link, Unlink, RotateCw, ExternalLink 
 } from 'lucide-react';
 import { 
-    JournalClip, updateDailyStoryVisibility, stopDailyStorySharing,
+    JournalClip, stopDailyStorySharing,
     ensureDailyStoryIdea, generateUniqueStorySlug, getLocalDateISO,
-    hydrateStoryProvenance
+    hydrateStoryProvenance, refreshDailyStorySlug
 } from '../lib/journalStoryService';
 import { supabase } from '../lib/supabase';
 import './JournalShareCommandCenter.css';
@@ -38,9 +37,6 @@ export const JournalShareCommandCenter: React.FC<JournalShareCommandCenterProps>
     const [isLinkActive, setIsLinkActive] = useState<boolean>(false);
     const [publishedSlug, setPublishedSlug] = useState<string | null>(null);
     const [publishedIdeaId, setPublishedIdeaId] = useState<string | null>(null);
-    const [visibility, setVisibility] = useState<'private' | 'network' | 'public'>('private');
-    const [pendingVisibility, setPendingVisibility] = useState<'network' | 'public' | null>(null);
-    const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
     const [isProcessing, setIsProcessing] = useState<boolean>(false);
     const [copied, setCopied] = useState<boolean>(false);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -53,7 +49,7 @@ export const JournalShareCommandCenter: React.FC<JournalShareCommandCenterProps>
         toastTimerRef.current = setTimeout(() => setToastMessage(null), 2500);
     };
 
-    // Load current link and visibility status from DB
+    // Load current link status from DB
     useEffect(() => {
         if (!safeUserId) return;
 
@@ -86,15 +82,6 @@ export const JournalShareCommandCenter: React.FC<JournalShareCommandCenterProps>
                         if (idea.slug) setPublishedSlug(idea.slug);
                         const isStopped = idea.visibility === 'stopped' || idea.provenance_log?.is_stopped === true;
                         setIsLinkActive(!isStopped);
-
-                        const vis = idea.visibility as 'private' | 'network' | 'public';
-                        if (vis === 'public' && idea.is_public === true) {
-                            setVisibility('public');
-                        } else if (vis === 'network') {
-                            setVisibility('network');
-                        } else {
-                            setVisibility('private');
-                        }
                         return;
                     }
                 }
@@ -138,7 +125,6 @@ export const JournalShareCommandCenter: React.FC<JournalShareCommandCenterProps>
                 setPublishedSlug(res.slug);
                 setPublishedIdeaId(res.ideaId);
                 setIsLinkActive(true);
-                setVisibility('private');
                 showToast('Link created & activated! Anyone with link can view.');
             } else {
                 showToast('Failed to activate link');
@@ -146,6 +132,32 @@ export const JournalShareCommandCenter: React.FC<JournalShareCommandCenterProps>
         } catch (err) {
             console.error('[JournalShareCommandCenter] activateLink error:', err);
             showToast('Error activating link');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    // ── Refresh link (generates fresh unique slug and disables previous link) ──
+    const handleRefreshLink = async () => {
+        if (!safeUserId || isProcessing || !publishedIdeaId) return;
+        setIsProcessing(true);
+        try {
+            const res = await refreshDailyStorySlug(safeUserId, publishedIdeaId, safeUsername, safeDate);
+            if (res.success && res.newSlug) {
+                setPublishedSlug(res.newSlug);
+                setIsLinkActive(true);
+                const origin = typeof window !== 'undefined' && window.location ? window.location.origin : '';
+                const newUrl = origin ? `${origin}/story/${res.newSlug}` : `/story/${res.newSlug}`;
+                try {
+                    await navigator.clipboard.writeText(newUrl);
+                } catch {}
+                showToast('Share link refreshed! Previous links are now disabled.');
+            } else {
+                showToast('Failed to refresh share link');
+            }
+        } catch (err) {
+            console.error('[JournalShareCommandCenter] refreshLink error:', err);
+            showToast('Error refreshing link');
         } finally {
             setIsProcessing(false);
         }
@@ -159,7 +171,6 @@ export const JournalShareCommandCenter: React.FC<JournalShareCommandCenterProps>
             const ok = await stopDailyStorySharing(safeUserId, safeDate, publishedIdeaId || undefined);
             if (ok) {
                 setIsLinkActive(false);
-                setVisibility('private');
                 if (onPublishedStatusChanged) onPublishedStatusChanged(false);
                 showToast('Link deactivated! Story is now inaccessible.');
             } else {
@@ -289,53 +300,6 @@ export const JournalShareCommandCenter: React.FC<JournalShareCommandCenterProps>
         window.open(url, '_blank', 'noopener,noreferrer,width=600,height=500');
     };
 
-    // ── Visibility Selection & Confirmation ──
-    const handleSelectVisibility = (targetVis: 'private' | 'network' | 'public') => {
-        if (targetVis === visibility) return;
-
-        if (targetVis === 'private') {
-            applyVisibilityChange('private');
-        } else {
-            setPendingVisibility(targetVis);
-            setShowConfirmModal(true);
-        }
-    };
-
-    const applyVisibilityChange = async (targetVis: 'private' | 'network' | 'public') => {
-        if (!safeUserId) return;
-        setIsProcessing(true);
-        try {
-            await ensureDailyStoryIdea(safeUserId, projectId, safeDate, safeClips, safeUsername);
-            const res = await updateDailyStoryVisibility(safeUserId, safeDate, targetVis);
-            if (res.success) {
-                setVisibility(targetVis);
-                setIsLinkActive(true);
-                if (onPublishedStatusChanged) {
-                    onPublishedStatusChanged(targetVis === 'public' || targetVis === 'network');
-                }
-                if (targetVis === 'private') {
-                    if (typeof window !== 'undefined') {
-                        window.dispatchEvent(new CustomEvent('journal_story_unshared', { detail: { ideaId: res.ideaId || publishedIdeaId, date: safeDate } }));
-                    }
-                    showToast('Set to Private (Link only • Removed from Home Page)');
-                } else if (targetVis === 'network') {
-                    showToast('Shared with your Network on Home Page');
-                } else {
-                    showToast('Shared Publicly on Home Page');
-                }
-            } else {
-                showToast('Failed to update visibility');
-            }
-        } catch (err) {
-            console.error('[JournalShareCommandCenter] visibility update error:', err);
-            showToast('Error updating visibility');
-        } finally {
-            setIsProcessing(false);
-            setShowConfirmModal(false);
-            setPendingVisibility(null);
-        }
-    };
-
     return (
         <div className="journal-share-command-center">
             {/* Toast Feedback */}
@@ -345,7 +309,7 @@ export const JournalShareCommandCenter: React.FC<JournalShareCommandCenterProps>
                 </div>
             )}
 
-            {/* Row 1: Link Control Bar & Visibility Pills */}
+            {/* Row 1: Link Control Bar & Action Buttons */}
             <div className="journal-share-row-link">
                 {/* Link URL Display */}
                 <div className={`journal-share-input-wrap ${!isLinkActive ? 'inactive' : ''}`}>
@@ -357,12 +321,11 @@ export const JournalShareCommandCenter: React.FC<JournalShareCommandCenterProps>
                         className="journal-share-url-input"
                     />
                     <div className="journal-share-link-status-chip" title="Access mode: All who have the link can see">
-                        <Globe size={11} color="var(--yolo-lime, #c8f72c)" />
                         <span>All who have the link can see</span>
                     </div>
                 </div>
 
-                {/* Create Link / Disable Link Toggle Button (directly to the left of Copy Link) */}
+                {/* Create Link / Refresh Link / Disable Link Actions */}
                 {!isLinkActive ? (
                     <button 
                         type="button" 
@@ -375,16 +338,29 @@ export const JournalShareCommandCenter: React.FC<JournalShareCommandCenterProps>
                         <span>Create link</span>
                     </button>
                 ) : (
-                    <button 
-                        type="button" 
-                        className="journal-share-act-btn disable" 
-                        onClick={handleDisableLink}
-                        disabled={isProcessing}
-                        title="Deactivate link immediately"
-                    >
-                        <Unlink size={13} />
-                        <span>Disable link</span>
-                    </button>
+                    <>
+                        <button 
+                            type="button" 
+                            className="journal-share-act-btn refresh" 
+                            onClick={handleRefreshLink}
+                            disabled={isProcessing}
+                            title="Generate new link and invalidate previous link"
+                        >
+                            <RotateCw size={13} />
+                            <span>Refresh link</span>
+                        </button>
+
+                        <button 
+                            type="button" 
+                            className="journal-share-act-btn disable" 
+                            onClick={handleDisableLink}
+                            disabled={isProcessing}
+                            title="Deactivate link immediately"
+                        >
+                            <Unlink size={13} />
+                            <span>Disable link</span>
+                        </button>
+                    </>
                 )}
 
                 {/* Copy Link Button */}
@@ -398,37 +374,6 @@ export const JournalShareCommandCenter: React.FC<JournalShareCommandCenterProps>
                     {copied ? <Check size={13} /> : <Copy size={13} />}
                     <span>{copied ? 'Copied' : 'Copy Link'}</span>
                 </button>
-
-                {/* Inline 3-Tier Visibility Segmented Control */}
-                <div className="journal-share-vis-pills">
-                    <button 
-                        type="button"
-                        className={`journal-share-vis-pill ${visibility === 'private' ? 'active' : ''}`}
-                        onClick={() => handleSelectVisibility('private')}
-                        title="Private: only people with the link can watch"
-                    >
-                        <Lock size={11} />
-                        <span>Private</span>
-                    </button>
-                    <button 
-                        type="button"
-                        className={`journal-share-vis-pill network ${visibility === 'network' ? 'active' : ''}`}
-                        onClick={() => handleSelectVisibility('network')}
-                        title="Network: visible on Home Page only to people in your network"
-                    >
-                        <Users size={11} />
-                        <span>Network</span>
-                    </button>
-                    <button 
-                        type="button"
-                        className={`journal-share-vis-pill public ${visibility === 'public' ? 'active' : ''}`}
-                        onClick={() => handleSelectVisibility('public')}
-                        title="Public: visible on Home Page to all logged-in members"
-                    >
-                        <Globe size={11} />
-                        <span>Public</span>
-                    </button>
-                </div>
             </div>
 
             {/* Row 2: Communicators / Messengers */}
@@ -513,43 +458,6 @@ export const JournalShareCommandCenter: React.FC<JournalShareCommandCenterProps>
                     </button>
                 </div>
             </div>
-
-            {/* Confirmation Dialog for Network / Public Sharing */}
-            {showConfirmModal && pendingVisibility && (
-                <div className="journal-confirm-dialog-overlay" onClick={() => setShowConfirmModal(false)}>
-                    <div className="journal-confirm-dialog-card" onClick={(e) => e.stopPropagation()}>
-                        <div className="journal-confirm-dialog-icon">
-                            <AlertTriangle size={24} color="#f59e0b" />
-                        </div>
-                        <h4 className="journal-confirm-dialog-title">
-                            {pendingVisibility === 'network' ? 'Share with Network on Home Page?' : 'Publish Story to Home Page?'}
-                        </h4>
-                        <p className="journal-confirm-dialog-body">
-                            {pendingVisibility === 'network'
-                                ? 'Your daily story video compilation and description will appear in the Journal section on the Ideanite Home Page for members in your network circle.'
-                                : 'Your daily story video compilation and description will be published to the Journal section on the Ideanite Home Page for all logged-in members.'}
-                        </p>
-                        <div className="journal-confirm-dialog-actions">
-                            <button
-                                type="button"
-                                className="journal-confirm-dialog-btn cancel"
-                                onClick={() => setShowConfirmModal(false)}
-                                disabled={isProcessing}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                className={`journal-confirm-dialog-btn confirm ${pendingVisibility}`}
-                                onClick={() => applyVisibilityChange(pendingVisibility)}
-                                disabled={isProcessing}
-                            >
-                                {isProcessing ? 'Updating...' : 'Confirm & Share'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

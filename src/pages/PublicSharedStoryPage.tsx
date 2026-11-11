@@ -15,7 +15,9 @@ export const PublicSharedStoryPage: React.FC = () => {
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState<boolean>(true);
-    const [isMuted, setIsMuted] = useState<boolean>(false);
+    // Start muted for guaranteed browser autoplay compatibility in incognito/mobile
+    const [isMuted, setIsMuted] = useState<boolean>(true);
+    const [hasInteracted, setHasInteracted] = useState<boolean>(false);
     const [volume, setVolume] = useState<number>(1);
     const [isLooping, setIsLooping] = useState<boolean>(false);
     const [currentClipIndex, setCurrentClipIndex] = useState<number>(0);
@@ -102,7 +104,12 @@ export const PublicSharedStoryPage: React.FC = () => {
         if (isPlaying) {
             const p = video.play();
             if (p !== undefined) {
-                p.catch(console.warn);
+                p.catch(err => {
+                    console.warn('[PublicSharedStoryPage] Autoplay attempt rejected, falling back to muted play:', err);
+                    video.muted = true;
+                    setIsMuted(true);
+                    video.play().catch(e => console.warn('[PublicSharedStoryPage] Muted play deferred:', e));
+                });
             }
         }
     }, [currentClipIndex, activeClip?.clip_url]);
@@ -125,6 +132,35 @@ export const PublicSharedStoryPage: React.FC = () => {
         } else {
             videoRef.current.play().catch(console.error);
             setIsPlaying(true);
+        }
+    };
+
+    const handleScreenClick = () => {
+        if (!videoRef.current) return;
+        if (isMuted && !hasInteracted) {
+            // First screen tap unmutes audio and continues playing
+            videoRef.current.muted = false;
+            setIsMuted(false);
+            setHasInteracted(true);
+            if (videoRef.current.paused) {
+                videoRef.current.play().catch(console.error);
+                setIsPlaying(true);
+            }
+            return;
+        }
+        togglePlay();
+    };
+
+    const handleUnmuteBadge = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (videoRef.current) {
+            videoRef.current.muted = false;
+            setIsMuted(false);
+            setHasInteracted(true);
+            if (videoRef.current.paused) {
+                videoRef.current.play().catch(console.error);
+                setIsPlaying(true);
+            }
         }
     };
 
@@ -228,13 +264,29 @@ export const PublicSharedStoryPage: React.FC = () => {
                     />
                 </div>
 
+                {/* Floating Tap to Unmute Badge */}
+                {isMuted && activeClip && (
+                    <button 
+                        type="button" 
+                        className="shared-player-unmute-badge"
+                        onClick={handleUnmuteBadge}
+                        title="Tap to unmute"
+                    >
+                        <VolumeX size={15} />
+                        <span>Tap to unmute</span>
+                    </button>
+                )}
+
                 {/* Video Viewport */}
                 {activeClip ? (
                     <video
                         ref={videoRef}
                         className="shared-player-video"
                         playsInline
+                        autoPlay
                         muted={isMuted}
+                        onPlay={() => setIsPlaying(true)}
+                        onPause={() => setIsPlaying(false)}
                         onTimeUpdate={() => {
                             if (videoRef.current) {
                                 setCurrentTime(videoRef.current.currentTime);
@@ -242,7 +294,7 @@ export const PublicSharedStoryPage: React.FC = () => {
                             }
                         }}
                         onEnded={handleClipEnded}
-                        onClick={togglePlay}
+                        onClick={handleScreenClick}
                     />
                 ) : (
                     <div className="shared-player-no-video">
@@ -252,7 +304,7 @@ export const PublicSharedStoryPage: React.FC = () => {
 
                 {/* Pause Splash Icon */}
                 {!isPlaying && (
-                    <div className="shared-player-pause-splash" onClick={togglePlay}>
+                    <div className="shared-player-pause-splash" onClick={handleScreenClick}>
                         <Play size={54} fill="#ffffff" color="#ffffff" />
                     </div>
                 )}
