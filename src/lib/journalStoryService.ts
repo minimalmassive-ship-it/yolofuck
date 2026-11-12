@@ -918,6 +918,55 @@ export async function reorderDailyClips(
     }
 }
 
+/** Reorder clips in a shared story and persist to Supabase and cache */
+export async function reorderSharedStoryClips(
+    userId: string,
+    storyId: string,
+    reorderedClips: any[],
+    date?: string
+): Promise<boolean> {
+    if (!storyId || !reorderedClips || reorderedClips.length === 0) return true;
+
+    try {
+        const { data: currentIdea } = await supabase
+            .from('ideas')
+            .select('*')
+            .eq('id', storyId)
+            .maybeSingle();
+
+        if (currentIdea) {
+            const hydrated = hydrateStoryProvenance(currentIdea);
+            const prov = hydrated?.provenance_log || {};
+            const newProv = {
+                ...prov,
+                clips: reorderedClips,
+                date: date || prov.date,
+                takes_count: reorderedClips.length,
+                updated_at: new Date().toISOString()
+            };
+            const firstMedia = reorderedClips[0]?.clip_url || currentIdea.media_url || '';
+            await supabase
+                .from('ideas')
+                .update({
+                    media_url: firstMedia,
+                    description: encodeStoryDescription(newProv.transcription || (currentIdea as any).transcription || '', newProv),
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', storyId);
+        }
+
+        if (date && userId) {
+            await reorderDailyClips(userId, date, reorderedClips as JournalClip[]);
+        }
+
+        return true;
+    } catch (err) {
+        console.error('[JournalStory] reorderSharedStoryClips error:', err);
+        return false;
+    }
+}
+
+
 /** Helper key for persistent custom sequence reordering per user and date */
 export function getDayCustomOrderKey(userId: string, date: string): string {
     return `yolofuck_day_order_${userId}_${date}`;

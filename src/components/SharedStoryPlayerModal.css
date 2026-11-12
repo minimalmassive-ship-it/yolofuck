@@ -54,25 +54,47 @@
   transform: scale(1.05);
 }
 
-/* Continuous Seamless Progress Bar (No segmented division marks) */
-.shared-player-continuous-progress-track {
+/* Top Progress Bars (Hairline kreseczki gaps between takes) */
+.shared-player-progress-row {
   position: absolute;
   top: calc(env(safe-area-inset-top, 0px) + 8px);
   left: 12px;
   right: 12px;
+  display: flex;
+  gap: 1.5px; /* Hairline slit (kreseczka) between shots */
   height: 3px;
-  background: rgba(255, 255, 255, 0.25);
-  border-radius: 2px;
-  overflow: hidden;
   z-index: 25;
 }
 
-.shared-player-continuous-progress-fill {
+.shared-progress-segment-bg {
+  flex: 1;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 1px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  transition: height 0.15s ease, background 0.15s ease;
+}
+
+.shared-progress-segment-bg:hover {
+  height: 5px;
+}
+
+.shared-progress-segment-bg.is-looping {
+  outline: 1.5px solid var(--yolo-lime, #c8f72c);
+  outline-offset: 1px;
+  box-shadow: 0 0 10px rgba(200, 247, 44, 0.85);
+  background: rgba(200, 247, 44, 0.2);
+}
+
+.shared-progress-segment-fill {
   height: 100%;
   background: var(--yolo-lime, #c8f72c);
-  box-shadow: 0 0 8px rgba(200, 247, 44, 0.6);
+  box-shadow: 0 0 6px rgba(200, 247, 44, 0.6);
   transition: width 0.08s linear;
 }
+
 
 .shared-player-slide-track {
   width: 100%;
@@ -168,7 +190,7 @@
   color: var(--yolo-lime, #c8f72c);
 }
 
-/* Volume Group */
+/* Volume Group: slider on desktop, clean mute button on mobile */
 .shared-player-volume-group {
   display: flex;
   align-items: center;
@@ -180,6 +202,15 @@
   height: 4px;
   accent-color: var(--yolo-lime, #c8f72c);
   cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .shared-player-volume-slider {
+    display: none !important;
+  }
+  .shared-player-volume-group {
+    gap: 0;
+  }
 }
 
 /* Floating Unmute Badge */

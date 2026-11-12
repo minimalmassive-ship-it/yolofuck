@@ -128,35 +128,71 @@ export const JournalPage: React.FC = () => {
 
     return (
         <div className="yolofuck-root">
-            {/* Top Bar: Brand Logo on Left, Search Bar in Center, Account Menu on Right */}
+            {/* Top Bar: Brand Logo on Left, Search Bar, Desktop Center Nav, Account Menu on Right */}
             <header className={`yolofuck-top-bar ${isPlayerActive ? 'hidden-player-active' : ''}`}>
-                <div className="yolofuck-top-brand-logo">
-                    <img 
-                        src="/yolofuck-logo.png" 
-                        alt="YOLOFUCK" 
-                        className="yolofuck-top-logo-img"
-                    />
+                <div className="yolofuck-top-left-section">
+                    <div className="yolofuck-top-brand-logo">
+                        <img 
+                            src="/yolofuck-logo.png" 
+                            alt="YOLOFUCK" 
+                            className="yolofuck-top-logo-img"
+                        />
+                    </div>
+
+                    <div className="yolofuck-search-pill">
+                        <Search size={15} color="var(--yolo-lime, #c8f72c)" />
+                        <input 
+                            type="text" 
+                            className="yolofuck-search-input"
+                            placeholder="Search spoken words..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        {searchQuery && (
+                            <button 
+                                className="yolofuck-search-clear" 
+                                onClick={() => setSearchQuery('')} 
+                                title="Clear search"
+                            >
+                                <X size={14} />
+                            </button>
+                        )}
+                    </div>
                 </div>
 
-                <div className="yolofuck-search-pill">
-                    <Search size={15} color="var(--yolo-lime, #c8f72c)" />
-                    <input 
-                        type="text" 
-                        className="yolofuck-search-input"
-                        placeholder="Search spoken words..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                    {searchQuery && (
-                        <button 
-                            className="yolofuck-search-clear" 
-                            onClick={() => setSearchQuery('')} 
-                            title="Clear search"
-                        >
-                            <X size={14} />
-                        </button>
-                    )}
-                </div>
+                {/* Desktop Central Navigation: Journal, Share, Record */}
+                <nav className="yolofuck-desktop-center-nav">
+                    <button 
+                        type="button"
+                        className={`yolofuck-desktop-nav-btn ${activeTab === 'story' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('story')}
+                        title="Journal timeline"
+                    >
+                        <Layers size={16} />
+                        <span>Journal</span>
+                    </button>
+
+                    <button 
+                        type="button"
+                        className={`yolofuck-desktop-nav-btn ${activeTab === 'shared' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('shared')}
+                        title="Shared sequences"
+                    >
+                        <Share2 size={16} />
+                        <span>Share</span>
+                    </button>
+
+                    <button 
+                        type="button"
+                        className="yolofuck-desktop-record-btn"
+                        onClick={() => setShowCaptureModal(true)}
+                        title="Record new take"
+                    >
+                        <span className="yolofuck-rec-dot" />
+                        <Video size={16} />
+                        <span>Record</span>
+                    </button>
+                </nav>
 
                 {/* User Dropdown Menu Button (Mobile & Desktop) */}
                 {user && (

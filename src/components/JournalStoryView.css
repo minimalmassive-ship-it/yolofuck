@@ -596,57 +596,61 @@
   pointer-events: none;
 }
 
-/* Top Progress Bars (Segmented by Take) */
+/* Top Progress Bars (Hairline kreseczki gaps between takes) */
 .yolofuck-player-progress-row {
   position: absolute;
   top: 10px;
   left: 10px;
   right: 10px;
   display: flex;
-  gap: 4px;
-  z-index: 20;
+  gap: 1.5px; /* Hairline slit (kreseczka) between shots */
+  height: 3px;
+  z-index: 30;
 }
 
 .yolofuck-progress-segment-bg {
   flex: 1;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.25);
-  border-radius: 2px;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 1px;
   overflow: hidden;
   cursor: pointer;
+  position: relative;
+  transition: height 0.15s ease, background 0.15s ease;
+}
+
+.yolofuck-progress-segment-bg:hover {
+  height: 5px;
+}
+
+.yolofuck-progress-segment-bg.is-looping {
+  outline: 1.5px solid var(--yolo-lime, #c8f72c);
+  outline-offset: 1px;
+  box-shadow: 0 0 10px rgba(200, 247, 44, 0.85);
+  background: rgba(200, 247, 44, 0.2);
 }
 
 .yolofuck-progress-segment-fill {
   height: 100%;
   background: var(--yolo-lime, #c8f72c);
-  box-shadow: 0 0 8px rgba(200, 247, 44, 0.6);
-  transition: width 0.1s linear;
+  box-shadow: 0 0 6px rgba(200, 247, 44, 0.6);
+  transition: width 0.08s linear;
 }
 
-/* Player Top Header */
+/* Player Top Header: Clean with close button on right */
 .yolofuck-player-header {
   position: absolute;
-  top: 22px;
+  top: 20px;
   left: 14px;
   right: 14px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   z-index: 20;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
 }
 
-.yolofuck-player-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.yolofuck-player-date {
-  font-size: 13px;
-  font-weight: 700;
-  color: #ffffff;
-  font-family: ui-monospace, monospace;
+.yolofuck-player-meta-spacer {
+  flex: 1;
 }
 
 .yolofuck-player-take-badge {
@@ -861,18 +865,32 @@
 }
 
 .yolofuck-player-dock-volume-group {
-  flex: 1.2;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 0 8px;
 }
 
 .yolofuck-player-dock-btn.vol-btn {
-  flex: none;
-  width: 32px;
-  height: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.yolofuck-player-dock-btn.vol-btn:hover {
+  color: #f8fafc;
+}
+
+.yolofuck-player-dock-btn.vol-btn.muted {
+  color: #ef4444;
 }
 
 .yolofuck-single-volume-slider {
@@ -907,6 +925,40 @@
   box-shadow: 0 0 8px rgba(200, 247, 44, 0.7);
 }
 
+/* Mobile: clean Mute/Unmute toggle matching native mobile short-video standard */
+@media (max-width: 768px) {
+  .yolofuck-single-volume-slider {
+    display: none !important;
+  }
+  .yolofuck-player-dock-volume-group {
+    flex: 1;
+    padding: 0;
+    gap: 0;
+  }
+  .yolofuck-player-dock-btn.vol-btn {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+/* Desktop: show volume slider next to speaker button */
+@media (min-width: 769px) {
+  .yolofuck-player-dock-volume-group {
+    flex: 1.3;
+    gap: 8px;
+    padding: 0 8px;
+  }
+  .yolofuck-player-dock-btn.vol-btn {
+    flex: none;
+    width: 32px;
+    height: 32px;
+  }
+  .yolofuck-single-volume-slider {
+    display: block;
+  }
+}
+
 /* Grab cursor for horizontal strip */
 .yolofuck-films-horizontal-strip {
   cursor: grab;
@@ -916,3 +968,106 @@
 .yolofuck-films-horizontal-strip:active {
   cursor: grabbing;
 }
+
+/* ── Progress Bar Loop Window Highlight ── */
+.yolofuck-progress-segment-bg.is-looping {
+  height: 5px;
+  background: rgba(200, 247, 44, 0.2);
+  outline: 1.5px solid var(--yolo-lime, #c8f72c);
+  outline-offset: 1px;
+  box-shadow: 0 0 10px rgba(200, 247, 44, 0.5);
+}
+
+.yolofuck-progress-segment-bg.is-looping .yolofuck-progress-segment-fill {
+  background: var(--yolo-lime, #c8f72c);
+  box-shadow: 0 0 12px rgba(200, 247, 44, 0.9);
+}
+
+/* ── Drag & Drop Intra-Sequence Reordering Styles ── */
+/* Ghost thumbnail at original position */
+.yolofuck-film-square.is-ghost {
+  opacity: 0.35 !important;
+  filter: grayscale(40%) !important;
+  outline: 2px dashed rgba(200, 247, 44, 0.75) !important;
+  outline-offset: -2px;
+  cursor: grabbing !important;
+}
+
+.yolofuck-film-square.is-ghost.is-drop-target {
+  opacity: 0.65 !important;
+  outline: 2px solid var(--yolo-lime, #c8f72c) !important;
+  box-shadow: 0 0 14px rgba(200, 247, 44, 0.6) !important;
+}
+
+.yolofuck-film-ghost-badge {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  color: var(--yolo-lime, #c8f72c);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Expanding gap slot where other films spread apart */
+.yolofuck-film-drop-slot {
+  width: 72px;
+  height: 128px;
+  flex-shrink: 0;
+  background: rgba(200, 247, 44, 0.08);
+  border: 2px dashed var(--yolo-lime, #c8f72c);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--yolo-lime, #c8f72c);
+  font-size: 9px;
+  font-weight: 700;
+  animation: yolofuckSlotExpand 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+  overflow: hidden;
+  user-select: none;
+  pointer-events: none;
+  box-shadow: inset 0 0 16px rgba(200, 247, 44, 0.25);
+}
+
+@keyframes yolofuckSlotExpand {
+  from {
+    width: 0px;
+    opacity: 0;
+  }
+  to {
+    width: 72px;
+    opacity: 1;
+  }
+}
+
+/* Floating Drag Avatar following cursor / finger */
+.yolofuck-drag-avatar {
+  position: fixed;
+  width: 72px;
+  height: 128px;
+  pointer-events: none;
+  z-index: 100000;
+  border-radius: 0;
+  overflow: hidden;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.9), 0 0 16px rgba(200, 247, 44, 0.5);
+  border: 2px solid var(--yolo-lime, #c8f72c);
+  transform: scale(1.08);
+  will-change: transform, left, top;
+}
+
+.yolofuck-drag-avatar img,
+.yolofuck-drag-avatar video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+

@@ -130,18 +130,25 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
     // Mobile Long-Press Delete Confirmation Modal state
     const [clipToDelete, setClipToDelete] = useState<{ id: string; date: string } | null>(null);
 
-    // Drag and Drop state for reordering films in feed
-    const [draggingClip, setDraggingClip] = useState<{ clip: JournalClip; date: string } | null>(null);
-    const [dragOverClipId, setDragOverClipId] = useState<string | null>(null);
-    const [dragEnabledClipId, setDragEnabledClipId] = useState<string | null>(null);
+    // Drag and Drop state for intra-sequence reordering films in feed
+    const [reorderDragState, setReorderDragState] = useState<{
+        isActive: boolean;
+        sequenceId: string;
+        sourceIndex: number;
+        targetIndex: number;
+        clip: JournalClip;
+        pointerX: number;
+        pointerY: number;
+    } | null>(null);
     const [reorderVersion, setReorderVersion] = useState<number>(0);
 
     const videoRef = useRef<HTMLVideoElement>(null);
 
-    // Pointer gesture trackers for video cards: single click, drag, long-press (reorder)
+    // Pointer gesture trackers for video cards: single click (fullscreen play) vs 1s long-press (reorder)
     const pointerStartRef = useRef<{ x: number; y: number; time: number; clipId: string; date: string; index: number } | null>(null);
     const longPressTimerRef = useRef<any>(null);
     const isLongPressTriggeredRef = useRef(false);
+
 
     // Touch & Mouse Pointer gesture tracker for Full-Screen Player: Horizontal Swipe left/right
     const [playerDragOffset, setPlayerDragOffset] = useState<number>(0);
@@ -569,24 +576,20 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
     const activeClip = activeDayClips[currentClipIndex] || null;
 
     const prevClip = useMemo(() => {
+        if (activeDayClips.length <= 1) return null;
         if (currentClipIndex > 0) {
             return activeDayClips[currentClipIndex - 1];
         }
-        if (isLooping && activeDayClips.length > 1) {
-            return activeDayClips[activeDayClips.length - 1];
-        }
-        return null;
-    }, [currentClipIndex, activeDayClips, isLooping]);
+        return activeDayClips[activeDayClips.length - 1];
+    }, [currentClipIndex, activeDayClips]);
 
     const nextClip = useMemo(() => {
+        if (activeDayClips.length <= 1) return null;
         if (currentClipIndex < activeDayClips.length - 1) {
             return activeDayClips[currentClipIndex + 1];
         }
-        if (isLooping && activeDayClips.length > 1) {
-            return activeDayClips[0];
-        }
-        return null;
-    }, [currentClipIndex, activeDayClips, isLooping]);
+        return activeDayClips[0];
+    }, [currentClipIndex, activeDayClips]);
 
     // Synchronize video element playback with active clip
     useEffect(() => {
@@ -603,19 +606,22 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
             const playPromise = video.play();
             if (playPromise !== undefined) {
                 playPromise.catch(err => {
-                    console.warn('[JournalStoryView] Autoplay blocked or deferred:', err);
+                    console.warn('[JournalStoryView] Autoplay blocked, retrying muted:', err);
+                    video.muted = true;
+                    setIsMuted(true);
+                    video.play().catch(e => console.warn('[JournalStoryView] Muted playback deferred:', e));
                 });
             }
         }
-    }, [showVideoPlayer, activeClip?.id, activeClip?.clip_url, volume, isMuted, isLooping]);
+    }, [showVideoPlayer, currentClipIndex, activeClip?.id, activeClip?.clip_url, volume, isMuted, isLooping, isPlaying]);
 
     // ── Start Full-screen Story Player ──
-    const handleStartDayPlayer = useCallback((date: string, clipIdx = 0, isSingle = false) => {
+    const handleStartDayPlayer = useCallback((date: string, clipIdx = 0, _isSingle = false) => {
         setLoopingClipId(null);
         setActiveStoryDate(date);
         setCurrentClipIndex(clipIdx);
-        setIsSingleClipMode(isSingle);
-        setIsLooping(isSingle); // Default loop to true for single clip tap
+        setIsSingleClipMode(false);
+        setIsLooping(false); // Default loop to false so full sequence rotation plays continuously!
         setShowVideoPlayer(true);
         setIsPlaying(true);
     }, []);
@@ -630,26 +636,39 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
     }, []);
 
     const handleNextClip = useCallback(() => {
-        if (currentClipIndex < activeDayClips.length - 1) {
-            setCurrentClipIndex(prev => prev + 1);
-            setCurrentTime(0);
-        } else if (isLooping && activeDayClips.length > 1) {
-            setCurrentClipIndex(0);
-            setCurrentTime(0);
-        } else if (!isLooping) {
-            setIsPlaying(false);
+        if (activeDayClips.length === 0) return;
+        setIsPlaying(true);
+        if (activeDayClips.length === 1) {
+            if (videoRef.current) {
+                videoRef.current.currentTime = 0;
+                videoRef.current.play().catch(() => {
+                    if (videoRef.current) {
+                        videoRef.current.muted = true;
+                        setIsMuted(true);
+                        videoRef.current.play().catch(() => {});
+                    }
+                });
+            }
+            return;
         }
-    }, [currentClipIndex, activeDayClips.length, isLooping]);
+        setCurrentClipIndex(prev => (prev + 1) % activeDayClips.length);
+        setCurrentTime(0);
+    }, [activeDayClips.length]);
 
     const handlePrevClip = useCallback(() => {
-        if (currentClipIndex > 0) {
-            setCurrentClipIndex(prev => prev - 1);
-            setCurrentTime(0);
-        } else if (isLooping && activeDayClips.length > 1) {
-            setCurrentClipIndex(activeDayClips.length - 1);
-            setCurrentTime(0);
+        if (activeDayClips.length === 0) return;
+        setIsPlaying(true);
+        if (activeDayClips.length === 1) {
+            if (videoRef.current) {
+                videoRef.current.currentTime = 0;
+                videoRef.current.play().catch(() => {});
+            }
+            return;
         }
-    }, [currentClipIndex, isLooping, activeDayClips.length]);
+        setCurrentClipIndex(prev => (prev - 1 + activeDayClips.length) % activeDayClips.length);
+        setCurrentTime(0);
+    }, [activeDayClips.length]);
+
 
     const togglePlayerPlay = useCallback(() => {
         if (!videoRef.current) return;
@@ -690,6 +709,33 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         }
     };
 
+    // Continuous sequence progress calculations & loop window metrics
+    const totalDayClips = activeDayClips.length;
+    const clipProgress = currentClipDuration > 0 ? Math.min(1, Math.max(0, currentTime / currentClipDuration)) : 0;
+    const continuousProgressPct = totalDayClips > 0
+        ? Math.min(100, Math.max(0, ((currentClipIndex + clipProgress) / totalDayClips) * 100))
+        : 0;
+    const loopStartPct = totalDayClips > 0 ? (currentClipIndex / totalDayClips) * 100 : 0;
+    const loopEndPct = totalDayClips > 0 ? ((currentClipIndex + 1) / totalDayClips) * 100 : 100;
+    const loopWidthPct = totalDayClips > 0 ? (1 / totalDayClips) * 100 : 100;
+
+    const handleProgressBarClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        if (!totalDayClips) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const clickX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+        const fraction = rect.width > 0 ? clickX / rect.width : 0;
+        const targetSequencePosition = fraction * totalDayClips;
+        const targetClipIdx = Math.min(totalDayClips - 1, Math.floor(targetSequencePosition));
+        const targetClipFraction = targetSequencePosition - targetClipIdx;
+
+        setCurrentClipIndex(targetClipIdx);
+        if (targetClipIdx === currentClipIndex && videoRef.current && videoRef.current.duration) {
+            videoRef.current.currentTime = targetClipFraction * videoRef.current.duration;
+        } else {
+            setCurrentTime(0);
+        }
+    }, [totalDayClips, currentClipIndex]);
+
     const handleDeleteConfirmed = async () => {
         if (!clipToDelete) return;
         const { id: clipId } = clipToDelete;
@@ -719,14 +765,11 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
     };
 
     // ── Drag and Drop Reordering Handlers ──
-    const handleReorderClips = async (date: string, draggedId: string, targetId: string) => {
-        if (draggedId === targetId) return;
+    const handleReorderClipsByIndex = useCallback(async (date: string, oldIndex: number, newIndex: number) => {
+        if (oldIndex === newIndex) return;
 
         const dayClips = groupedDays.find(([d]) => d === date)?.[1] || [];
-        const oldIndex = dayClips.findIndex(c => c.id === draggedId);
-        const newIndex = dayClips.findIndex(c => c.id === targetId);
-
-        if (oldIndex === -1 || newIndex === -1) return;
+        if (oldIndex < 0 || oldIndex >= dayClips.length || newIndex < 0 || newIndex >= dayClips.length) return;
 
         const reordered = [...dayClips];
         const [moved] = reordered.splice(oldIndex, 1);
@@ -754,7 +797,19 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                 console.error('[JournalStoryView] Failed to persist reordering:', err);
             }
         }
+    }, [groupedDays, user?.id]);
+
+    const handleReorderClips = async (date: string, draggedId: string, targetId: string) => {
+        if (draggedId === targetId) return;
+
+        const dayClips = groupedDays.find(([d]) => d === date)?.[1] || [];
+        const oldIndex = dayClips.findIndex(c => c.id === draggedId);
+        const newIndex = dayClips.findIndex(c => c.id === targetId);
+
+        if (oldIndex === -1 || newIndex === -1) return;
+        await handleReorderClipsByIndex(date, oldIndex, newIndex);
     };
+
 
     const handleResetDayOrder = async (date: string) => {
         const userId = user?.id || 'local_user';
@@ -859,17 +914,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         }
 
         if (start.isLockedHorizontal) {
-            // Check boundary limits for elastic rubber-band resistance
-            const isAtStartBoundary = currentClipIndex === 0 && rawDx > 0 && !isLooping;
-            const isAtEndBoundary = currentClipIndex >= activeDayClips.length - 1 && rawDx < 0 && !isLooping;
-
-            let computedOffset = rawDx;
-            if (isAtStartBoundary || isAtEndBoundary) {
-                // Apply elastic damping: 0.28x resistance
-                computedOffset = rawDx * 0.28;
-            }
-
-            setPlayerDragOffset(computedOffset);
+            setPlayerDragOffset(rawDx);
         }
     };
 
@@ -913,9 +958,8 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
 
         if (start.isLockedHorizontal && meetsThreshold) {
             if (deltaX < 0) {
-                // Swipe Left -> Next Take
-                const hasNext = currentClipIndex < activeDayClips.length - 1 || isLooping;
-                if (hasNext) {
+                // Swipe Left -> Next Take (always circular)
+                if (activeDayClips.length > 1) {
                     setIsSwipeTransitioning(true);
                     setPlayerDragOffset(-width);
                     setTimeout(() => {
@@ -926,9 +970,8 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                     return;
                 }
             } else if (deltaX > 0) {
-                // Swipe Right -> Previous Take
-                const hasPrev = currentClipIndex > 0 || isLooping;
-                if (hasPrev) {
+                // Swipe Right -> Previous Take (always circular)
+                if (activeDayClips.length > 1) {
                     setIsSwipeTransitioning(true);
                     setPlayerDragOffset(width);
                     setTimeout(() => {
@@ -975,8 +1018,9 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         setTimeout(() => setIsSwipeTransitioning(false), 240);
     };
 
-    // ── Gesture Handlers for Matrix Films (Single Tap opens full-screen loop, long-press enables drag-and-drop) ──
+    // ── Gesture Handlers for Matrix Films (Single Tap opens full-screen player in sequence rotation, 1s long-press enables drag-and-drop) ──
     const handleSquarePointerDown = (e: React.PointerEvent, clip: JournalClip, date: string, index: number) => {
+        if (e.button !== 0) return;
         isLongPressTriggeredRef.current = false;
         pointerStartRef.current = {
             x: e.clientX,
@@ -991,60 +1035,109 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
             clearTimeout(longPressTimerRef.current);
         }
 
-        // 700ms Long-Press Timer activates drag-and-drop mode
+        // 1000ms Long-Press Timer (> 1s) activates drag-and-drop mode
         longPressTimerRef.current = setTimeout(() => {
             isLongPressTriggeredRef.current = true;
             if (navigator.vibrate) {
-                try { navigator.vibrate(50); } catch {}
+                try { navigator.vibrate(60); } catch {}
             }
-            setDragEnabledClipId(clip.id);
-        }, 700);
+            setReorderDragState({
+                isActive: true,
+                sequenceId: date,
+                sourceIndex: index,
+                targetIndex: index,
+                clip,
+                pointerX: e.clientX,
+                pointerY: e.clientY
+            });
+        }, 1000);
     };
 
-    const handleSquarePointerMove = (e: React.PointerEvent) => {
-        if (!pointerStartRef.current) return;
-        const dx = Math.abs(e.clientX - pointerStartRef.current.x);
-        const dy = Math.abs(e.clientY - pointerStartRef.current.y);
+    // Global pointer listeners for intra-sequence film dragging
+    useEffect(() => {
+        const onWindowPointerMove = (e: PointerEvent) => {
+            if (pointerStartRef.current && !isLongPressTriggeredRef.current) {
+                const dx = Math.abs(e.clientX - pointerStartRef.current.x);
+                const dy = Math.abs(e.clientY - pointerStartRef.current.y);
+                if (dx > 8 || dy > 8) {
+                    if (longPressTimerRef.current) {
+                        clearTimeout(longPressTimerRef.current);
+                        longPressTimerRef.current = null;
+                    }
+                }
+            }
 
-        if (dx > 8 || dy > 8) {
+            if (reorderDragState?.isActive) {
+                const sequenceDate = reorderDragState.sequenceId;
+                const stripEl = document.querySelector(`[data-sequence-id="${sequenceDate}"]`) as HTMLElement | null;
+                const dayClips = groupedDays.find(([d]) => d === sequenceDate)?.[1] || [];
+
+                let newTargetIdx = reorderDragState.targetIndex;
+                if (stripEl && dayClips.length > 0) {
+                    const rect = stripEl.getBoundingClientRect();
+                    const relX = e.clientX - rect.left + stripEl.scrollLeft;
+                    const slotWidth = 74;
+                    newTargetIdx = Math.max(0, Math.min(dayClips.length - 1, Math.floor(relX / slotWidth)));
+
+                    if (e.clientX < rect.left + 50) {
+                        stripEl.scrollLeft -= 7;
+                    } else if (e.clientX > rect.right - 50) {
+                        stripEl.scrollLeft += 7;
+                    }
+                }
+
+                if (newTargetIdx !== reorderDragState.targetIndex) {
+                    if (navigator.vibrate) {
+                        try { navigator.vibrate(20); } catch {}
+                    }
+                }
+
+                setReorderDragState(prev => prev ? {
+                    ...prev,
+                    targetIndex: newTargetIdx,
+                    pointerX: e.clientX,
+                    pointerY: e.clientY
+                } : null);
+            }
+        };
+
+        const onWindowPointerUp = () => {
             if (longPressTimerRef.current) {
                 clearTimeout(longPressTimerRef.current);
                 longPressTimerRef.current = null;
             }
-        }
-    };
 
-    const handleSquarePointerUp = (e: React.PointerEvent, clip: JournalClip, date: string, index: number) => {
-        if (longPressTimerRef.current) {
-            clearTimeout(longPressTimerRef.current);
-            longPressTimerRef.current = null;
-        }
+            if (reorderDragState?.isActive) {
+                if (reorderDragState.targetIndex !== reorderDragState.sourceIndex) {
+                    handleReorderClipsByIndex(reorderDragState.sequenceId, reorderDragState.sourceIndex, reorderDragState.targetIndex);
+                }
+                setReorderDragState(null);
+                isLongPressTriggeredRef.current = false;
+                pointerStartRef.current = null;
+                return;
+            }
 
-        if (isLongPressTriggeredRef.current) {
-            isLongPressTriggeredRef.current = false;
-            pointerStartRef.current = null;
-            return;
-        }
+            if (pointerStartRef.current) {
+                const { date, index } = pointerStartRef.current;
+                pointerStartRef.current = null;
+                if (!isLongPressTriggeredRef.current) {
+                    handleStartDayPlayer(date, index, false);
+                }
+                isLongPressTriggeredRef.current = false;
+            }
+        };
 
-        if (!pointerStartRef.current) return;
-        const dx = Math.abs(e.clientX - pointerStartRef.current.x);
-        const dy = Math.abs(e.clientY - pointerStartRef.current.y);
-        pointerStartRef.current = null;
+        window.addEventListener('pointermove', onWindowPointerMove);
+        window.addEventListener('pointerup', onWindowPointerUp);
+        window.addEventListener('pointercancel', onWindowPointerUp);
 
-        if (dx > 8 || dy > 8) return;
+        return () => {
+            window.removeEventListener('pointermove', onWindowPointerMove);
+            window.removeEventListener('pointerup', onWindowPointerUp);
+            window.removeEventListener('pointercancel', onWindowPointerUp);
+        };
+    }, [reorderDragState, groupedDays, handleReorderClipsByIndex, handleStartDayPlayer]);
 
-        // Single Click: Open full-screen player in single-clip loop mode with controls!
-        handleStartDayPlayer(date, index, true);
-    };
-
-    const handleSquarePointerCancel = () => {
-        if (longPressTimerRef.current) {
-            clearTimeout(longPressTimerRef.current);
-            longPressTimerRef.current = null;
-        }
-        isLongPressTriggeredRef.current = false;
-        pointerStartRef.current = null;
-    };
 
     return (
         <div className={`yolofuck-storyview-root ${showVideoPlayer ? 'player-active' : ''}`}>
@@ -1157,7 +1250,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                             )}
                         </div>
 
-                        {/* Top Overlay Bars (Segmented progress for all takes in this day) */}
+                        {/* Top Progress Bars (Hairline Ticks between Takes, Continuous Sequence Rotation) */}
                         <div className="yolofuck-player-progress-row">
                             {activeDayClips.map((clip, idx) => {
                                 const isPassed = idx < currentClipIndex;
@@ -1165,11 +1258,14 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                 const pct = isPassed ? 100 : isCurrent && currentClipDuration > 0 ? (currentTime / currentClipDuration) * 100 : 0;
                                 return (
                                     <div 
-                                        key={clip.id} 
-                                        className="yolofuck-progress-segment-bg"
+                                        key={clip.id || idx} 
+                                        className={`yolofuck-progress-segment-bg ${isCurrent && isLooping ? 'is-looping' : ''}`}
+                                        title={isCurrent && isLooping ? `Take ${idx + 1} looping` : `Take ${idx + 1}`}
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             setCurrentClipIndex(idx);
+                                            setCurrentTime(0);
+                                            setIsPlaying(true);
                                         }}
                                     >
                                         <div 
@@ -1181,22 +1277,9 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                             })}
                         </div>
 
-                        {/* Top Header inside Player */}
+                        {/* Top Header inside Player: Clean close button only */}
                         <div className="yolofuck-player-header">
-                            <div className="yolofuck-player-meta">
-                                <span className="yolofuck-player-date">
-                                    {formatVerticalDate(activeStoryDate)}
-                                </span>
-                                <span className="yolofuck-player-take-badge">
-                                    Take {activeClip?.original_take_number || (currentClipIndex + 1)}
-                                    {activeClip?.original_take_number && activeClip.original_take_number !== (currentClipIndex + 1) ? (
-                                        <span className="yolofuck-player-pos-hint"> (pos {currentClipIndex + 1}/{activeDayClips.length})</span>
-                                    ) : (
-                                        ` of ${activeDayClips.length}`
-                                    )}
-                                </span>
-                            </div>
-
+                            <div className="yolofuck-player-meta-spacer" />
                             <button 
                                 className="yolofuck-player-close-btn"
                                 onClick={handleClosePlayer}
@@ -1248,11 +1331,12 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                             <div className="yolofuck-player-dock-volume-group">
                                 <button
                                     type="button"
-                                    className="yolofuck-player-dock-btn vol-btn"
+                                    className={`yolofuck-player-dock-btn vol-btn ${isMuted || volume === 0 ? 'muted' : ''}`}
                                     onClick={togglePlayerMute}
                                     title={isMuted ? 'Unmute' : 'Mute'}
                                 >
                                     {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                                    <span>{isMuted || volume === 0 ? 'Mute' : 'Sound'}</span>
                                 </button>
 
                                 <input
@@ -1428,9 +1512,10 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                             );
                                         })()}
 
-                                        {/* Horizontal Strip of Square Films (2px gap, oldest to newest) with touch and desktop mouse drag */}
-                                        <div 
-                                            className="yolofuck-films-horizontal-strip"
+                                            {/* Horizontal Strip of Square Films (2px gap, oldest to newest) with touch and desktop mouse drag */}
+                                            <div 
+                                                className="yolofuck-films-horizontal-strip"
+                                            data-sequence-id={date}
                                             onTouchStart={(e) => handleRowTouchStart(date, e)}
                                             onTouchMove={(e) => handleRowTouchMove(date, e)}
                                             onTouchEnd={() => handleRowTouchEnd(date, clips.length)}
@@ -1447,90 +1532,88 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                             ) : (
                                                 clips.map((clip, idx) => {
                                                     const isLoopingThis = loopingClipId === clip.id;
-                                                    const isDraggingThis = draggingClip?.clip.id === clip.id;
-                                                    const isDragOverThis = dragOverClipId === clip.id;
+                                                    const isDraggingThis = reorderDragState?.isActive && reorderDragState.sequenceId === date && reorderDragState.sourceIndex === idx;
+                                                    const isDropSlotHere = reorderDragState?.isActive && reorderDragState.sequenceId === date && reorderDragState.targetIndex === idx && reorderDragState.targetIndex !== reorderDragState.sourceIndex;
+                                                    const isTargetGhost = isDraggingThis && reorderDragState.targetIndex === reorderDragState.sourceIndex;
 
                                                     return (
-                                                        <div 
-                                                            key={clip.id}
-                                                            draggable={dragEnabledClipId === clip.id}
-                                                            className={`yolofuck-film-square ${isLoopingThis ? 'is-looping' : ''} ${isDraggingThis ? 'is-dragging' : ''} ${isDragOverThis ? 'drag-over' : ''}`}
-                                                            onPointerDown={(e) => handleSquarePointerDown(e, clip, date, idx)}
-                                                            onPointerMove={handleSquarePointerMove}
-                                                            onPointerUp={(e) => handleSquarePointerUp(e, clip, date, idx)}
-                                                            onPointerCancel={handleSquarePointerCancel}
-                                                            onDragStart={() => setDraggingClip({ clip, date })}
-                                                            onDragOver={(e) => {
-                                                                e.preventDefault();
-                                                                if (dragOverClipId !== clip.id) setDragOverClipId(clip.id);
-                                                            }}
-                                                            onDragLeave={() => {
-                                                                if (dragOverClipId === clip.id) setDragOverClipId(null);
-                                                            }}
-                                                            onDrop={(e) => {
-                                                                e.preventDefault();
-                                                                if (draggingClip && draggingClip.date === date) {
-                                                                    handleReorderClips(date, draggingClip.clip.id, clip.id);
-                                                                }
-                                                                setDraggingClip(null);
-                                                                setDragOverClipId(null);
-                                                                setDragEnabledClipId(null);
-                                                            }}
-                                                            onDragEnd={() => {
-                                                                setDraggingClip(null);
-                                                                setDragOverClipId(null);
-                                                                setDragEnabledClipId(null);
-                                                            }}
-                                                            title={`Take ${clip.original_take_number || (idx + 1)}${
-                                                                clip.original_take_number && clip.original_take_number !== idx + 1
-                                                                    ? ` (moved to position ${idx + 1})`
-                                                                    : ''
-                                                            }`}
-                                                        >
-                                                            {isLoopingThis ? (
-                                                                <video
-                                                                    src={clip.clip_url}
-                                                                    autoPlay
-                                                                    loop
-                                                                    playsInline
-                                                                    muted={false}
-                                                                    className="yolofuck-square-media"
-                                                                />
-                                                            ) : clip.thumbnail_url ? (
-                                                                <img 
-                                                                    src={clip.thumbnail_url} 
-                                                                    alt={`Take ${clip.original_take_number || (idx + 1)}`} 
-                                                                    className="yolofuck-square-media" 
-                                                                />
-                                                            ) : (
-                                                                <video
-                                                                    src={clip.clip_url}
-                                                                    className="yolofuck-square-media"
-                                                                    preload="metadata"
-                                                                    muted
-                                                                />
-                                                            )}
-
-                                                            {/* Top Center Take Number: Small, standard font, centered, no shadow */}
-                                                            <div className="yolofuck-film-top-badge">
-                                                                <span className="yolofuck-film-take-num">
-                                                                    {clip.original_take_number || (idx + 1)}
-                                                                </span>
-                                                            </div>
-
-                                                            {/* Bottom Start Time: e.g. 01:11 */}
-                                                            {clip.created_at && (
-                                                                <div className="yolofuck-film-bottom-time">
-                                                                    <span>{formatTakeTime(clip.created_at)}</span>
+                                                        <React.Fragment key={clip.id}>
+                                                            {/* Expanding Drop Slot before item if targetIndex < sourceIndex and idx === targetIndex */}
+                                                            {isDropSlotHere && reorderDragState.targetIndex < reorderDragState.sourceIndex && (
+                                                                <div className="yolofuck-film-drop-slot">
+                                                                    <span>DROP HERE</span>
                                                                 </div>
                                                             )}
-                                                        </div>
+
+                                                            <div 
+                                                                className={`yolofuck-film-square ${isLoopingThis ? 'is-looping' : ''} ${isDraggingThis ? 'is-ghost' : ''} ${isTargetGhost ? 'is-drop-target' : ''}`}
+                                                                onPointerDown={(e) => handleSquarePointerDown(e, clip, date, idx)}
+                                                                title={`Take ${clip.original_take_number || (idx + 1)}${
+                                                                    clip.original_take_number && clip.original_take_number !== idx + 1
+                                                                        ? ` (moved to position ${idx + 1})`
+                                                                        : ''
+                                                                }`}
+                                                            >
+                                                                {isLoopingThis ? (
+                                                                    <video
+                                                                        src={clip.clip_url}
+                                                                        autoPlay
+                                                                        loop
+                                                                        playsInline
+                                                                        muted={false}
+                                                                        className="yolofuck-square-media"
+                                                                    />
+                                                                ) : clip.thumbnail_url ? (
+                                                                    <img 
+                                                                        src={clip.thumbnail_url} 
+                                                                        alt={`Take ${clip.original_take_number || (idx + 1)}`} 
+                                                                        className="yolofuck-square-media" 
+                                                                    />
+                                                                ) : (
+                                                                    <video
+                                                                        src={clip.clip_url}
+                                                                        className="yolofuck-square-media"
+                                                                        preload="metadata"
+                                                                        muted
+                                                                    />
+                                                                )}
+
+                                                                {/* Ghost indicator at original position */}
+                                                                {isDraggingThis && (
+                                                                    <div className="yolofuck-film-ghost-badge">
+                                                                        <span>ORIGINAL</span>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Top Center Take Number Badge */}
+                                                                <div className="yolofuck-film-top-badge">
+                                                                    <span className="yolofuck-film-take-num">
+                                                                        {clip.original_take_number || (idx + 1)}
+                                                                    </span>
+                                                                </div>
+
+                                                                {/* Bottom Timestamp Badge */}
+                                                                {clip.created_at && (
+                                                                    <div className="yolofuck-film-bottom-time">
+                                                                        <span>{formatTakeTime(clip.created_at)}</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Expanding Drop Slot after item if targetIndex > sourceIndex and idx === targetIndex */}
+                                                            {isDropSlotHere && reorderDragState.targetIndex > reorderDragState.sourceIndex && (
+                                                                <div className="yolofuck-film-drop-slot">
+                                                                    <span>DROP HERE</span>
+                                                                </div>
+                                                            )}
+                                                        </React.Fragment>
                                                     );
                                                 })
                                             )}
                                         </div>
                                     </div>
                                 );
+
                             })}
                         </div>
                     )}
@@ -1553,14 +1636,14 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                         </p>
                         <div className="yolofuck-delete-confirm-actions">
                             <button 
-                                type="button"
+                                type="button" 
                                 className="yolofuck-delete-btn-cancel" 
                                 onClick={() => setClipToDelete(null)}
                             >
                                 Cancel
                             </button>
                             <button 
-                                type="button"
+                                type="button" 
                                 className="yolofuck-delete-btn-confirm" 
                                 onClick={handleDeleteConfirmed}
                             >
@@ -1585,8 +1668,26 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                     }}
                 />
             )}
+
+            {/* Intra-Sequence Reorder Floating Drag Avatar */}
+            {reorderDragState?.isActive && (
+                <div 
+                    className="yolofuck-drag-avatar"
+                    style={{
+                        left: reorderDragState.pointerX - 36,
+                        top: reorderDragState.pointerY - 64
+                    }}
+                >
+                    {reorderDragState.clip.thumbnail_url ? (
+                        <img src={reorderDragState.clip.thumbnail_url} alt="" />
+                    ) : (
+                        <video src={reorderDragState.clip.clip_url} muted />
+                    )}
+                </div>
+            )}
         </div>
     );
+
 };
 
 export default JournalStoryView;

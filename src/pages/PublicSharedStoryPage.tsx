@@ -98,7 +98,7 @@ export const PublicSharedStoryPage: React.FC = () => {
         video.src = activeClip.clip_url;
         video.currentTime = 0;
         video.volume = volume;
-        video.muted = isMuted;
+        video.loop = isLooping;
         video.load();
 
         if (isPlaying) {
@@ -112,17 +112,37 @@ export const PublicSharedStoryPage: React.FC = () => {
                 });
             }
         }
-    }, [currentClipIndex, activeClip?.clip_url]);
+    }, [currentClipIndex, activeClip?.clip_url, volume, isMuted, isLooping]);
 
     const handleClipEnded = () => {
-        if (currentClipIndex < clips.length - 1) {
-            setCurrentClipIndex(prev => prev + 1);
-        } else if (isLooping) {
-            setCurrentClipIndex(0);
+        if (isLooping) {
+            if (videoRef.current) {
+                videoRef.current.currentTime = 0;
+                videoRef.current.play().catch(console.error);
+            }
         } else {
-            setIsPlaying(false);
+            setIsPlaying(true);
+            if (clips.length <= 1) {
+                if (videoRef.current) {
+                    videoRef.current.currentTime = 0;
+                    videoRef.current.play().catch(console.error);
+                }
+            } else {
+                setCurrentClipIndex(prev => (prev + 1) % clips.length);
+            }
         }
     };
+
+    const toggleLoop = () => {
+        setIsLooping(prev => {
+            const next = !prev;
+            if (videoRef.current) {
+                videoRef.current.loop = next;
+            }
+            return next;
+        });
+    };
+
 
     const togglePlay = () => {
         if (!videoRef.current) return;
@@ -188,10 +208,6 @@ export const PublicSharedStoryPage: React.FC = () => {
         }
     };
 
-    const totalClips = Math.max(1, clips.length);
-    const clipProgress = clipDuration > 0 ? (currentTime / clipDuration) : 0;
-    const continuousProgressPct = Math.min(100, Math.max(0, ((currentClipIndex + clipProgress) / totalClips) * 100));
-
     if (loading) {
         return (
             <div style={{
@@ -243,6 +259,29 @@ export const PublicSharedStoryPage: React.FC = () => {
         );
     }
 
+    const totalClips = Math.max(1, clips.length);
+    const clipProgress = clipDuration > 0 ? Math.min(1, Math.max(0, currentTime / clipDuration)) : 0;
+    const continuousProgressPct = Math.min(100, Math.max(0, ((currentClipIndex + clipProgress) / totalClips) * 100));
+
+    const loopStartPct = (currentClipIndex / totalClips) * 100;
+    const loopEndPct = ((currentClipIndex + 1) / totalClips) * 100;
+    const loopWidthPct = (1 / totalClips) * 100;
+
+    const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        e.stopPropagation();
+        const rect = e.currentTarget.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const ratio = Math.max(0, Math.min(1, clickX / rect.width));
+        const targetIdx = Math.min(clips.length - 1, Math.floor(ratio * clips.length));
+        const progressInClip = (ratio * clips.length) - targetIdx;
+        if (targetIdx !== currentClipIndex) {
+            setCurrentClipIndex(targetIdx);
+            setCurrentTime(0);
+        } else if (videoRef.current && clipDuration > 0) {
+            videoRef.current.currentTime = progressInClip * clipDuration;
+        }
+    };
+
     return (
         <div className="shared-player-modal-backdrop">
             <div className="shared-player-modal-canvas">
@@ -256,13 +295,33 @@ export const PublicSharedStoryPage: React.FC = () => {
                     <X size={22} />
                 </button>
 
-                {/* Continuous Seamless Progress Bar (No segmented division marks) */}
-                <div className="shared-player-continuous-progress-track">
-                    <div 
-                        className="shared-player-continuous-progress-fill"
-                        style={{ width: `${continuousProgressPct}%` }}
-                    />
+                {/* Top Progress Bars (Hairline Ticks between Takes, Continuous Sequence Rotation) */}
+                <div className="shared-player-progress-row">
+                    {clips.map((clip: any, idx: number) => {
+                        const isPassed = idx < currentClipIndex;
+                        const isCurrent = idx === currentClipIndex;
+                        const pct = isPassed ? 100 : isCurrent && clipDuration > 0 ? (currentTime / clipDuration) * 100 : 0;
+                        return (
+                            <div 
+                                key={clip.clip_url || idx}
+                                className={`shared-progress-segment-bg ${isCurrent && isLooping ? 'is-looping' : ''}`}
+                                title={isCurrent && isLooping ? `Take ${idx + 1} looping` : `Take ${idx + 1}`}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setCurrentClipIndex(idx);
+                                    setCurrentTime(0);
+                                    setIsPlaying(true);
+                                }}
+                            >
+                                <div 
+                                    className="shared-progress-segment-fill" 
+                                    style={{ width: `${pct}%` }} 
+                                />
+                            </div>
+                        );
+                    })}
                 </div>
+
 
                 {/* Floating Tap to Unmute Badge */}
                 {isMuted && activeClip && (
@@ -323,8 +382,8 @@ export const PublicSharedStoryPage: React.FC = () => {
                     <button
                         type="button"
                         className={`shared-player-ctrl-btn ${isLooping ? 'active' : ''}`}
-                        onClick={() => setIsLooping(prev => !prev)}
-                        title={isLooping ? 'Loop is On' : 'Loop is Off'}
+                        onClick={toggleLoop}
+                        title={isLooping ? 'Loop is On (Looping this shot)' : 'Loop is Off (Rotating full sequence)'}
                     >
                         <Repeat size={18} />
                     </button>

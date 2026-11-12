@@ -20,21 +20,30 @@
   position: relative;
 }
 
-/* ── Top Bar: Search Bar & Sign Out ── */
+/* ── Top Bar: Search Bar, Desktop Central Nav & Sign Out ── */
 .yolofuck-top-bar {
   height: 52px;
   width: 100%;
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 14px;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px;
   background: #000000;
   border-bottom: 1px solid #21262d;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
   z-index: 30;
   flex-shrink: 0;
+  position: relative;
   transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.yolofuck-top-left-section {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
 }
 
 .yolofuck-top-brand-logo {
@@ -60,8 +69,6 @@
 }
 
 .yolofuck-search-pill {
-  flex: 1 1 0;
-  min-width: 0; /* Critical: allows search pill to shrink fluidly without pushing user button */
   height: 38px;
   border-radius: 19px;
   background: #0d1117;
@@ -72,9 +79,89 @@
   padding: 0 12px;
   gap: 8px;
   overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.yolofuck-search-pill:focus-within {
+  border-color: rgba(200, 247, 44, 0.4);
+  box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.6), 0 0 10px rgba(200, 247, 44, 0.15);
 }
 
 .yolofuck-search-pill svg {
+  flex-shrink: 0;
+}
+
+/* ── Desktop Central Navigation: Journal, Share, Record ── */
+.yolofuck-desktop-center-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+}
+
+.yolofuck-desktop-nav-btn {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  font-size: 12.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.yolofuck-desktop-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.yolofuck-desktop-nav-btn.active {
+  background: rgba(200, 247, 44, 0.1);
+  border-color: rgba(200, 247, 44, 0.4);
+  color: var(--yolo-lime, #c8f72c);
+  box-shadow: 0 0 12px rgba(200, 247, 44, 0.2);
+}
+
+.yolofuck-desktop-record-btn {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 18px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+  font-size: 12.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.yolofuck-desktop-record-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.6);
+  color: #f87171;
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.35);
+  transform: translateY(-1px);
+}
+
+.yolofuck-desktop-record-btn .yolofuck-rec-dot {
+  position: static;
+  width: 7px;
+  height: 7px;
   flex-shrink: 0;
 }
 
@@ -344,6 +431,59 @@
 @keyframes pulseRec {
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.4); opacity: 0.6; }
+}
+
+/* ── Mobile vs Desktop Adaptations ── */
+@media (max-width: 768px) {
+  .yolofuck-top-left-section {
+    flex: 1 1 0;
+    min-width: 0;
+    gap: 8px;
+  }
+
+  .yolofuck-search-pill {
+    flex: 1 1 0;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .yolofuck-desktop-center-nav {
+    display: none !important;
+  }
+
+  .yolofuck-bottom-nav {
+    display: flex !important;
+  }
+
+  .yolofuck-content {
+    padding-bottom: 58px;
+  }
+}
+
+@media (min-width: 769px) {
+  .yolofuck-top-left-section {
+    flex: none;
+  }
+
+  /* Industry standard desktop searchbar: compact, not stretching across the screen */
+  .yolofuck-search-pill {
+    width: 300px;
+    max-width: 320px;
+    flex: 0 0 300px;
+  }
+
+  .yolofuck-desktop-center-nav {
+    display: flex !important;
+  }
+
+  /* Remove bottom bar completely on desktop */
+  .yolofuck-bottom-nav {
+    display: none !important;
+  }
+
+  .yolofuck-content {
+    padding-bottom: 0 !important;
+  }
 }
 
 /* ── Mobile Top Bar Fluid Adaptation ── */
