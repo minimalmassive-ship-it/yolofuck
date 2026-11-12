@@ -10,7 +10,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
 import { 
     Video, 
     Share2, 
@@ -34,7 +33,6 @@ import TrashBinModal from '../components/TrashBinModal';
 import UserSettingsModal from '../components/UserSettingsModal';
 import QuestPageModal from '../components/QuestPageModal';
 import FriendsPageModal from '../components/FriendsPageModal';
-import type { Project } from '../types';
 
 import './JournalPage.css';
 import '../styles/vizja-ui-system.css';
@@ -43,8 +41,6 @@ export const JournalPage: React.FC = () => {
     const { user, profile, loading: authLoading, signOut } = useAuth();
 
     const [activeTab, setActiveTab] = useState<'story' | 'shared'>('story');
-    const [project, setProject] = useState<Project | null>(null);
-    const [loadingProject, setLoadingProject] = useState(false);
     const [showCaptureModal, setShowCaptureModal] = useState(false);
     const [isPlayerActive, setIsPlayerActive] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -64,67 +60,6 @@ export const JournalPage: React.FC = () => {
         window.addEventListener('journal_video_player_state', handlePlayerState);
         return () => window.removeEventListener('journal_video_player_state', handlePlayerState);
     }, []);
-
-    // Fetch or bind the user's Journal project
-    useEffect(() => {
-        let isMounted = true;
-
-        async function fetchJournalProject() {
-            if (!user) return;
-
-            try {
-                let { data: proj } = await supabase
-                    .from('projects')
-                    .select('*')
-                    .eq('user_id', user.id)
-                    .eq('system_type', 'journal')
-                    .maybeSingle();
-
-                if (!proj) {
-                    const { data: byName } = await supabase
-                        .from('projects')
-                        .select('*')
-                        .eq('user_id', user.id)
-                        .eq('name', 'Journal')
-                        .maybeSingle();
-                    proj = byName;
-                }
-
-                if (!proj) {
-                    try {
-                        const { data: newProj } = await supabase
-                            .from('projects')
-                            .insert({
-                                name: 'Journal',
-                                user_id: user.id,
-                                color: '#10b981',
-                                description: 'Personal daily video journal',
-                                is_public: false,
-                                is_system: true,
-                                system_type: 'journal'
-                            })
-                            .select()
-                            .single();
-                        proj = newProj;
-                    } catch {
-                        // Project creation optional if offline
-                    }
-                }
-
-                if (isMounted && proj) {
-                    setProject(proj);
-                }
-            } catch (err) {
-                console.warn('[JournalPage] Offline or local mode active:', err);
-            }
-        }
-
-        fetchJournalProject();
-
-        return () => {
-            isMounted = false;
-        };
-    }, [user]);
 
     return (
         <div className="yolofuck-root">
@@ -280,21 +215,21 @@ export const JournalPage: React.FC = () => {
 
             {/* Main Content Area */}
             <main className="yolofuck-content">
-                {authLoading || loadingProject ? (
+                {authLoading ? (
                     <div className="yolofuck-loading-wrap">
                         <Loader2 size={24} className="vizja-spin" color="#10b981" />
                         <span>Loading yolofuck journal...</span>
                     </div>
                 ) : activeTab === 'story' ? (
                     <JournalStoryView 
-                        projectId={project?.id || null} 
+                        projectId={null} 
                         searchQuery={searchQuery}
                         onSearchChange={setSearchQuery}
                         onOpenRecord={() => setShowCaptureModal(true)}
                         onNavigateToShared={() => setActiveTab('shared')}
                     />
                 ) : (
-                    <JournalSharedGrid projectId={project?.id || null} />
+                    <JournalSharedGrid />
                 )}
             </main>
 
@@ -336,7 +271,7 @@ export const JournalPage: React.FC = () => {
             {showCaptureModal && (
                 <JournalVideoCaptureModal 
                     onClose={() => setShowCaptureModal(false)}
-                    projectId={project?.id || null}
+                    projectId={null}
                     onClipSaved={() => {
                         setShowCaptureModal(false);
                     }}

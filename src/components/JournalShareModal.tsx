@@ -75,11 +75,23 @@ export const JournalShareModal: React.FC<JournalShareModalProps> = ({
                 .maybeSingle()
                 .then(async ({ data: entry }) => {
                     if (entry?.published_idea_id) {
-                        const { data: idea } = await supabase
-                            .from('ideas')
+                        let idea: any = null;
+                        const { data: storyRow } = await supabase
+                            .from('shared_stories')
                             .select('visibility, is_public, slug')
                             .eq('id', entry.published_idea_id)
                             .maybeSingle();
+
+                        if (storyRow) {
+                            idea = storyRow;
+                        } else {
+                            const { data: legacyIdea } = await supabase
+                                .from('ideas')
+                                .select('visibility, is_public, slug')
+                                .eq('id', entry.published_idea_id)
+                                .maybeSingle();
+                            idea = legacyIdea;
+                        }
 
                         if (idea) {
                             if (idea.slug) setPublishedSlug(idea.slug);

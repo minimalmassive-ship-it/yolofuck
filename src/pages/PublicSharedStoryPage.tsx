@@ -36,21 +36,25 @@ export const PublicSharedStoryPage: React.FC = () => {
 
             try {
                 setLoading(true);
-                // Look up in ideas table by slug or id
+                // Look up in shared_stories table first, with fallback to legacy ideas
                 let { data, error } = await supabase
-                    .from('ideas')
+                    .from('shared_stories')
                     .select('*')
                     .eq('slug', slug)
                     .maybeSingle();
 
-                if (!data && !error) {
-                    const resById = await supabase
-                        .from('ideas')
-                        .select('*')
-                        .eq('id', slug)
-                        .maybeSingle();
-                    data = resById.data;
-                    error = resById.error;
+                if (!data) {
+                    try {
+                        const legacy = await supabase
+                            .from('ideas')
+                            .select('*')
+                            .eq('slug', slug)
+                            .maybeSingle();
+                        if (legacy.data) {
+                            data = legacy.data;
+                            error = null;
+                        }
+                    } catch {}
                 }
 
                 if (error || !data) {
@@ -87,6 +91,7 @@ export const PublicSharedStoryPage: React.FC = () => {
     }, [slug]);
 
     const clips: Array<{ clip_url: string }> = 
+        (Array.isArray(story?.clips) && story.clips.length > 0 ? story.clips : null) ||
         (story?.provenance_log as any)?.clips || 
         (story?.video_url ? [{ clip_url: story.video_url }] : []);
 

@@ -82,31 +82,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }, [user, fetchProfile]);
 
-    const ensureJournalProject = useCallback(async (userId: string) => {
-        try {
-            const { data: existing } = await supabase
-                .from('projects')
-                .select('id')
-                .eq('user_id', userId)
-                .eq('system_type', 'journal')
-                .maybeSingle();
-
-            if (!existing) {
-                await supabase.from('projects').insert({
-                    name: 'Journal',
-                    user_id: userId,
-                    color: '#10b981',
-                    description: 'Daily video journal',
-                    is_public: false,
-                    is_system: true,
-                    system_type: 'journal'
-                });
-            }
-        } catch (e) {
-            console.warn('[Auth] ensureJournalProject note:', e);
-        }
-    }, []);
-
     useEffect(() => {
         let isActive = true;
 
@@ -172,8 +147,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 if (!localStorage.getItem('yolofuck_local_owner_id')) {
                     localStorage.setItem('yolofuck_local_owner_id', currentUser.id);
                 }
-
-                await ensureJournalProject(currentUser.id);
             } else {
                 setUser(null);
                 setProfile(null);
@@ -194,7 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             isActive = false;
             subscription.unsubscribe();
         };
-    }, [fetchProfile, ensureJournalProject]);
+    }, [fetchProfile]);
 
     const signInWithEmail = useCallback(async (email: string, password: string) => {
         try {
