@@ -48,14 +48,16 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
         toastTimerRef.current = setTimeout(() => setToastMessage(null), 2500);
     };
 
-    const loadStories = useCallback(async () => {
+    const loadStories = useCallback(async (isSilent = false) => {
         if (!user?.id) {
             setLoading(false);
             return;
         }
 
         try {
-            setLoading(true);
+            if (!isSilent) {
+                setLoading(true);
+            }
             const data = await fetchUserSharedDailyStories(user.id);
             const list = Array.isArray(data) ? data.map(hydrateStoryProvenance) : [];
             // Strictly sort with newest shared sequence at the very top (index 0)
@@ -78,14 +80,18 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
     }, [user?.id]);
 
     useEffect(() => {
-        loadStories();
+        loadStories(false);
 
         const handleSharedUpdated = () => {
-            loadStories();
+            loadStories(true);
         };
 
         window.addEventListener('journal_shared_updated', handleSharedUpdated);
-        return () => window.removeEventListener('journal_shared_updated', handleSharedUpdated);
+        window.addEventListener('journal_realtime_sync', handleSharedUpdated);
+        return () => {
+            window.removeEventListener('journal_shared_updated', handleSharedUpdated);
+            window.removeEventListener('journal_realtime_sync', handleSharedUpdated);
+        };
     }, [loadStories]);
 
     // Close gear dropdown menu on outside click

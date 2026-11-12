@@ -48,6 +48,7 @@ import {
 } from '../lib/journalStoryService';
 import { getAllLocalJournalRecordings, deleteLocalJournalRecording } from '../lib/journalLocalStorage';
 import { moveToTrash } from '../lib/journalTrashStorage';
+import { initJournalRealtime, broadcastJournalSync } from '../lib/journalRealtimeSync';
 import { JournalShareCommandCenter } from './JournalShareCommandCenter';
 import './JournalStoryView.css';
 
@@ -375,6 +376,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
         }
         // Notify Shared tab to refresh immediately and place this sequence at the top
         window.dispatchEvent(new CustomEvent('journal_shared_updated', { detail: { date, top: true } }));
+        broadcastJournalSync({ type: 'shared_updated', userId: targetUserId, date });
         if (onNavigateToShared) {
             onNavigateToShared();
         } else {
@@ -388,14 +390,16 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
     };
 
     // ── Load Clips from Supabase & Local IndexedDB ──
-    const loadAllClips = useCallback(async () => {
+    const loadAllClips = useCallback(async (isSilent = false) => {
         if (!user?.id) {
             setLoading(false);
             return;
         }
 
         try {
-            setLoading(true);
+            if (!isSilent) {
+                setLoading(true);
+            }
 
             // One-time safety claim for minimalmassive@gmail.com / Plasticin
             if (
@@ -456,18 +460,28 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
     }, [user?.id, user?.email, profile?.username]);
 
     useEffect(() => {
-        loadAllClips();
+        loadAllClips(false);
 
-        const handleSaved = (e: any) => {
-            loadAllClips();
+        // Start cross-device Realtime subscription for the logged-in user
+        const cleanupRealtime = initJournalRealtime(user?.id);
+
+        const handleSync = (e: any) => {
+            // Background silent reload: update video shorts immediately without spinner flash
+            loadAllClips(true);
             if (e.detail?.date) {
                 setActiveStoryDate(e.detail.date);
             }
         };
 
-        window.addEventListener('journal_clip_saved', handleSaved);
-        return () => window.removeEventListener('journal_clip_saved', handleSaved);
-    }, [loadAllClips]);
+        window.addEventListener('journal_clip_saved', handleSync);
+        window.addEventListener('journal_realtime_sync', handleSync);
+
+        return () => {
+            cleanupRealtime();
+            window.removeEventListener('journal_clip_saved', handleSync);
+            window.removeEventListener('journal_realtime_sync', handleSync);
+        };
+    }, [user?.id, loadAllClips]);
 
     // Notify parent when player state changes (to hide/show top and bottom bars)
     useEffect(() => {
@@ -691,6 +705,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
             await deleteClip(clipId);
             await deleteLocalJournalRecording(clipId);
             setAllClips(prev => prev.filter(c => c.id !== clipId));
+            broadcastJournalSync({ type: 'clip_deleted', userId: user?.id, clipId });
             if (activeClip?.id === clipId) {
                 if (activeDayClips.length <= 1) {
                     handleClosePlayer();

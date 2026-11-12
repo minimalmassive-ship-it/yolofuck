@@ -15,6 +15,7 @@ import ReactDOM from 'react-dom';
 import { Plus, X, Video, FlipHorizontal } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { saveClip, syncDailyVideoEntry, getLocalDateISO } from '../lib/journalStoryService';
+import { broadcastJournalSync } from '../lib/journalRealtimeSync';
 import {
     getMediaSettingsFromProfile,
     buildMediaRecorderOptions,
@@ -324,8 +325,12 @@ export const JournalVideoCaptureModal: React.FC<JournalVideoCaptureModalProps> =
                 await syncDailyVideoEntry(user.id, projectId, getLocalDateISO());
             }
 
-            // Dispatch global event to refresh the journal grid
-            window.dispatchEvent(new CustomEvent('journal_clip_saved', { detail: { date: getLocalDateISO() } }));
+            // Dispatch global event and broadcast to all devices in realtime
+            await broadcastJournalSync({
+                type: 'clip_saved',
+                userId: user?.id,
+                date: getLocalDateISO()
+            });
 
             onClipSaved?.();
             handleClose();
