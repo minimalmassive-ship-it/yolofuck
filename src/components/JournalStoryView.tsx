@@ -43,7 +43,6 @@ import {
     getDayCustomOrder,
     setDayCustomOrder,
     resetDayCustomOrder,
-    claimAllExistingClipsForUser,
     type JournalClip,
 } from '../lib/journalStoryService';
 import { getAllLocalJournalRecordings, deleteLocalJournalRecording } from '../lib/journalLocalStorage';
@@ -408,14 +407,6 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                 setLoading(true);
             }
 
-            // One-time safety claim for minimalmassive@gmail.com / Plasticin
-            if (
-                user.email === 'minimalmassive@gmail.com' ||
-                user.id === '4fb34c08-a3b7-45b3-a7ad-fda625eae464' ||
-                profile?.username?.toLowerCase() === 'plasticin'
-            ) {
-                await claimAllExistingClipsForUser(user.id);
-            }
 
             // 1. Fetch cloud clips strictly for this user
             const cloudClips = await fetchAllUserClips(user.id);

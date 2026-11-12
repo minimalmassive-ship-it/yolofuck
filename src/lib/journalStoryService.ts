@@ -127,29 +127,22 @@ function generateStoragePath(userId: string, filename: string): string {
     return `${userId}/${timestamp}_${rand}_${filename}`;
 }
 
-// Legacy take owners to ensure Plasticin recorded takes are permanently retained across ID transitions
-const LEGACY_OWNER_IDS = ['4fb34c08-a3b7-45b3-a7ad-fda625eae464', 'usr_2u9738jcmw9m8ngu', 'usr_yz3g4yodmw9m8chf', 'local_user', 'anonymous'];
-
 export function getTargetUserIds(userId?: string | null): string[] {
-    const list = userId ? [userId] : [];
-    LEGACY_OWNER_IDS.forEach(id => {
-        if (!list.includes(id)) list.push(id);
-    });
-    return list;
+    return userId ? [userId] : [];
 }
 
 // ── Entry CRUD ─────────────────────────────────────────────────────────────
 
-/** Fetch all entries for a specific date, ordered by creation time */
+/** Fetch all entries for a specific date, ordered by creation time strictly for the authenticated user */
 export async function fetchEntriesByDate(
     userId: string,
     date: string
 ): Promise<JournalEntry[]> {
-    const userIds = getTargetUserIds(userId);
+    if (!userId) return [];
     const { data, error } = await supabase
         .from('journal_entries')
         .select('*')
-        .in('user_id', userIds)
+        .eq('user_id', userId)
         .eq('entry_date', date)
         .order('created_at', { ascending: true });
 
@@ -160,17 +153,17 @@ export async function fetchEntriesByDate(
     return data || [];
 }
 
-/** Fetch paginated entries (newest first), grouped by date for the feed */
+/** Fetch paginated entries (newest first), grouped by date for the feed strictly for the authenticated user */
 export async function fetchEntriesPaginated(
     userId: string,
     page: number = 0,
     limit: number = 50
 ): Promise<JournalEntry[]> {
-    const userIds = getTargetUserIds(userId);
+    if (!userId) return [];
     const { data, error } = await supabase
         .from('journal_entries')
         .select('*')
-        .in('user_id', userIds)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .range(page * limit, (page + 1) * limit - 1);
 
@@ -181,16 +174,16 @@ export async function fetchEntriesPaginated(
     return (data || []).reverse(); // Reverse so oldest are at top in feed
 }
 
-/** Fetch unmerged clips for a specific date */
+/** Fetch unmerged clips for a specific date strictly for the authenticated user */
 export async function fetchUnmergedClips(
     userId: string,
     date: string
 ): Promise<JournalClip[]> {
-    const userIds = getTargetUserIds(userId);
+    if (!userId) return [];
     const { data, error } = await supabase
         .from('journal_clips')
         .select('*')
-        .in('user_id', userIds)
+        .eq('user_id', userId)
         .eq('clip_date', date)
         .eq('is_merged', false)
         .order('clip_order', { ascending: true });
@@ -202,16 +195,16 @@ export async function fetchUnmergedClips(
     return data || [];
 }
 
-/** Fetch all clips for a specific date (including merged ones) - strictly oldest to newest */
+/** Fetch all clips for a specific date (including merged ones) strictly for the authenticated user */
 export async function fetchClipsByDate(
     userId: string,
     date: string
 ): Promise<JournalClip[]> {
-    const userIds = getTargetUserIds(userId);
+    if (!userId) return [];
     const { data, error } = await supabase
         .from('journal_clips')
         .select('*')
-        .in('user_id', userIds)
+        .eq('user_id', userId)
         .eq('clip_date', date)
         .order('clip_order', { ascending: true })
         .order('created_at', { ascending: true });
@@ -223,17 +216,15 @@ export async function fetchClipsByDate(
     return data || [];
 }
 
-/** Fetch all clips for a user across all dates, sorted by date DESC and clip_order ASC.
- * Includes user clips and any pre-auth/anonymous clips ('local_user', 'anonymous', null)
- */
+/** Fetch all clips for a user across all dates, strictly isolated to the authenticated user */
 export async function fetchAllUserClips(
     userId: string
 ): Promise<JournalClip[]> {
-    const userIds = getTargetUserIds(userId);
+    if (!userId) return [];
     const { data, error } = await supabase
         .from('journal_clips')
         .select('*')
-        .in('user_id', userIds)
+        .eq('user_id', userId)
         .order('clip_date', { ascending: false })
         .order('clip_order', { ascending: true })
         .order('created_at', { ascending: true });
@@ -999,29 +990,11 @@ export function resetDayCustomOrder(userId: string, date: string): void {
 }
 
 /**
- * One-time / safety claim function:
- * Ensures all existing clips and journal entries (local device and cloud DB)
- * are assigned to targetUserId (e.g. minimalmassive@gmail.com / Plasticin).
+ * Deprecated claim function - strictly disabled for multi-tenant isolation.
  */
-export async function claimAllExistingClipsForUser(targetUserId: string): Promise<void> {
-    if (!targetUserId) return;
-    try {
-        localStorage.setItem('yolofuck_local_owner_id', targetUserId);
-        localStorage.setItem('ideanite_local_owner_id', targetUserId);
-
-        // Update any unassigned, generic, or legacy clips in Supabase
-        await supabase
-            .from('journal_clips')
-            .update({ user_id: targetUserId })
-            .or(`user_id.is.null,user_id.eq.local_user,user_id.eq.anonymous,user_id.neq.${targetUserId}`);
-
-        await supabase
-            .from('journal_entries')
-            .update({ user_id: targetUserId })
-            .or(`user_id.is.null,user_id.eq.local_user,user_id.eq.anonymous,user_id.neq.${targetUserId}`);
-    } catch (e) {
-        console.warn('[JournalStory] claimAllExistingClipsForUser notice:', e);
-    }
+export async function claimAllExistingClipsForUser(_targetUserId: string): Promise<void> {
+    // Intentionally no-op to guarantee strict data segregation
+    return;
 }
 
 /** Publish a day's compilation as a full-fledged published short on Home Page */

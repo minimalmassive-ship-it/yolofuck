@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-import { getTargetUserIds } from './journalStoryService';
 
 export interface JournalRealtimeSyncPayload {
     type: 'clip_saved' | 'clip_deleted' | 'shared_updated' | 'order_changed';
@@ -62,11 +61,10 @@ export async function broadcastJournalSync(payload: JournalRealtimeSyncPayload):
  */
 async function checkClipsDelta(userId: string): Promise<void> {
     try {
-        const userIds = getTargetUserIds(userId);
         const { data, count, error } = await supabase
             .from('journal_clips')
             .select('id, created_at', { count: 'exact' })
-            .in('user_id', userIds)
+            .eq('user_id', userId)
             .order('created_at', { ascending: false })
             .limit(1);
 
@@ -119,7 +117,6 @@ export function initJournalRealtime(userId?: string | null): () => void {
     }
 
     currentSubscribedUserId = userId;
-    const targetUserIds = getTargetUserIds(userId);
     const channelName = `realtime_journal_${userId}`;
 
     const channel = supabase.channel(channelName, {
@@ -128,25 +125,26 @@ export function initJournalRealtime(userId?: string | null): () => void {
         }
     });
 
-    // 1. Listen for cross-device broadcast messages
+    // 1. Listen for cross-device broadcast messages strictly for this user
     channel.on('broadcast', { event: 'journal_sync' }, (message) => {
         const payload = message?.payload as JournalRealtimeSyncPayload;
         if (!payload) return;
 
         const senderId = payload.userId;
-        if (!senderId || targetUserIds.includes(senderId)) {
+        if (senderId === userId) {
             dispatchLocalEvent(payload);
         }
     });
 
-    // 2. Listen for direct PostgreSQL database changes on journal_clips
+    // 2. Listen for direct PostgreSQL database changes on journal_clips strictly for this user
     channel.on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'journal_clips'
+        table: 'journal_clips',
+        filter: `user_id=eq.${userId}`
     }, (payload) => {
         const rowUserId = (payload.new as any)?.user_id || (payload.old as any)?.user_id;
-        if (!rowUserId || targetUserIds.includes(rowUserId)) {
+        if (rowUserId === userId) {
             const date = (payload.new as any)?.clip_date || (payload.old as any)?.clip_date;
             dispatchLocalEvent({
                 type: payload.eventType === 'DELETE' ? 'clip_deleted' : 'clip_saved',
@@ -158,14 +156,15 @@ export function initJournalRealtime(userId?: string | null): () => void {
         }
     });
 
-    // 3. Listen for PostgreSQL changes on journal_entries (chat & daily video sequence cards)
+    // 3. Listen for PostgreSQL changes on journal_entries strictly for this user
     channel.on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'journal_entries'
+        table: 'journal_entries',
+        filter: `user_id=eq.${userId}`
     }, (payload) => {
         const rowUserId = (payload.new as any)?.user_id || (payload.old as any)?.user_id;
-        if (!rowUserId || targetUserIds.includes(rowUserId)) {
+        if (rowUserId === userId) {
             const date = (payload.new as any)?.entry_date || (payload.old as any)?.entry_date;
             dispatchLocalEvent({
                 type: 'clip_saved',
@@ -176,14 +175,15 @@ export function initJournalRealtime(userId?: string | null): () => void {
         }
     });
 
-    // 4. Listen for PostgreSQL changes on ideas (daily story share records)
+    // 4. Listen for PostgreSQL changes on ideas (daily story share records) strictly for this user
     channel.on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'ideas'
+        table: 'ideas',
+        filter: `user_id=eq.${userId}`
     }, (payload) => {
         const rowUserId = (payload.new as any)?.user_id || (payload.old as any)?.user_id;
-        if (!rowUserId || targetUserIds.includes(rowUserId)) {
+        if (rowUserId === userId) {
             dispatchLocalEvent({
                 type: 'shared_updated',
                 userId: rowUserId,

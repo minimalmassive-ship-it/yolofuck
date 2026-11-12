@@ -148,38 +148,15 @@ export async function getAllLocalJournalRecordings(targetUserId?: string): Promi
     legacyList.forEach(item => entryMap.set(item.id, item));
     currentList.forEach(item => entryMap.set(item.id, item));
 
-    let localPrimaryUser = localStorage.getItem('yolofuck_local_owner_id');
-    if (!localPrimaryUser) {
-        localStorage.setItem('yolofuck_local_owner_id', targetUserId);
-        localPrimaryUser = targetUserId;
-    }
-    const isPrimaryOwner = (localPrimaryUser === targetUserId) || targetUserId === '4fb34c08-a3b7-45b3-a7ad-fda625eae464';
-
     const userEntries: LocalJournalEntry[] = [];
-    const entriesToMigrate: LocalJournalEntry[] = [];
 
     for (const item of entryMap.values()) {
-        const isGenericOrUnowned = !item.userId || item.userId === 'local_user' || item.userId === 'anonymous' || item.userId === 'user';
         if (item.userId === targetUserId) {
             userEntries.push(item);
-        } else if (isPrimaryOwner && isGenericOrUnowned) {
-            // Unowned or generic recording claimed by primary owner
-            const migrated = { ...item, userId: targetUserId };
-            userEntries.push(migrated);
-            entriesToMigrate.push(migrated);
         }
     }
 
     // Persist ownership of migrated entries in the background so they are permanently sealed to targetUserId
-    if (entriesToMigrate.length > 0) {
-        openDatabase().then(db => {
-            const tx = db.transaction(STORE_NAME, 'readwrite');
-            const store = tx.objectStore(STORE_NAME);
-            for (const entry of entriesToMigrate) {
-                try { store.put(entry); } catch {}
-            }
-        }).catch(() => {});
-    }
 
     // Deduplicate any internal identical takes (same duration within 350ms, created within 3s)
     const deduped: LocalJournalEntry[] = [];
