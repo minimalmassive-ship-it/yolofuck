@@ -218,7 +218,7 @@ export const JournalPage: React.FC = () => {
                 {authLoading ? (
                     <div className="yolofuck-loading-wrap">
                         <Loader2 size={24} className="vizja-spin" color="#10b981" />
-                        <span>Loading yolofuck journal...</span>
+                        <span>Loading Memcut journal...</span>
                     </div>
                 ) : activeTab === 'story' ? (
                     <JournalStoryView 

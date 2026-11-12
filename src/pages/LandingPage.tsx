@@ -77,9 +77,9 @@ export const LandingPage: React.FC = () => {
             // Inform user on iOS or mobile browsers where manual install action applies
             const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
             if (isIos) {
-                alert('To install yolofuck: tap the Share button in Safari, then select "Add to Home Screen".');
+                alert('To install Memcut: tap the Share button in Safari, then select "Add to Home Screen".');
             } else {
-                alert('To install yolofuck: tap the browser menu (⋮) and choose "Install App" or "Add to Home screen".');
+                alert('To install Memcut: tap the browser menu (⋮) and choose "Install App" or "Add to Home screen".');
             }
         }
     };
@@ -218,7 +218,7 @@ export const LandingPage: React.FC = () => {
                         type="button"
                         className="yolofuck-pwa-install-btn"
                         onClick={handleInstallPwa}
-                        title={isPwaInstalled ? 'yolofuck is installed' : 'Install yolofuck app'}
+                        title={isPwaInstalled ? 'Memcut is installed' : 'Install Memcut app'}
                     >
                         <Download size={18} />
                         <span className="yolofuck-pwa-btn-label">App</span>

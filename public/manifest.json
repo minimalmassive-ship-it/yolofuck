@@ -1,7 +1,7 @@
 {
-  "name": "yolofuck — Daily Video Journal",
-  "short_name": "yolofuck",
-  "description": "Capture short video clips throughout your day. Yolofuck compiles your daily clips into a seamless story with live speech-to-text transcription.",
+  "name": "Memcut — Daily Video Journal",
+  "short_name": "Memcut",
+  "description": "Capture short video clips throughout your day. Memcut compiles your daily clips into a seamless story with live speech-to-text transcription.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",

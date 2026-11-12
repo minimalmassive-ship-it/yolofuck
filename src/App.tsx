@@ -31,7 +31,7 @@ const AppRoutes: React.FC = () => {
                 fontFamily: 'system-ui, -apple-system, sans-serif'
             }}>
                 <Loader2 size={24} className="vizja-spin" color="#10b981" />
-                <span>Loading yolofuck...</span>
+                <span>Loading Memcut...</span>
             </div>
         );
     }
