@@ -36,26 +36,12 @@ export const PublicSharedStoryPage: React.FC = () => {
 
             try {
                 setLoading(true);
-                // Look up in shared_stories table first, with fallback to legacy ideas
+                // Look up in dedicated shared_stories table
                 let { data, error } = await supabase
                     .from('shared_stories')
                     .select('*')
                     .eq('slug', slug)
                     .maybeSingle();
-
-                if (!data) {
-                    try {
-                        const legacy = await supabase
-                            .from('ideas')
-                            .select('*')
-                            .eq('slug', slug)
-                            .maybeSingle();
-                        if (legacy.data) {
-                            data = legacy.data;
-                            error = null;
-                        }
-                    } catch {}
-                }
 
                 if (error || !data) {
                     if (isMounted) {

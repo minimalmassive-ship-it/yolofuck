@@ -175,11 +175,11 @@ export function initJournalRealtime(userId?: string | null): () => void {
         }
     });
 
-    // 4. Listen for PostgreSQL changes on ideas (daily story share records) strictly for this user
+    // 4. Listen for PostgreSQL changes on shared_stories strictly for this user
     channel.on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'ideas',
+        table: 'shared_stories',
         filter: `user_id=eq.${userId}`
     }, (payload) => {
         const rowUserId = (payload.new as any)?.user_id || (payload.old as any)?.user_id;

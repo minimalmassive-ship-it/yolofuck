@@ -688,22 +688,22 @@ export async function getDailyStoryPublishedSlug(userId: string, date: string): 
 
     if (!entry?.published_idea_id) return null;
 
-    const { data: idea } = await supabase
-        .from('ideas')
+    const { data: story } = await supabase
+        .from('shared_stories')
         .select('slug')
         .eq('id', entry.published_idea_id)
         .maybeSingle();
 
-    return idea?.slug || null;
+    return story?.slug || null;
 }
 
 /**
- * Ensure an unlisted daily story idea exists so a unique share link is immediately available
+ * Ensure an unlisted daily story exists in shared_stories so a unique share link is immediately available
  * for anyone with the link, without publicly publishing it to the Home Page yet.
  */
 export async function ensureDailyStoryIdea(
     userId: string,
-    projectId: string | null,
+    projectId: string | null = null,
     date: string,
     clips: JournalClip[],
     username?: string
@@ -741,22 +741,20 @@ export async function ensureDailyStoryIdea(
     }
 
     if (existingEntry?.published_idea_id) {
-        const { data: existingIdea } = await supabase
-            .from('ideas')
+        const { data: existingStory } = await supabase
+            .from('shared_stories')
             .select('id, slug, is_public, visibility')
             .eq('id', existingEntry.published_idea_id)
             .maybeSingle();
 
-        if (existingIdea) {
-            // Upgrade legacy or generic slugs like 'journal-YYYY-MM-DD' to unique author-bound slug
-            const currentSlug = existingIdea.slug || targetSlug;
+        if (existingStory) {
+            const currentSlug = existingStory.slug || targetSlug;
             const finalSlug = (currentSlug.startsWith('journal-') && !currentSlug.includes('-story-'))
                 ? targetSlug
                 : currentSlug;
 
-            // Maintain privacy: generating/refreshing link access MUST NOT auto-publish to Home Page
-            const isPublic = existingIdea.visibility === 'public' && existingIdea.is_public === true;
-            const visibilityVal = isPublic ? 'public' : (existingIdea.visibility === 'network' ? 'network' : 'private');
+            const isPublic = existingStory.visibility === 'public' && existingStory.is_public === true;
+            const visibilityVal = isPublic ? 'public' : (existingStory.visibility === 'network' ? 'network' : 'private');
 
             const descJson = encodeStoryDescription(transcription, {
                 clips,
@@ -766,27 +764,26 @@ export async function ensureDailyStoryIdea(
                 is_stopped: false
             });
 
-            // Update clips provenance inside description and ensure link access
             await supabase
-                .from('ideas')
+                .from('shared_stories')
                 .update({
                     slug: finalSlug,
+                    title,
                     description: descJson,
+                    transcription,
                     media_url: clips[0]?.clip_url || '',
                     thumbnail_url: coverThumb,
-                    image_url: coverThumb,
+                    clips,
                     is_public: isPublic,
                     visibility: visibilityVal,
                     updated_at: new Date().toISOString()
                 })
-                .eq('id', existingIdea.id);
+                .eq('id', existingStory.id);
 
-            return { success: true, ideaId: existingIdea.id, slug: finalSlug };
+            return { success: true, ideaId: existingStory.id, slug: finalSlug };
         }
     }
 
-    // Create new unlisted idea record for link sharing with author-bound unique slug
-    // Matching exact schema of public.ideas table (no allow_link_access or provenance_log columns)
     const descJson = encodeStoryDescription(transcription, {
         clips,
         date,
@@ -795,31 +792,30 @@ export async function ensureDailyStoryIdea(
         is_stopped: false
     });
 
-    const ideaPayload: any = {
+    const storyPayload: any = {
         title,
         description: descJson,
-        media_type: 'video',
+        transcription,
         media_url: clips[0]?.clip_url || '',
         thumbnail_url: coverThumb,
-        image_url: coverThumb,
-        is_public: false, // Unlisted/Private by default so link works without publishing to Home Page
-        visibility: 'private', // Link access only
+        is_public: false,
+        visibility: 'private',
         user_id: userId,
-        project_id: projectId || null,
-        level: 1,
+        date: safeDate,
+        clips,
         slug: targetSlug,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
     };
 
-    const { data: newIdea, error: insErr } = await supabase
-        .from('ideas')
-        .insert(ideaPayload)
+    const { data: newStory, error: insErr } = await supabase
+        .from('shared_stories')
+        .insert(storyPayload)
         .select('id, slug')
         .single();
 
     if (insErr) {
-        console.error('[JournalStory] ensureDailyStoryIdea insert idea error:', insErr);
+        console.error('[JournalStory] ensureDailyStoryIdea insert shared_stories error:', insErr);
         return { success: false, ideaId: '', slug: '' };
     }
 
@@ -827,13 +823,13 @@ export async function ensureDailyStoryIdea(
         await supabase
             .from('journal_entries')
             .update({
-                published_idea_id: newIdea.id,
+                published_idea_id: newStory.id,
                 thumbnail_url: coverThumb
             })
             .eq('id', existingEntry.id);
     }
 
-    return { success: true, ideaId: newIdea.id, slug: newIdea.slug || targetSlug };
+    return { success: true, ideaId: newStory.id, slug: newStory.slug || targetSlug };
 }
 
 /** Reorder clips for a day and persist new clip_order to database */
@@ -877,7 +873,7 @@ export async function reorderDailyClips(
 
         if (entry?.published_idea_id) {
             const { data: currentIdea } = await supabase
-                .from('ideas')
+                .from('shared_stories')
                 .select('description')
                 .eq('id', entry.published_idea_id)
                 .maybeSingle();
@@ -893,7 +889,7 @@ export async function reorderDailyClips(
             };
 
             await supabase
-                .from('ideas')
+                .from('shared_stories')
                 .update({
                     media_url: clipUrls[0] || '',
                     description: encodeStoryDescription(newProv.transcription || '', newProv),
@@ -920,7 +916,7 @@ export async function reorderSharedStoryClips(
 
     try {
         const { data: currentIdea } = await supabase
-            .from('ideas')
+            .from('shared_stories')
             .select('*')
             .eq('id', storyId)
             .maybeSingle();
@@ -937,7 +933,7 @@ export async function reorderSharedStoryClips(
             };
             const firstMedia = reorderedClips[0]?.clip_url || currentIdea.media_url || '';
             await supabase
-                .from('ideas')
+                .from('shared_stories')
                 .update({
                     media_url: firstMedia,
                     description: encodeStoryDescription(newProv.transcription || (currentIdea as any).transcription || '', newProv),
@@ -1035,7 +1031,7 @@ export async function publishDailyStory(
     let currentIsPublic = false;
     if (publishedIdeaId) {
         const { data: existingIdea } = await supabase
-            .from('ideas')
+            .from('shared_stories')
             .select('visibility, is_public')
             .eq('id', publishedIdeaId)
             .maybeSingle();
@@ -1081,7 +1077,7 @@ export async function publishDailyStory(
     if (publishedIdeaId) {
         // Update existing idea
         const { data: updatedIdea, error: updErr } = await supabase
-            .from('ideas')
+            .from('shared_stories')
             .update(ideaPayload)
             .eq('id', publishedIdeaId)
             .select('id, slug')
@@ -1099,7 +1095,7 @@ export async function publishDailyStory(
         ideaPayload.created_at = new Date().toISOString();
 
         const { data: newIdea, error: insErr } = await supabase
-            .from('ideas')
+            .from('shared_stories')
             .insert(ideaPayload)
             .select('id, slug')
             .single();
@@ -1141,7 +1137,7 @@ export async function unpublishDailyStory(userId: string, date: string): Promise
 
     if (existingEntry.published_idea_id) {
         await supabase
-            .from('ideas')
+            .from('shared_stories')
             .update({ is_public: false, visibility: 'private' })
             .eq('id', existingEntry.published_idea_id);
     }
@@ -1177,7 +1173,7 @@ export async function updateDailyStoryVisibility(
 
     const isPublic = visibility === 'public';
     const { error: ideaErr } = await supabase
-        .from('ideas')
+        .from('shared_stories')
         .update({
             visibility,
             is_public: isPublic,
@@ -1221,7 +1217,7 @@ export async function stopDailyStorySharing(userId: string, date: string, ideaId
 
     // Fetch current provenance to preserve it with is_stopped flag
     const { data: idea } = await supabase
-        .from('ideas')
+        .from('shared_stories')
         .select('description')
         .eq('id', targetIdeaId)
         .maybeSingle();
@@ -1235,7 +1231,7 @@ export async function stopDailyStorySharing(userId: string, date: string, ideaId
     };
 
     const { error } = await supabase
-        .from('ideas')
+        .from('shared_stories')
         .update({
             visibility: 'stopped',
             is_public: false,
@@ -1278,7 +1274,7 @@ export async function resumeDailyStorySharing(
     restoreVisibility: 'private' | 'network' | 'public' = 'private'
 ): Promise<boolean> {
     const { data: idea } = await supabase
-        .from('ideas')
+        .from('shared_stories')
         .select('description')
         .eq('id', ideaId)
         .maybeSingle();
@@ -1293,7 +1289,7 @@ export async function resumeDailyStorySharing(
 
     const isPublic = restoreVisibility === 'public';
     const { error } = await supabase
-        .from('ideas')
+        .from('shared_stories')
         .update({
             visibility: restoreVisibility,
             is_public: isPublic,
@@ -1330,7 +1326,7 @@ export async function refreshDailyStorySlug(
         const newSlug = `${baseSlug}-${salt}`;
 
         const { error } = await supabase
-            .from('ideas')
+            .from('shared_stories')
             .update({
                 slug: newSlug,
                 updated_at: new Date().toISOString()
@@ -1389,7 +1385,7 @@ export async function deleteDailyStoryShare(userId: string, date: string, ideaId
 
     // 2. Delete idea from ideas table
     const { error } = await supabase
-        .from('ideas')
+        .from('shared_stories')
         .delete()
         .eq('id', targetIdeaId);
 
@@ -1411,7 +1407,7 @@ export async function fetchUserSharedDailyStories(userId: string): Promise<any[]
     try {
         // Query ideas for this user, ordered by most recently updated/shared first
         const { data, error } = await supabase
-            .from('ideas')
+            .from('shared_stories')
             .select('*')
             .eq('user_id', userId)
             .order('updated_at', { ascending: false });
@@ -1448,7 +1444,7 @@ export async function fetchUserSharedDailyStories(userId: string): Promise<any[]
             const ideaIds = entries.map((e: any) => e.published_idea_id).filter(Boolean);
             if (ideaIds.length > 0) {
                 const { data: linkedIdeas } = await supabase
-                    .from('ideas')
+                    .from('shared_stories')
                     .select('*')
                     .in('id', ideaIds);
 

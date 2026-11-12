@@ -69,23 +69,11 @@ export const JournalShareCommandCenter: React.FC<JournalShareCommandCenterProps>
                 if (entry?.published_idea_id) {
                     setPublishedIdeaId(entry.published_idea_id);
 
-                    let rawIdea: any = null;
-                    const { data: storyRow } = await supabase
+                    const { data: rawIdea } = await supabase
                         .from('shared_stories')
                         .select('id, slug, visibility, is_public, description, clips')
                         .eq('id', entry.published_idea_id)
                         .maybeSingle();
-
-                    if (storyRow) {
-                        rawIdea = storyRow;
-                    } else {
-                        const { data: legacyRow } = await supabase
-                            .from('ideas')
-                            .select('id, slug, visibility, is_public, description')
-                            .eq('id', entry.published_idea_id)
-                            .maybeSingle();
-                        rawIdea = legacyRow;
-                    }
 
                     if (!isMounted) return;
 
