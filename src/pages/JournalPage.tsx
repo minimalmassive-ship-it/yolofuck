@@ -68,9 +68,9 @@ export const JournalPage: React.FC = () => {
                 <div className="yolofuck-top-left-section memcut-top-left-section">
                     <div className="memcut-top-brand yolofuck-top-brand-logo">
                         <img 
-                            src="/memcut-cube.png" 
+                            src="/memcut-glyph.png" 
                             alt="Memcut" 
-                            className="memcut-top-cube-img"
+                            className="memcut-top-glyph-img memcut-top-cube-img"
                         />
                         <img 
                             src="/memcut-wordmark.png" 

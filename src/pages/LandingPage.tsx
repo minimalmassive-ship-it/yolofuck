@@ -204,9 +204,9 @@ export const LandingPage: React.FC = () => {
                 {/* Left Memcut Brand Logo & Wordmark */}
                 <div className="memcut-landing-brand yolofuck-header-left-logo">
                     <img 
-                        src="/memcut-cube.png" 
+                        src="/memcut-glyph.png" 
                         alt="Memcut" 
-                        className="memcut-landing-cube"
+                        className="memcut-landing-glyph memcut-landing-cube"
                     />
                     <img 
                         src="/memcut-wordmark.png" 
