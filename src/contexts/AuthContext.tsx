@@ -143,9 +143,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setProfile(profileData);
                 }
 
-                // Attribute local legacy owner ID to current user so previous takes load seamlessly
-                if (!localStorage.getItem('yolofuck_local_owner_id')) {
-                    localStorage.setItem('yolofuck_local_owner_id', currentUser.id);
+                // Attribute local owner ID to current user so takes load seamlessly
+                if (!localStorage.getItem('memcut_local_owner_id')) {
+                    const existing = localStorage.getItem('yolofuck_local_owner_id') || currentUser.id;
+                    localStorage.setItem('memcut_local_owner_id', existing);
                 }
             } else {
                 setUser(null);
@@ -247,6 +248,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (e) {
             console.error('[Auth] Error signing out:', e);
         }
+        try {
+            localStorage.removeItem('memcut_local_owner_id');
+            localStorage.removeItem('yolofuck_local_owner_id');
+            sessionStorage.clear();
+        } catch {}
         setUser(null);
         setProfile(null);
     }, []);

@@ -1,5 +1,5 @@
 /**
- * onDeviceTTS.ts — yolofuck stub
+ * onDeviceTTS.ts — Memcut stub
  */
 
 export interface OnDeviceTTSOptions {
@@ -10,7 +10,7 @@ export interface OnDeviceTTSOptions {
 
 export const onDeviceTTS = {
     async synthesize(_text: string, _options?: OnDeviceTTSOptions): Promise<Blob> {
-        throw new Error('On-device TTS not enabled in yolofuck.');
+        throw new Error('On-device TTS not enabled in Memcut.');
     },
     getStatus(): { isReady: boolean; isInitializing: boolean } {
         return { isReady: false, isInitializing: false };

@@ -25,8 +25,12 @@ export const TrashBinModal: React.FC<TrashBinModalProps> = ({ onClose }) => {
 
     useEffect(() => {
         loadTrash();
+        window.addEventListener('memcut_trash_updated', loadTrash);
         window.addEventListener('yolofuck_trash_updated', loadTrash);
-        return () => window.removeEventListener('yolofuck_trash_updated', loadTrash);
+        return () => {
+            window.removeEventListener('memcut_trash_updated', loadTrash);
+            window.removeEventListener('yolofuck_trash_updated', loadTrash);
+        };
     }, [loadTrash]);
 
     const handleDeleteSingle = (id: string, e: React.MouseEvent) => {

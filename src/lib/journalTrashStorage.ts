@@ -16,7 +16,8 @@ export interface TrashClipItem {
     source: 'journal' | 'share';
 }
 
-const TRASH_STORAGE_KEY = 'yolofuck_trash_bin_clips';
+const TRASH_STORAGE_KEY = 'memcut_trash_bin_clips';
+const LEGACY_TRASH_STORAGE_KEY = 'yolofuck_trash_bin_clips';
 
 function getStorageKey(userId?: string): string {
     return userId ? `${TRASH_STORAGE_KEY}_${userId}` : TRASH_STORAGE_KEY;
@@ -25,7 +26,8 @@ function getStorageKey(userId?: string): string {
 export function getTrashClips(userId?: string): TrashClipItem[] {
     try {
         const key = getStorageKey(userId);
-        const raw = localStorage.getItem(key);
+        const legacyKey = userId ? `${LEGACY_TRASH_STORAGE_KEY}_${userId}` : LEGACY_TRASH_STORAGE_KEY;
+        const raw = localStorage.getItem(key) || localStorage.getItem(legacyKey);
         if (!raw) return [];
         return JSON.parse(raw);
     } catch {
@@ -59,6 +61,7 @@ export function moveToTrash(clip: {
         };
         const updated = [item, ...current];
         localStorage.setItem(key, JSON.stringify(updated));
+        window.dispatchEvent(new CustomEvent('memcut_trash_updated'));
         window.dispatchEvent(new CustomEvent('yolofuck_trash_updated'));
     } catch (e) {
         console.warn('[TrashStorage] Failed to move clip to trash:', e);
@@ -71,6 +74,7 @@ export function removeSingleTrashClip(id: string, userId?: string): void {
         const current = getTrashClips(userId);
         const updated = current.filter(item => item.id !== id);
         localStorage.setItem(key, JSON.stringify(updated));
+        window.dispatchEvent(new CustomEvent('memcut_trash_updated'));
         window.dispatchEvent(new CustomEvent('yolofuck_trash_updated'));
     } catch (e) {
         console.warn('[TrashStorage] Failed to remove clip from trash:', e);
@@ -81,6 +85,7 @@ export function clearAllTrashClips(userId?: string): void {
     try {
         const key = getStorageKey(userId);
         localStorage.removeItem(key);
+        window.dispatchEvent(new CustomEvent('memcut_trash_updated'));
         window.dispatchEvent(new CustomEvent('yolofuck_trash_updated'));
     } catch (e) {
         console.warn('[TrashStorage] Failed to clear trash:', e);

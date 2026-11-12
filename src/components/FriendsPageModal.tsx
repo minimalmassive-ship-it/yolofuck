@@ -16,7 +16,8 @@ interface FriendItem {
     lastSeen?: string;
 }
 
-const LOCAL_FRIENDS_KEY = 'yolofuck_friends_list';
+const LOCAL_FRIENDS_KEY = 'memcut_friends_list';
+const LEGACY_FRIENDS_KEY = 'yolofuck_friends_list';
 
 interface FriendsPageModalProps {
     onClose: () => void;
@@ -27,7 +28,7 @@ export const FriendsPageModal: React.FC<FriendsPageModalProps> = ({ onClose }) =
     const [searchQuery, setSearchQuery] = useState('');
     const [friends, setFriends] = useState<FriendItem[]>(() => {
         try {
-            const raw = localStorage.getItem(LOCAL_FRIENDS_KEY);
+            const raw = localStorage.getItem(LOCAL_FRIENDS_KEY) || localStorage.getItem(LEGACY_FRIENDS_KEY);
             return raw ? JSON.parse(raw) : [];
         } catch {
             return [];

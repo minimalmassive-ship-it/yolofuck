@@ -201,12 +201,17 @@ export const LandingPage: React.FC = () => {
         <div className="yolofuck-landing-root">
             {/* ── Top Bar (No underline separator, logo on left, PWA button on right) ── */}
             <header className="yolofuck-landing-header">
-                {/* Left YOLOFUCK Image Logo */}
-                <div className="yolofuck-header-left-logo">
+                {/* Left Memcut Brand Logo & Wordmark */}
+                <div className="memcut-landing-brand yolofuck-header-left-logo">
                     <img 
-                        src="/yolofuck-logo.png" 
-                        alt="YOLOFUCK" 
-                        className="yolofuck-brand-logo-img"
+                        src="/memcut-cube.png" 
+                        alt="Memcut" 
+                        className="memcut-landing-cube"
+                    />
+                    <img 
+                        src="/memcut-wordmark.png" 
+                        alt="Memcut" 
+                        className="memcut-landing-wordmark"
                     />
                 </div>
 

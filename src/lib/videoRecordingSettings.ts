@@ -358,7 +358,7 @@ export function buildVideoConstraints(
     facingMode: 'user' | 'environment' = 'user',
     deviceId?: string,
 ): MediaTrackConstraints {
-    // 9:16 vertical shorts ratio for yolofuck
+    // 9:16 vertical shorts ratio for Memcut
     const targetHeight = resolution >= 1080 ? 1920 : 1280;
     const targetWidth = resolution >= 1080 ? 1080 : 720;
 

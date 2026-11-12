@@ -170,7 +170,7 @@ export const JournalSharedGrid: React.FC<JournalSharedGridProps> = () => {
         if (typeof navigator !== 'undefined' && navigator.share) {
             try {
                 await navigator.share({
-                    title: `Yolofuck Daily Story • ${storyDate}`,
+                    title: `Memcut Daily Story • ${storyDate}`,
                     url
                 });
                 return;

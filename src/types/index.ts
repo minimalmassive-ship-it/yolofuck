@@ -1,6 +1,6 @@
 /**
- * Yolofuck Types
- * Clean, dedicated type definitions for Yolofuck Video Journal
+ * Memcut Types
+ * Clean, dedicated type definitions for Memcut Video Journal
  */
 
 export interface Project {

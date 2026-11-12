@@ -181,7 +181,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ onClose })
     };
 
     const handleSignOut = async () => {
-        if (window.confirm('Are you sure you want to log out of your yolofuck account?')) {
+        if (window.confirm('Are you sure you want to log out of your Memcut account?')) {
             await signOut();
             onClose();
         }

@@ -956,13 +956,13 @@ export async function reorderSharedStoryClips(
 
 /** Helper key for persistent custom sequence reordering per user and date */
 export function getDayCustomOrderKey(userId: string, date: string): string {
-    return `yolofuck_day_order_${userId}_${date}`;
+    return `memcut_day_order_${userId}_${date}`;
 }
 
 export function getDayCustomOrder(userId: string, date: string): string[] | null {
     if (!userId || !date) return null;
     try {
-        const raw = localStorage.getItem(getDayCustomOrderKey(userId, date));
+        const raw = localStorage.getItem(getDayCustomOrderKey(userId, date)) || localStorage.getItem(`yolofuck_day_order_${userId}_${date}`);
         if (!raw) return null;
         const parsed = JSON.parse(raw);
         return Array.isArray(parsed) ? parsed : null;

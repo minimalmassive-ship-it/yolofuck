@@ -1,4 +1,4 @@
-# yolofuck — Daily Video Journal
+# Memcut — Daily Video Journal
 
 A modern, frictionless video journal for daily short-form takes in 9:16 format with background voice transcription and spoken word search.
 
@@ -45,4 +45,4 @@ The full SQL schema is located in `supabase/migrations/001_initial_schema.sql`. 
 ## Deployment to Vercel
 
 The project includes `vercel.json` configured for Single Page Application rewrites and secure headers.
-Connect your GitHub repository to Vercel and assign the custom domain `yolofuck.com`.
+Connect your GitHub repository to Vercel and assign the custom domain `memcut.com`.

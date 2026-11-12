@@ -65,12 +65,17 @@ export const JournalPage: React.FC = () => {
         <div className="yolofuck-root">
             {/* Top Bar: Brand Logo on Left, Search Bar, Desktop Center Nav, Account Menu on Right */}
             <header className={`yolofuck-top-bar ${isPlayerActive ? 'hidden-player-active' : ''}`}>
-                <div className="yolofuck-top-left-section">
-                    <div className="yolofuck-top-brand-logo">
+                <div className="yolofuck-top-left-section memcut-top-left-section">
+                    <div className="memcut-top-brand yolofuck-top-brand-logo">
                         <img 
-                            src="/yolofuck-logo.png" 
-                            alt="YOLOFUCK" 
-                            className="yolofuck-top-logo-img"
+                            src="/memcut-cube.png" 
+                            alt="Memcut" 
+                            className="memcut-top-cube-img"
+                        />
+                        <img 
+                            src="/memcut-wordmark.png" 
+                            alt="Memcut" 
+                            className="memcut-top-wordmark-img"
                         />
                     </div>
 

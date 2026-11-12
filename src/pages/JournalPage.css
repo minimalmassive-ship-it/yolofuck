@@ -46,11 +46,37 @@
   min-width: 0;
 }
 
+.memcut-top-brand,
 .yolofuck-top-brand-logo {
   display: flex;
   align-items: center;
+  gap: 10px;
   justify-content: flex-start;
   flex-shrink: 0;
+  user-select: none;
+}
+
+.memcut-top-cube-img {
+  height: 32px;
+  width: 32px;
+  border-radius: 8px;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 2px 8px rgba(16, 185, 129, 0.4));
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.memcut-top-cube-img:hover {
+  transform: scale(1.05);
+}
+
+.memcut-top-wordmark-img {
+  height: 22px;
+  width: auto;
+  max-width: 120px;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 2px 6px rgba(16, 185, 129, 0.25));
 }
 
 .yolofuck-top-logo-img {
@@ -59,7 +85,6 @@
   max-width: 120px;
   object-fit: contain;
   display: block;
-  filter: drop-shadow(0 2px 6px rgba(200, 247, 44, 0.2));
 }
 
 .yolofuck-top-bar.hidden-player-active {
@@ -435,6 +460,15 @@
 
 /* ── Mobile vs Desktop Adaptations ── */
 @media (max-width: 768px) {
+  .memcut-top-wordmark-img {
+    display: none !important;
+  }
+
+  .memcut-top-cube-img {
+    height: 30px;
+    width: 30px;
+  }
+
   .yolofuck-top-left-section {
     flex: 1 1 0;
     min-width: 0;
@@ -461,6 +495,10 @@
 }
 
 @media (min-width: 769px) {
+  .memcut-top-wordmark-img {
+    display: block !important;
+  }
+
   .yolofuck-top-left-section {
     flex: none;
   }
