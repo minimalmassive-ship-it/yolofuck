@@ -12,10 +12,9 @@
 import { createClient } from '@supabase/supabase-js';
 
 // ── Central Plasticin Master Auth & Identity (igrxuwvlnpthvrbfhlpu) ─────────
-export const PLASTICIN_AUTH_URL =
-    import.meta.env.VITE_AUTH_SUPABASE_URL || 'https://igrxuwvlnpthvrbfhlpu.supabase.co';
+// Immutable: Central Plasticin Auth strictly points to the master Plasticin Supabase
+export const PLASTICIN_AUTH_URL = 'https://igrxuwvlnpthvrbfhlpu.supabase.co';
 export const PLASTICIN_AUTH_ANON_KEY =
-    import.meta.env.VITE_AUTH_SUPABASE_ANON_KEY ||
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlncnh1d3ZsbnB0aHZyYmZobHB1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ1MjEwNTcsImV4cCI6MjExMDA5NzA1N30.aRwxqgP_oS92a-TK_ov-F0kDhA_FyQitarhytGXzKvE';
 
 // ── Dedicated Memcut Database & Media Supabase (ngzffnpyrqpjxuxkjvnl) ─────────
@@ -76,26 +75,9 @@ export const supabase = createClient(
 
 export const supabaseData = supabase;
 
-// Lightweight client for public data queries (e.g. shared public stories)
-export const supabasePublic = createClient(
-    dataSupabaseUrl,
-    dataSupabaseAnonKey,
-    {
-        auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-            detectSessionInUrl: false,
-            storageKey: 'memcut.public.auth.token',
-        }
-    }
-);
-
-// ── Ecosystem Partner Supabase Clients (Ideanite & Archimantis) ────────────
+// ── Dedicated Archimantis Partner Database Client ───────────────────────────
 export const ARCHIMANTIS_PROD_URL = 'https://gauzjywsrqvhrjtbjuap.supabase.co';
 export const ARCHIMANTIS_PROD_ANON_KEY = 'sb_publishable_QtPeDBNfIkdfpu9sk8EiJQ_4Iq84UWu';
-
-export const IDEANITE_DEV_URL = 'https://pemllfgsegqnndesewbx.supabase.co';
-export const IDEANITE_DEV_ANON_KEY = 'sb_publishable_5SAjvbisW5QsaG0MAI5s9A_kZNjZ_A-';
 
 export const supabaseProdAuth = createClient(
     ARCHIMANTIS_PROD_URL,
@@ -109,18 +91,21 @@ export const supabaseProdAuth = createClient(
         }
     }
 );
-
-export const supabaseIdeaniteAuth = createClient(
-    IDEANITE_DEV_URL,
-    IDEANITE_DEV_ANON_KEY,
+export const supabasePublic = createClient(
+    dataSupabaseUrl,
+    dataSupabaseAnonKey,
     {
         auth: {
             persistSession: false,
             autoRefreshToken: false,
             detectSessionInUrl: false,
-            storageKey: 'memcut.ideanite_dev.auth.token',
+            storageKey: 'memcut.public.auth.token',
         }
     }
 );
+
+
+
+
 
 

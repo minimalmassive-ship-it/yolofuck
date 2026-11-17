@@ -170,10 +170,10 @@ export async function fetchEntriesByDate(
 
     const entryMap = new Map<string, JournalEntry>();
     if (prodRes.status === 'fulfilled' && prodRes.value.data) {
-        prodRes.value.data.forEach(e => entryMap.set(e.id, e));
+        (prodRes.value.data as JournalEntry[]).forEach((e: JournalEntry) => entryMap.set(e.id, e));
     }
     if (localDbRes.status === 'fulfilled' && localDbRes.value.data) {
-        localDbRes.value.data.forEach(e => entryMap.set(e.id, e));
+        (localDbRes.value.data as JournalEntry[]).forEach((e: JournalEntry) => entryMap.set(e.id, e));
     }
 
     return Array.from(entryMap.values()).sort(
@@ -208,10 +208,10 @@ export async function fetchEntriesPaginated(
 
     const entryMap = new Map<string, JournalEntry>();
     if (prodRes.status === 'fulfilled' && prodRes.value.data) {
-        prodRes.value.data.forEach(e => entryMap.set(e.id, e));
+        (prodRes.value.data as JournalEntry[]).forEach((e: JournalEntry) => entryMap.set(e.id, e));
     }
     if (localDbRes.status === 'fulfilled' && localDbRes.value.data) {
-        localDbRes.value.data.forEach(e => entryMap.set(e.id, e));
+        (localDbRes.value.data as JournalEntry[]).forEach((e: JournalEntry) => entryMap.set(e.id, e));
     }
 
     return Array.from(entryMap.values()).sort(
@@ -247,10 +247,10 @@ export async function fetchUnmergedClips(
 
     const clipMap = new Map<string, JournalClip>();
     if (prodRes.status === 'fulfilled' && prodRes.value.data) {
-        prodRes.value.data.forEach(c => clipMap.set(c.id, c));
+        (prodRes.value.data as JournalClip[]).forEach((c: JournalClip) => clipMap.set(c.id, c));
     }
     if (localDbRes.status === 'fulfilled' && localDbRes.value.data) {
-        localDbRes.value.data.forEach(c => clipMap.set(c.id, c));
+        (localDbRes.value.data as JournalClip[]).forEach((c: JournalClip) => clipMap.set(c.id, c));
     }
 
     return Array.from(clipMap.values()).sort((a, b) => a.clip_order - b.clip_order);
@@ -284,10 +284,10 @@ export async function fetchClipsByDate(
 
     const clipMap = new Map<string, JournalClip>();
     if (prodRes.status === 'fulfilled' && prodRes.value.data) {
-        prodRes.value.data.forEach(c => clipMap.set(c.id, c));
+        (prodRes.value.data as JournalClip[]).forEach((c: JournalClip) => clipMap.set(c.id, c));
     }
     if (localDbRes.status === 'fulfilled' && localDbRes.value.data) {
-        localDbRes.value.data.forEach(c => clipMap.set(c.id, c));
+        (localDbRes.value.data as JournalClip[]).forEach((c: JournalClip) => clipMap.set(c.id, c));
     }
 
     return Array.from(clipMap.values()).sort((a, b) => {
@@ -323,10 +323,10 @@ export async function fetchAllUserClips(
 
     const clipMap = new Map<string, JournalClip>();
     if (prodRes.status === 'fulfilled' && prodRes.value.data) {
-        prodRes.value.data.forEach(c => clipMap.set(c.id, c));
+        (prodRes.value.data as JournalClip[]).forEach((c: JournalClip) => clipMap.set(c.id, c));
     }
     if (localDbRes.status === 'fulfilled' && localDbRes.value.data) {
-        localDbRes.value.data.forEach(c => clipMap.set(c.id, c));
+        (localDbRes.value.data as JournalClip[]).forEach((c: JournalClip) => clipMap.set(c.id, c));
     }
 
     return Array.from(clipMap.values()).sort((a, b) => {

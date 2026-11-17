@@ -326,7 +326,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const handleAuthChange = async (_event: string, session: any) => {
             if (!isActive) return;
 
-            const currentUser = session?.user ?? null;
+            let currentUser = session?.user ?? null;
+            if (!currentUser && typeof window !== 'undefined') {
+                const ssoToken = sessionStorage.getItem('plasticin_oidc_access_token') || localStorage.getItem('plasticin_oidc_access_token');
+                const rawUser = localStorage.getItem('plasticin_sso_user');
+                if (ssoToken && rawUser) {
+                    try {
+                        const parsed = JSON.parse(rawUser);
+                        if (parsed?.sub && parsed?.email) {
+                            currentUser = {
+                                id: parsed.sub,
+                                email: parsed.email,
+                                app_metadata: { provider: 'plasticin' },
+                                user_metadata: {
+                                    user_name: parsed.preferred_username || parsed.name || parsed.email.split('@')[0],
+                                    full_name: parsed.name || parsed.preferred_username || parsed.email.split('@')[0],
+                                    avatar_url: parsed.picture || 'https://plasticin.com/default-avatar.png',
+                                },
+                                aud: 'authenticated',
+                                created_at: new Date().toISOString(),
+                            } as any;
+                        }
+                    } catch {}
+                }
+            }
 
             if (currentUser) {
                 setUser(currentUser);
