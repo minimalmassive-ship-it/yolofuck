@@ -24,6 +24,11 @@ export interface Profile {
     updated_at?: string;
 }
 
+export interface AuthModalPrefill {
+    identifier?: string;
+    step?: 'email' | 'otp' | 'profile' | 'security_review' | 'password_fallback';
+}
+
 interface AuthContextType {
     user: User | null;
     profile: Profile | null;
@@ -33,7 +38,8 @@ interface AuthContextType {
     loading: boolean;
     authModalOpen: boolean;
     authModalMode: 'signin' | 'signup';
-    openAuthModal: (mode?: 'signin' | 'signup') => void;
+    authModalPrefill?: AuthModalPrefill | null;
+    openAuthModal: (mode?: 'signin' | 'signup', prefill?: AuthModalPrefill) => void;
     closeAuthModal: () => void;
     showWelcomeModal: boolean;
     dismissWelcome: () => void;
@@ -57,6 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [loading, setLoading] = useState(true);
     const [authModalOpen, setAuthModalOpen] = useState(false);
     const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup'>('signin');
+    const [authModalPrefill, setAuthModalPrefill] = useState<AuthModalPrefill | null>(null);
     const [showWelcomeModal, setShowWelcomeModal] = useState(false);
     const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
     const mounted = useRef(true);
@@ -79,13 +86,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }, []);
 
-    const openAuthModal = useCallback((mode: 'signin' | 'signup' = 'signin') => {
+    const openAuthModal = useCallback((mode: 'signin' | 'signup' = 'signin', prefill?: AuthModalPrefill) => {
         setAuthModalMode(mode);
+        setAuthModalPrefill(prefill || null);
         setAuthModalOpen(true);
     }, []);
 
     const closeAuthModal = useCallback(() => {
         setAuthModalOpen(false);
+        setAuthModalPrefill(null);
         if (typeof window !== 'undefined' && window.location.hash) {
             const h = window.location.hash.toLowerCase();
             if (h === '#login' || h === '#signin' || h === '#signup' || h === '#register' || h === '#join') {
@@ -441,6 +450,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         authModalOpen,
         authModalMode,
+        authModalPrefill,
         openAuthModal,
         closeAuthModal,
         showWelcomeModal,
@@ -455,7 +465,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         resetPasswordForEmail,
         signOut,
         refreshProfile,
-    }), [user, profile, loading, authModalOpen, authModalMode, openAuthModal, closeAuthModal, showWelcomeModal, dismissWelcome, showPasswordResetModal, closePasswordResetModal, signInWithEmail, signUpWithEmail, signInWithGoogle, sendOtpEmail, verifyOtp, resetPasswordForEmail, signOut, refreshProfile]);
+    }), [user, profile, loading, authModalOpen, authModalMode, authModalPrefill, openAuthModal, closeAuthModal, showWelcomeModal, dismissWelcome, showPasswordResetModal, closePasswordResetModal, signInWithEmail, signUpWithEmail, signInWithGoogle, sendOtpEmail, verifyOtp, resetPasswordForEmail, signOut, refreshProfile]);
 
     return (
         <AuthContext.Provider value={value}>

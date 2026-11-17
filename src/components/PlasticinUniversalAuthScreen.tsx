@@ -37,6 +37,8 @@ export interface PlasticinUniversalAuthScreenProps {
     isOpen: boolean;
     onClose: () => void;
     initialMode?: 'signin' | 'signup';
+    initialIdentifier?: string;
+    initialStep?: AuthStep;
     branding?: PlasticinAppBranding;
 }
 
@@ -78,6 +80,8 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
     isOpen,
     onClose,
     initialMode = 'signin',
+    initialIdentifier = '',
+    initialStep,
     branding = DEFAULT_MEMCUT_BRANDING,
 }) => {
     const {
@@ -106,23 +110,61 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
     const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
     const identifierInputRef = useRef<HTMLInputElement>(null);
 
-    // Reset state whenever modal opens
+    // Reset state whenever modal opens or props change
     useEffect(() => {
         if (isOpen) {
-            setStep('email');
             setErrorMessage(null);
             setSuccessMessage(null);
             setOtpDigits(Array(8).fill(''));
             const stored = getStoredLastAccount();
             setLastAccount(stored);
-            setIdentifier('');
-            setEmail('');
-            setUsername('');
             setPassword('');
             setCountdownSeconds(60);
             setCanResend(false);
+
+            const rawId = (initialIdentifier || '').trim();
+            if (rawId) {
+                setIdentifier(rawId);
+                const isEmail = rawId.includes('@') && rawId.includes('.');
+                if (isEmail) {
+                    setEmail(rawId);
+                    setUsername(`@${rawId.split('@')[0]}`);
+                } else {
+                    const cleanUser = rawId.replace(/^@+/, '');
+                    setUsername(`@${cleanUser}`);
+                    if (cleanUser.toLowerCase() === 'minimalmassive') {
+                        setEmail('minimalmassive@gmail.com');
+                    } else {
+                        (async () => {
+                            try {
+                                const { data } = await supabaseAuth
+                                    .from('plasticin_users')
+                                    .select('email, username')
+                                    .or(`username.ilike.@${cleanUser},username.ilike.${cleanUser}`)
+                                    .maybeSingle();
+                                if (data?.email) {
+                                    setEmail(data.email);
+                                }
+                            } catch {}
+                        })();
+                    }
+                }
+
+                if (initialStep) {
+                    setStep(initialStep);
+                } else if (initialMode === 'signin') {
+                    setStep('password_fallback');
+                } else {
+                    setStep('email');
+                }
+            } else {
+                setIdentifier('');
+                setEmail('');
+                setUsername('');
+                setStep(initialStep || 'email');
+            }
         }
-    }, [isOpen]);
+    }, [isOpen, initialIdentifier, initialStep, initialMode]);
 
     // OTP resend countdown
     useEffect(() => {
@@ -696,12 +738,13 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
                                             ) : (
                                                 <Mail className="plasticin-auth-input-icon w-4 h-4" />
                                             )}
-                                            <input
+                                             <input
                                                 ref={identifierInputRef}
                                                 id="plasticin-universal-identifier-input"
-                                                name="identifier"
+                                                name="username"
                                                 type="text"
-                                                autoComplete="username email"
+                                                inputMode="email"
+                                                autoComplete="username"
                                                 required
                                                 autoFocus
                                                 value={identifier}
@@ -1049,6 +1092,28 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
                                 </div>
 
                                 <form onSubmit={handlePasswordSignIn} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                    {/* Associated username anchor for Chrome Password Manager & Google autofill */}
+                                    <input
+                                        type="text"
+                                        name="username"
+                                        id="plasticin-fallback-username"
+                                        autoComplete="username"
+                                        value={email || identifier}
+                                        readOnly
+                                        tabIndex={-1}
+                                        aria-hidden="true"
+                                        style={{
+                                            position: 'absolute',
+                                            width: '1px',
+                                            height: '1px',
+                                            margin: '-1px',
+                                            padding: 0,
+                                            border: 0,
+                                            clip: 'rect(0 0 0 0)',
+                                            opacity: 0.001,
+                                            pointerEvents: 'none',
+                                        }}
+                                    />
                                     <div className="plasticin-auth-field">
                                         <label htmlFor="plasticin-fallback-password-input" className="plasticin-auth-label">
                                             Password

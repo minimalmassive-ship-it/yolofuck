@@ -6,7 +6,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Video, Mic, Calendar, Download, Sparkles, ShieldCheck } from 'lucide-react';
+import { Video, Mic, Calendar, Download, Sparkles, ShieldCheck, Mail, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
+import { supabaseAuth } from '../lib/supabase';
 import { PlasticinUniversalAuthScreen, DEFAULT_MEMCUT_BRANDING } from '../components/PlasticinUniversalAuthScreen';
 import './LandingPage.css';
 
@@ -18,6 +19,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
     const {
         authModalOpen,
         authModalMode,
+        authModalPrefill,
         openAuthModal,
         closeAuthModal,
         signInWithGoogle,
@@ -26,6 +28,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
     // PWA Install Prompt State
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
     const [isPwaInstalled, setIsPwaInstalled] = useState(false);
+
+    // Direct Homepage Email & Ecosystem Recognition State
+    const [identifier, setIdentifier] = useState('');
+    const [recognizedAccount, setRecognizedAccount] = useState<{
+        username: string;
+        email: string;
+        displayName?: string;
+        avatarUrl?: string;
+    } | null>(null);
+    const [isChecking, setIsChecking] = useState(false);
+    const [activeSession, setActiveSession] = useState<{
+        username: string;
+        email: string;
+        displayName?: string;
+        avatarUrl?: string;
+    } | null>(null);
+    const [dismissActiveSession, setDismissActiveSession] = useState(false);
 
     useEffect(() => {
         if (initialAuthMode) {
@@ -57,6 +76,106 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
             window.removeEventListener('appinstalled', handleAppInstalled);
         };
     }, []);
+
+    // Detect existing ecosystem session from Plasticin Master Supabase or local storage
+    useEffect(() => {
+        supabaseAuth.auth.getSession().then(({ data }) => {
+            if (data?.session?.user) {
+                const u = data.session.user;
+                const meta = u.user_metadata || {};
+                const name = meta.user_name || meta.username || meta.full_name || (u.email ? `@${u.email.split('@')[0]}` : 'plasticin_user');
+                setActiveSession({
+                    username: name.startsWith('@') ? name : `@${name}`,
+                    email: u.email || '',
+                    displayName: meta.full_name || name.replace(/^@+/, ''),
+                    avatarUrl: meta.avatar_url || 'https://plasticin.com/default-avatar.png',
+                });
+            } else {
+                try {
+                    const raw = localStorage.getItem('plasticin_last_account');
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        if (parsed && parsed.email) {
+                            setIdentifier(parsed.email);
+                            setRecognizedAccount({
+                                username: parsed.username || `@${parsed.email.split('@')[0]}`,
+                                email: parsed.email,
+                                displayName: parsed.displayName,
+                                avatarUrl: parsed.avatarUrl
+                            });
+                        }
+                    }
+                } catch {}
+            }
+        }).catch(() => {});
+    }, []);
+
+    // Debounced lookup in Master plasticin_users
+    useEffect(() => {
+        const clean = identifier.trim().toLowerCase();
+        if (!clean || clean.length < 3) {
+            setRecognizedAccount(null);
+            setIsChecking(false);
+            return;
+        }
+
+        setIsChecking(true);
+        const timer = setTimeout(async () => {
+            try {
+                if (clean === 'minimalmassive@gmail.com' || clean === 'minimalmassive' || clean === '@minimalmassive') {
+                    setRecognizedAccount({
+                        username: '@minimalmassive',
+                        email: 'minimalmassive@gmail.com',
+                        displayName: 'minimalmassive',
+                        avatarUrl: 'https://plasticin.com/default-avatar.png'
+                    });
+                    setIsChecking(false);
+                    return;
+                }
+
+                const isEmail = clean.includes('@') && clean.includes('.');
+                const cleanUser = clean.replace(/^@+/, '');
+                const query = supabaseAuth.from('plasticin_users').select('username, display_name, email, avatar_url');
+
+                const { data } = isEmail
+                    ? await query.eq('email', clean).maybeSingle()
+                    : await query.or(`username.ilike.@${cleanUser},username.ilike.${cleanUser}`).maybeSingle();
+
+                if (data) {
+                    setRecognizedAccount({
+                        username: data.username || `@${cleanUser}`,
+                        email: data.email || clean,
+                        displayName: data.display_name || cleanUser,
+                        avatarUrl: data.avatar_url || 'https://plasticin.com/default-avatar.png'
+                    });
+                } else {
+                    setRecognizedAccount(null);
+                }
+            } catch {
+                setRecognizedAccount(null);
+            } finally {
+                setIsChecking(false);
+            }
+        }, 280);
+
+        return () => clearTimeout(timer);
+    }, [identifier]);
+
+    const handleHeroSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const clean = identifier.trim();
+        if (!clean) return;
+
+        if (activeSession && activeSession.email.toLowerCase() === clean.toLowerCase()) {
+            window.location.href = '/journal';
+            return;
+        }
+
+        openAuthModal('signin', {
+            identifier: clean,
+            step: 'password_fallback'
+        });
+    };
 
     const handleInstallPwa = async () => {
         if (deferredPrompt) {
@@ -200,19 +319,104 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
                     </div>
 
                     <div className="memcut-hero-card-actions">
-                        {/* Primary Button: Continue with Plasticin */}
-                        <button
-                            type="button"
-                            onClick={() => openAuthModal('signin')}
-                            className="memcut-hero-btn-plasticin"
-                        >
-                            <img
-                                src="/assets/plasticin_icon.png"
-                                alt=""
-                                className="memcut-hero-btn-icon"
-                            />
-                            <span>Continue with Plasticin ID</span>
-                        </button>
+                        {/* 0. Active Session Fast Resume (Atlassian Standard SSO) */}
+                        {activeSession && !dismissActiveSession && (
+                            <div className="memcut-active-session-banner">
+                                <div className="memcut-active-session-top">
+                                    <span className="memcut-active-session-dot" />
+                                    <span className="memcut-active-session-label">Active Plasticin Session</span>
+                                </div>
+                                <div className="memcut-active-session-content">
+                                    <img
+                                        src={activeSession.avatarUrl || '/assets/plasticin_icon.png'}
+                                        alt=""
+                                        className="memcut-active-session-avatar"
+                                        onError={(e) => {
+                                            (e.target as HTMLImageElement).src = '/assets/plasticin_icon.png';
+                                        }}
+                                    />
+                                    <div className="memcut-active-session-text">
+                                        <span className="memcut-active-session-name">{activeSession.username}</span>
+                                        <span className="memcut-active-session-sub">{activeSession.email}</span>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => { window.location.href = '/journal'; }}
+                                    className="memcut-active-session-enter-btn"
+                                >
+                                    <span>Enter Journal</span>
+                                    <ArrowRight size={14} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setDismissActiveSession(true)}
+                                    className="memcut-active-session-switch"
+                                >
+                                    Use a different account
+                                </button>
+                            </div>
+                        )}
+
+                        {/* 1. Direct Email & @handle Input Form at the VERY TOP */}
+                        <form onSubmit={handleHeroSubmit} className="memcut-hero-identifier-form">
+                            <div className="memcut-hero-input-field">
+                                <label htmlFor="memcut-hero-identifier-input" className="memcut-hero-input-label">
+                                    Email or Plasticin @handle
+                                </label>
+                                <div className="memcut-hero-input-wrap">
+                                    <Mail className="memcut-hero-input-icon" size={16} />
+                                    <input
+                                        id="memcut-hero-identifier-input"
+                                        name="username"
+                                        type="text"
+                                        inputMode="email"
+                                        autoComplete="username"
+                                        placeholder="e.g. minimalmassive@gmail.com or @handle"
+                                        value={identifier}
+                                        onChange={(e) => setIdentifier(e.target.value)}
+                                        className="memcut-hero-input"
+                                        required
+                                    />
+                                    {isChecking && (
+                                        <Loader2 size={16} className="vizja-spin memcut-hero-input-loader" />
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Ecosystem Account Recognition Pill */}
+                            {recognizedAccount && (
+                                <div className="memcut-hero-recognized-pill">
+                                    <img src="/assets/plasticin_icon.png" alt="" className="memcut-recognized-icon" />
+                                    <span className="memcut-recognized-text">
+                                        Plasticin Account: <strong>{recognizedAccount.username}</strong>
+                                    </span>
+                                    <CheckCircle2 size={13} className="memcut-recognized-check" />
+                                </div>
+                            )}
+
+                            {/* Primary Button: Continue with Plasticin ID */}
+                            <button
+                                type="submit"
+                                disabled={!identifier.trim() || isChecking}
+                                className="memcut-hero-btn-plasticin"
+                            >
+                                <img
+                                    src="/assets/plasticin_icon.png"
+                                    alt=""
+                                    className="memcut-hero-btn-icon"
+                                />
+                                <span>Continue with Plasticin ID</span>
+                                <ArrowRight size={15} style={{ marginLeft: 'auto' }} />
+                            </button>
+                        </form>
+
+                        {/* 2. Secondary Social Options */}
+                        <div className="memcut-hero-card-divider">
+                            <span />
+                            <em>Or continue with</em>
+                            <span />
+                        </div>
 
                         {/* Secondary Button: Continue with Google */}
                         <button
@@ -229,27 +433,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
                             <span>Continue with Google</span>
                         </button>
 
-                        <div className="memcut-hero-card-divider">
-                            <span />
-                            <em>Or</em>
-                            <span />
-                        </div>
-
-                        {/* Sign in with Email / Username button */}
-                        <button
-                            type="button"
-                            onClick={() => openAuthModal('signin')}
-                            className="memcut-hero-btn-email"
-                        >
-                            <span>Sign in with Email or @handle</span>
-                        </button>
-
                         {/* Direct Create Account CTA */}
                         <div className="memcut-hero-card-signup-row">
                             <span>Don&apos;t have an account?</span>
                             <button
                                 type="button"
-                                onClick={() => openAuthModal('signup')}
+                                onClick={() => openAuthModal('signup', { identifier })}
                                 className="memcut-hero-create-link"
                             >
                                 Join now
@@ -275,6 +464,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
                 isOpen={authModalOpen}
                 onClose={closeAuthModal}
                 initialMode={authModalMode}
+                initialIdentifier={authModalPrefill?.identifier || identifier}
+                initialStep={authModalPrefill?.step}
                 branding={DEFAULT_MEMCUT_BRANDING}
             />
         </div>

@@ -641,6 +641,219 @@
     gap: 12px;
 }
 
+/* ── Active Ecosystem Session Banner (Atlassian Standard) ── */
+.memcut-active-session-banner {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    animation: fadeIn 0.2s ease-out;
+}
+
+.memcut-active-session-top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.memcut-active-session-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--yolo-lime);
+    box-shadow: 0 0 8px var(--yolo-lime);
+}
+
+.memcut-active-session-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--yolo-lime);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.memcut-active-session-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.memcut-active-session-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    object-fit: cover;
+    background: #21262d;
+    border: 1px solid #30363d;
+}
+
+.memcut-active-session-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.memcut-active-session-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #f0f6fc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.memcut-active-session-sub {
+    font-size: 11px;
+    color: #8b949e;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.memcut-active-session-enter-btn {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: var(--yolo-lime);
+    color: #12110f;
+    border: none;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 10px rgba(200, 247, 44, 0.25);
+}
+
+.memcut-active-session-enter-btn:hover {
+    background: #b8e624;
+    transform: translateY(-1px);
+}
+
+.memcut-active-session-switch {
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: #8b949e;
+    font-size: 11px;
+    text-align: center;
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.memcut-active-session-switch:hover {
+    color: #f0f6fc;
+    text-decoration: underline;
+}
+
+/* ── Direct Hero Email / @handle Input Form ── */
+.memcut-hero-identifier-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+}
+
+.memcut-hero-input-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.memcut-hero-input-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #8b949e;
+}
+
+.memcut-hero-input-wrap {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.memcut-hero-input-icon {
+    position: absolute;
+    left: 14px;
+    color: #6e7681;
+    pointer-events: none;
+}
+
+.memcut-hero-input {
+    width: 100%;
+    height: 46px;
+    border-radius: 12px;
+    background: #161b22;
+    border: 1px solid #30363d;
+    color: #f0f6fc;
+    font-size: 14px;
+    padding: 0 38px 0 40px;
+    outline: none;
+    transition: all 0.15s ease;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.memcut-hero-input:focus {
+    border-color: var(--yolo-lime);
+    box-shadow: 0 0 0 3px rgba(200, 247, 44, 0.2), inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.memcut-hero-input::placeholder {
+    color: #484f58;
+    font-size: 13px;
+}
+
+.memcut-hero-input-loader {
+    position: absolute;
+    right: 14px;
+    color: var(--yolo-lime);
+}
+
+/* Ecosystem Recognition Pill */
+.memcut-hero-recognized-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: 10px;
+    background: rgba(200, 247, 44, 0.08);
+    border: 1px solid rgba(200, 247, 44, 0.3);
+    color: var(--yolo-lime);
+    font-size: 12px;
+    animation: fadeIn 0.15s ease-out;
+}
+
+.memcut-recognized-icon {
+    width: 15px;
+    height: 15px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.memcut-recognized-text {
+    flex: 1;
+    font-size: 12px;
+    color: #f0f6fc;
+}
+
+.memcut-recognized-text strong {
+    color: var(--yolo-lime);
+    font-family: ui-monospace, monospace;
+}
+
+.memcut-recognized-check {
+    color: var(--yolo-lime);
+    flex-shrink: 0;
+}
+
 .memcut-hero-btn-plasticin {
     position: relative;
     width: 100%;
