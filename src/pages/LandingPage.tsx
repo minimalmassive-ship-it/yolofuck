@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Video, Mic, Calendar, Download, Sparkles, ShieldCheck, Mail, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
 import { supabaseAuth } from '../lib/supabase';
 import { PlasticinUniversalAuthScreen, DEFAULT_MEMCUT_BRANDING } from '../components/PlasticinUniversalAuthScreen';
+import { initiatePlasticinSso } from '../lib/plasticinSso';
 import './LandingPage.css';
 
 interface LandingPageProps {
@@ -48,9 +49,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
 
     useEffect(() => {
         if (initialAuthMode) {
-            openAuthModal(initialAuthMode);
+            initiatePlasticinSso({ mode: initialAuthMode });
         }
-    }, [initialAuthMode, openAuthModal]);
+    }, [initialAuthMode]);
 
     useEffect(() => {
         const handleBeforeInstall = (e: any) => {
@@ -171,9 +172,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
             return;
         }
 
-        openAuthModal('signin', {
-            identifier: clean,
-            step: 'password_fallback'
+        initiatePlasticinSso({
+            email: clean,
+            mode: 'signin',
         });
     };
 
@@ -223,7 +224,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
                     <button
                         type="button"
                         className="memcut-header-signin-btn"
-                        onClick={() => openAuthModal('signin')}
+                        onClick={() => initiatePlasticinSso({ mode: 'signin' })}
                     >
                         Sign In
                     </button>
@@ -231,7 +232,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
                     <button
                         type="button"
                         className="memcut-header-join-btn"
-                        onClick={() => openAuthModal('signup')}
+                        onClick={() => initiatePlasticinSso({ mode: 'signup' })}
                     >
                         Join Memcut
                     </button>
@@ -417,9 +418,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
                             type="button"
                             onClick={() => {
                                 const clean = identifier.trim();
-                                openAuthModal('signin', {
-                                    identifier: clean || undefined,
-                                    step: clean ? 'password_fallback' : 'email',
+                                initiatePlasticinSso({
+                                    email: clean || undefined,
+                                    mode: 'signin',
                                 });
                             }}
                             className="memcut-hero-btn-sso memcut-hero-btn-plasticin"
@@ -452,7 +453,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
                             <span>Don&apos;t have an account?</span>
                             <button
                                 type="button"
-                                onClick={() => openAuthModal('signup', { identifier })}
+                                onClick={() => initiatePlasticinSso({ email: identifier.trim() || undefined, mode: 'signup' })}
                                 className="memcut-hero-create-link"
                             >
                                 Join now
