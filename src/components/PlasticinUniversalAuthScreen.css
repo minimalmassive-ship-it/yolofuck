@@ -680,23 +680,3 @@
     font-size: 10px;
     color: #78716C;
 }
-
-/* ── Bottom Corner Illustrations ── */
-.plasticin-auth-bottom-illustrations {
-    position: relative;
-    width: 100%;
-    height: 110px;
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    padding: 0 48px;
-    pointer-events: none;
-    opacity: 0.35;
-    overflow: hidden;
-}
-
-@media (max-width: 640px) {
-    .plasticin-auth-bottom-illustrations {
-        display: none;
-    }
-}

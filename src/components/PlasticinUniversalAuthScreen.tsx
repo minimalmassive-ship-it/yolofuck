@@ -1281,25 +1281,6 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
                     </div>
                 </div>
             </div>
-
-            {/* Bottom Decorative Isometric Artwork */}
-            <div className="plasticin-auth-bottom-illustrations">
-                <svg width="220" height="90" viewBox="0 0 240 120" fill="none">
-                    <path d="M20 120 L80 80 L140 120 L80 160 Z" fill="#0052CC" fillOpacity="0.18" />
-                    <path d="M80 80 L80 40 L140 80 L140 120 Z" fill="#0052CC" fillOpacity="0.28" />
-                    <path d="M20 120 L20 80 L80 40 L80 80 Z" fill="#0052CC" fillOpacity="0.38" />
-                    <circle cx="80" cy="30" r="10" fill="#0052CC" />
-                    <rect x="110" y="55" width="40" height="25" rx="4" fill="#C8F931" fillOpacity="0.6" />
-                </svg>
-
-                <svg width="220" height="90" viewBox="0 0 240 120" fill="none">
-                    <path d="M120 120 L180 80 L240 120 L180 160 Z" fill="#0052CC" fillOpacity="0.18" />
-                    <path d="M180 80 L180 40 L240 80 L240 120 Z" fill="#0052CC" fillOpacity="0.28" />
-                    <path d="M120 120 L120 80 L180 40 L180 80 Z" fill="#0052CC" fillOpacity="0.38" />
-                    <circle cx="170" cy="25" r="9" fill="#C8F931" />
-                    <circle cx="215" cy="45" r="12" fill="#0052CC" fillOpacity="0.4" />
-                </svg>
-            </div>
         </div>
     );
 };
