@@ -90,3 +90,113 @@ export const supabasePublic = createClient(
     }
 );
 
+// ── Ecosystem Partner Supabase Clients (Ideanite & Archimantis) ────────────
+export const ARCHIMANTIS_PROD_URL = 'https://gauzjywsrqvhrjtbjuap.supabase.co';
+export const ARCHIMANTIS_PROD_ANON_KEY = 'sb_publishable_QtPeDBNfIkdfpu9sk8EiJQ_4Iq84UWu';
+
+export const IDEANITE_DEV_URL = 'https://pemllfgsegqnndesewbx.supabase.co';
+export const IDEANITE_DEV_ANON_KEY = 'sb_publishable_5SAjvbisW5QsaG0MAI5s9A_kZNjZ_A-';
+
+export const supabaseProdAuth = createClient(
+    ARCHIMANTIS_PROD_URL,
+    ARCHIMANTIS_PROD_ANON_KEY,
+    {
+        auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+            detectSessionInUrl: false,
+        }
+    }
+);
+
+export const supabaseIdeaniteAuth = createClient(
+    IDEANITE_DEV_URL,
+    IDEANITE_DEV_ANON_KEY,
+    {
+        auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+            detectSessionInUrl: false,
+        }
+    }
+);
+
+// ── Master Admin Client for Cross-Ecosystem Password Synchronization ────────
+const PLASTICIN_SERVICE_ROLE_KEY =
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlncnh1d3ZsbnB0aHZyYmZobHB1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5NDUyMTA1NywiZXhwIjoyMTEwMDk3MDU3fQ.s4Ln8NdDdXxdF86mgyXSeQ-_LbtxOhtqJ3CpFMNqxxY';
+
+export const supabaseAuthAdmin = createClient(
+    authSupabaseUrl,
+    PLASTICIN_SERVICE_ROLE_KEY,
+    {
+        auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+            detectSessionInUrl: false,
+        }
+    }
+);
+
+/**
+ * Synchronizes a verified ecosystem password into Central Plasticin Master Auth (igrxuwvlnpthvrbfhlpu)
+ * so the user can seamlessly authenticate anywhere in the unified ecosystem.
+ */
+export async function syncPasswordToPlasticinMaster(email: string, password: string): Promise<boolean> {
+    try {
+        const cleanEmail = email.trim().toLowerCase();
+        const { data: { users }, error: listErr } = await supabaseAuthAdmin.auth.admin.listUsers();
+        if (listErr || !users) {
+            console.warn('[Supabase] listUsers failed during sync:', listErr);
+            return false;
+        }
+
+        const targetUser = users.find(u => u.email?.toLowerCase() === cleanEmail);
+        if (!targetUser) {
+            console.warn('[Supabase] Target user not found for password sync:', cleanEmail);
+            return false;
+        }
+
+        const isSuperadmin = cleanEmail === 'minimalmassive@gmail.com';
+        const finalHandle = isSuperadmin ? '@acidplasticine' : (targetUser.user_metadata?.username || `@${cleanEmail.split('@')[0]}`);
+        const finalName = isSuperadmin ? 'acidplasticine' : (targetUser.user_metadata?.full_name || cleanEmail.split('@')[0]);
+
+        const { error: updateErr } = await supabaseAuthAdmin.auth.admin.updateUserById(targetUser.id, {
+            password,
+            user_metadata: {
+                ...targetUser.user_metadata,
+                username: finalHandle,
+                user_name: finalHandle,
+                full_name: finalName,
+                display_name: finalName,
+            }
+        });
+
+        if (updateErr) {
+            console.warn('[Supabase] updateUserById failed during sync:', updateErr);
+            return false;
+        }
+
+        // Also ensure public.plasticin_users table in Master DB has the canonical handle
+        if (isSuperadmin) {
+            try {
+                await supabaseAuthAdmin.from('plasticin_users').upsert({
+                    id: targetUser.id,
+                    username: '@acidplasticine',
+                    display_name: 'acidplasticine',
+                    email: cleanEmail,
+                    avatar_url: 'https://plasticin.com/default-avatar.png',
+                    origin_app: 'plasticin.com',
+                }, { onConflict: 'email' });
+            } catch (pErr) {
+                console.warn('[Supabase] plasticin_users upsert notice:', pErr);
+            }
+        }
+
+        return true;
+    } catch (err) {
+        console.warn('[Supabase] syncPasswordToPlasticinMaster exception:', err);
+        return false;
+    }
+}
+
+

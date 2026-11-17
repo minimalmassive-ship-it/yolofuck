@@ -138,14 +138,20 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
                 setIdentifier(rawId);
                 const isEmail = rawId.includes('@') && rawId.includes('.');
                 if (isEmail) {
-                    setEmail(rawId);
-                    setUsername(`@${rawId.split('@')[0]}`);
+                    const cleanMail = rawId.toLowerCase();
+                    setEmail(cleanMail);
+                    if (cleanMail === 'minimalmassive@gmail.com') {
+                        setUsername('@acidplasticine');
+                    } else {
+                        setUsername(`@${cleanMail.split('@')[0]}`);
+                    }
                 } else {
                     const cleanUser = rawId.replace(/^@+/, '');
-                    setUsername(`@${cleanUser}`);
-                    if (cleanUser.toLowerCase() === 'minimalmassive') {
+                    if (cleanUser.toLowerCase() === 'minimalmassive' || cleanUser.toLowerCase() === 'acidplasticine') {
+                        setUsername('@acidplasticine');
                         setEmail('minimalmassive@gmail.com');
                     } else {
+                        setUsername(`@${cleanUser}`);
                         (async () => {
                             try {
                                 const { data } = await supabaseAuth
@@ -272,7 +278,9 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
         if (cleanInput.includes('@') && cleanInput.includes('.')) {
             // Standard email input
             resolvedEmail = cleanInput.toLowerCase();
-            if (lastAccount && lastAccount.email?.toLowerCase() === resolvedEmail && lastAccount.cleanUsername) {
+            if (resolvedEmail === 'minimalmassive@gmail.com') {
+                resolvedUsername = '@acidplasticine';
+            } else if (lastAccount && lastAccount.email?.toLowerCase() === resolvedEmail && lastAccount.cleanUsername) {
                 resolvedUsername = `@${lastAccount.cleanUsername}`;
             } else {
                 resolvedUsername = `@${resolvedEmail.split('@')[0]}`;
@@ -280,10 +288,15 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
         } else {
             // Username lookup
             const cleanUser = cleanInput.replace(/^@+/, '').toLowerCase();
-            resolvedUsername = `@${cleanUser}`;
+            if (cleanUser === 'acidplasticine' || cleanUser === 'minimalmassive') {
+                resolvedUsername = '@acidplasticine';
+                resolvedEmail = 'minimalmassive@gmail.com';
+            } else {
+                resolvedUsername = `@${cleanUser}`;
+            }
 
             // Check cached last account
-            if (lastAccount && lastAccount.cleanUsername?.toLowerCase() === cleanUser) {
+            if (!resolvedEmail && lastAccount && lastAccount.cleanUsername?.toLowerCase() === cleanUser) {
                 resolvedEmail = lastAccount.email;
             }
 
@@ -535,13 +548,16 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
             }
 
             // Save last account
-            const finalUsername = username || `@${cleanEmail.split('@')[0]}`;
+            let finalUsername = username || `@${cleanEmail.split('@')[0]}`;
+            if (cleanEmail === 'minimalmassive@gmail.com') {
+                finalUsername = '@acidplasticine';
+            }
             const cleanUser = finalUsername.replace('@', '');
             const accountData: SavedAccount = {
                 username: finalUsername,
                 cleanUsername: cleanUser,
                 email: cleanEmail,
-                displayName: cleanUser,
+                displayName: cleanEmail === 'minimalmassive@gmail.com' ? 'acidplasticine' : cleanUser,
                 avatarUrl: 'https://plasticin.com/default-avatar.png',
                 hasPassword: true,
             };

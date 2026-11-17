@@ -122,11 +122,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
         setIsChecking(true);
         const timer = setTimeout(async () => {
             try {
-                if (clean === 'minimalmassive@gmail.com' || clean === 'minimalmassive' || clean === '@minimalmassive') {
+                if (clean === 'minimalmassive@gmail.com' || clean === 'minimalmassive' || clean === '@minimalmassive' || clean === 'acidplasticine' || clean === '@acidplasticine') {
                     setRecognizedAccount({
-                        username: '@minimalmassive',
+                        username: '@acidplasticine',
                         email: 'minimalmassive@gmail.com',
-                        displayName: 'minimalmassive',
+                        displayName: 'acidplasticine',
                         avatarUrl: 'https://plasticin.com/default-avatar.png'
                     });
                     setIsChecking(false);

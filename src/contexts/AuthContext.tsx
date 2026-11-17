@@ -7,7 +7,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { supabase, supabaseAuth } from '../lib/supabase';
+import { supabase, supabaseAuth, supabaseProdAuth, supabaseIdeaniteAuth, syncPasswordToPlasticinMaster } from '../lib/supabase';
 
 export interface Profile {
     id: string;
@@ -111,9 +111,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (userId === '39192441-3caa-40fe-9102-f40924c03166' || userId === '4fb34c08-a3b7-45b3-a7ad-fda625eae464') {
                 return {
                     id: userId,
-                    username: '@minimalmassive',
-                    display_name: 'minimalmassive',
-                    full_name: 'minimalmassive',
+                    username: '@acidplasticine',
+                    display_name: 'acidplasticine',
+                    full_name: 'acidplasticine',
                     role: 'admin',
                     avatar_url: 'https://plasticin.com/default-avatar.png',
                     created_at: '2026-11-13T09:00:14.725971+00:00',
@@ -259,7 +259,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     localStorage.setItem('memcut_local_owner_id', '4fb34c08-a3b7-45b3-a7ad-fda625eae464');
                     localStorage.setItem('yolofuck_local_owner_id', '4fb34c08-a3b7-45b3-a7ad-fda625eae464');
                     localStorage.setItem('plasticin_id', 'usr_plst_f08ceecf');
-                    localStorage.setItem('plasticin_username', '@minimalmassive');
+                    localStorage.setItem('plasticin_username', '@acidplasticine');
                 } else if (!localStorage.getItem('memcut_local_owner_id')) {
                     const existing = localStorage.getItem('yolofuck_local_owner_id') || currentUser.id;
                     localStorage.setItem('memcut_local_owner_id', existing);
@@ -289,8 +289,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const signInWithEmail = useCallback(async (email: string, password: string) => {
         try {
             const cleanEmail = email.trim().toLowerCase();
-            const res = await supabaseAuth.auth.signInWithPassword({ email: cleanEmail, password });
+            let res = await supabaseAuth.auth.signInWithPassword({ email: cleanEmail, password });
             
+            // If Central Master Auth rejects credentials, check ecosystem partner databases
+            // (e.g. Archimantis/Ideanite PROD, Ideanite DEV, or Memcut data DB)
+            if (res.error) {
+                console.warn('[Auth] Central Plasticin login rejected credentials, testing ecosystem databases...', res.error.message);
+                let ecosystemVerified = false;
+
+                // 1. Check Archimantis / Ideanite PROD (gauzjywsrqvhrjtbjuap)
+                try {
+                    const prodCheck = await supabaseProdAuth.auth.signInWithPassword({ email: cleanEmail, password });
+                    if (!prodCheck.error && prodCheck.data?.user) {
+                        ecosystemVerified = true;
+                    }
+                } catch {}
+
+                // 2. Check Ideanite DEV / Vault (pemllfgsegqnndesewbx)
+                if (!ecosystemVerified) {
+                    try {
+                        const ideaniteCheck = await supabaseIdeaniteAuth.auth.signInWithPassword({ email: cleanEmail, password });
+                        if (!ideaniteCheck.error && ideaniteCheck.data?.user) {
+                            ecosystemVerified = true;
+                        }
+                    } catch {}
+                }
+
+                // 3. Check Memcut Dedicated DB (ngzffnpyrqpjxuxkjvnl)
+                if (!ecosystemVerified) {
+                    try {
+                        const memcutCheck = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
+                        if (!memcutCheck.error && memcutCheck.data?.user) {
+                            ecosystemVerified = true;
+                        }
+                    } catch {}
+                }
+
+                if (ecosystemVerified) {
+                    console.log('[Auth] Password verified in Plasticin ecosystem! Synchronizing to Central Master Auth...');
+                    const synced = await syncPasswordToPlasticinMaster(cleanEmail, password);
+                    if (synced) {
+                        res = await supabaseAuth.auth.signInWithPassword({ email: cleanEmail, password });
+                    }
+                }
+            }
+
             // Dual authentication: also sign in to Memcut data DB so RLS accepts requests
             try {
                 await supabase.auth.signInWithPassword({ email: cleanEmail, password });
