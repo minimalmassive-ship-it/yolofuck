@@ -130,18 +130,27 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ onClose })
         setUserStatusMsg(null);
         try {
             const now = new Date().toISOString();
-            // Update username in Central Auth DB (Ideanite / future Plasticin.com SSO)
+            // Update username in Central Auth DB & Plasticin Master table
+            const handle = trimmed.startsWith('@') ? trimmed : `@${trimmed}`;
+            try {
+                await supabaseAuth
+                    .from('plasticin_users')
+                    .update({ username: handle, updated_at: now })
+                    .eq('id', user.id);
+            } catch {}
+
             const { error: authErr } = await supabaseAuth
                 .from('profiles')
-                .update({ username: trimmed, updated_at: now })
+                .update({ username: handle, updated_at: now })
                 .eq('id', user.id);
 
-            // Also mirror username to dedicated Yolofuck DB
+            // Also mirror username to dedicated Memcut DB
             try {
                 await supabase
                     .from('profiles')
-                    .upsert({ id: user.id, username: trimmed, updated_at: now });
+                    .upsert({ id: user.id, username: handle, updated_at: now });
             } catch {}
+
 
             if (authErr) throw authErr;
             await refreshProfile();

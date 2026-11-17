@@ -1,0 +1,627 @@
+/**
+ * PlasticinUniversalAuthScreen.css
+ * Universal Co-Branded Full-Screen Identity & Authentication Experience
+ * Strictly Neumorphic Dark styling with ZERO conflicting rules.
+ */
+
+.plasticin-auth-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: #12110F;
+    color: #F5F5F4;
+    overflow-y: auto;
+    user-select: none;
+    -webkit-user-select: none;
+    animation: plasticinAuthFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes plasticinAuthFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.99);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* ── Top Bar ── */
+.plasticin-auth-top-bar {
+    width: 100%;
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 24px 24px 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.plasticin-auth-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #C8F931;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.plasticin-auth-back-btn:hover {
+    color: #b8ea24;
+    background: rgba(200, 249, 49, 0.08);
+}
+
+/* ── Centered Card ── */
+.plasticin-auth-card-wrapper {
+    width: 100%;
+    max-width: 448px;
+    margin: auto;
+    padding: 20px 16px;
+    position: relative;
+    z-index: 20;
+}
+
+.plasticin-auth-card {
+    background: #1C1B18;
+    border: 1px solid #33312C;
+    border-radius: 24px;
+    box-shadow: 0 24px 60px -15px rgba(0, 0, 0, 0.85);
+    overflow: hidden;
+}
+
+/* ── Card Header Strip: Dual Co-Branding (Plasticin ID + App Logo) ── */
+.plasticin-auth-card-top-strip {
+    background: #21201D;
+    border-bottom: 1px solid #33312C;
+    padding: 24px 20px 18px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+/* Row 1: Smaller Plasticin ID Logo */
+.plasticin-auth-parent-brand {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    opacity: 0.85;
+}
+
+.plasticin-auth-parent-icon {
+    height: 18px;
+    width: 18px;
+    object-fit: contain;
+}
+
+.plasticin-auth-parent-wordmark {
+    height: 11px;
+    width: auto;
+    object-fit: contain;
+}
+
+.plasticin-auth-id-pill {
+    font-size: 9px;
+    font-family: ui-monospace, monospace;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #78716C;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 5px;
+    border-radius: 4px;
+    border: 1px solid #33312C;
+}
+
+/* Connecting Element */
+.plasticin-auth-brand-connector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 5px 0 6px 0;
+}
+
+.plasticin-auth-connector-dot {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #52525b;
+}
+
+/* Row 2: Child App Logo prominently rendered (slightly larger than Plasticin) */
+.plasticin-auth-child-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.plasticin-auth-child-glyph {
+    height: 34px;
+    width: 34px;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+}
+
+.plasticin-auth-child-wordmark {
+    height: 20px;
+    width: auto;
+    object-fit: contain;
+}
+
+/* ── Card Content Body ── */
+.plasticin-auth-card-body {
+    padding: 32px 32px 28px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+@media (max-width: 480px) {
+    .plasticin-auth-card-body {
+        padding: 24px 20px 24px 20px;
+    }
+}
+
+/* Feedback banners */
+.plasticin-auth-alert-error {
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    color: #F87171;
+    font-size: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    line-height: 1.4;
+}
+
+.plasticin-auth-alert-success {
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(200, 249, 49, 0.1);
+    border: 1px solid rgba(200, 249, 49, 0.25);
+    color: #C8F931;
+    font-size: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    line-height: 1.4;
+}
+
+/* Headings */
+.plasticin-auth-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #F5F5F4;
+    text-align: center;
+    line-height: 1.25;
+}
+
+.plasticin-auth-subtitle {
+    font-size: 12px;
+    color: #A8A29E;
+    text-align: center;
+    margin-top: 4px;
+    line-height: 1.5;
+}
+
+/* Form Fields */
+.plasticin-auth-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+}
+
+.plasticin-auth-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #A8A29E;
+}
+
+.plasticin-auth-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.plasticin-auth-input-icon {
+    position: absolute;
+    left: 14px;
+    color: #78716C;
+    pointer-events: none;
+}
+
+.plasticin-auth-input-handle-prefix {
+    position: absolute;
+    left: 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #78716C;
+    pointer-events: none;
+}
+
+.plasticin-auth-input {
+    width: 100%;
+    padding: 12px 14px 12px 40px;
+    border-radius: 12px;
+    background: #141413;
+    border: 1px solid #33312C;
+    color: #F5F5F4;
+    font-size: 13px;
+    font-family: inherit;
+    transition: all 0.15s ease;
+}
+
+.plasticin-auth-input:focus {
+    outline: none;
+    border-color: #C8F931;
+    box-shadow: 0 0 0 3px rgba(200, 249, 49, 0.15);
+    background: #181715;
+}
+
+.plasticin-auth-input::placeholder {
+    color: #78716C;
+}
+
+.plasticin-auth-eye-btn {
+    position: absolute;
+    right: 12px;
+    background: transparent;
+    border: none;
+    color: #78716C;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 6px;
+}
+
+.plasticin-auth-eye-btn:hover {
+    color: #F5F5F4;
+}
+
+/* Primary Action Buttons */
+.plasticin-auth-btn-primary {
+    width: 100%;
+    padding: 12px 20px;
+    border-radius: 12px;
+    background: #0052CC;
+    color: #FFFFFF;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 8px rgba(0, 82, 204, 0.25);
+}
+
+.plasticin-auth-btn-primary:hover:not(:disabled) {
+    background: #0047B3;
+}
+
+.plasticin-auth-btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.plasticin-auth-btn-accent {
+    width: 100%;
+    padding: 12px 20px;
+    border-radius: 12px;
+    background: #C8F931;
+    color: #12110F;
+    font-size: 13px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.15s ease;
+    box-shadow: 0 4px 18px rgba(200, 249, 49, 0.35);
+}
+
+.plasticin-auth-btn-accent:hover:not(:disabled) {
+    background: #b8ea24;
+}
+
+.plasticin-auth-btn-accent:disabled {
+    background: #2A2824;
+    color: #78716C;
+    box-shadow: none;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Secondary / Text Links */
+.plasticin-auth-text-link {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-size: 12px;
+    font-weight: 500;
+    color: #C8F931;
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+.plasticin-auth-text-link:hover {
+    text-decoration: underline;
+    color: #b8ea24;
+}
+
+.plasticin-auth-text-link-subtle {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-size: 12px;
+    color: #A8A29E;
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+.plasticin-auth-text-link-subtle:hover {
+    color: #FFFFFF;
+}
+
+/* Or Continue With Divider */
+.plasticin-auth-divider {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 4px 0;
+}
+
+.plasticin-auth-divider-line {
+    width: 100%;
+    border-top: 1px solid #33312C;
+}
+
+.plasticin-auth-divider-label {
+    position: absolute;
+    background: #1C1B18;
+    padding: 0 10px;
+    font-size: 10px;
+    font-family: ui-monospace, monospace;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #78716C;
+}
+
+/* Third-Party & Passkey Social Buttons */
+.plasticin-auth-social-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.plasticin-auth-social-btn {
+    position: relative;
+    width: 100%;
+    padding: 10px 16px;
+    border-radius: 12px;
+    background: #141413;
+    border: 1px solid #33312C;
+    color: #F5F5F4;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.plasticin-auth-social-btn:hover:not(:disabled) {
+    background: #252420;
+    border-color: #44423B;
+}
+
+.plasticin-auth-social-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.plasticin-auth-social-icon-box {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    pointer-events: none;
+}
+
+.plasticin-auth-social-icon-img {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+}
+
+/* ── Step 2: OTP Verification ── */
+.plasticin-auth-otp-badge {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    background: rgba(200, 249, 49, 0.1);
+    border: 1px solid rgba(200, 249, 49, 0.2);
+    color: #C8F931;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+}
+
+.plasticin-auth-target-email-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    background: #141413;
+    border: 1px solid #33312C;
+    font-size: 12px;
+    font-weight: 700;
+    color: #F5F5F4;
+}
+
+.plasticin-auth-otp-grid {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.plasticin-auth-otp-box {
+    width: 38px;
+    height: 50px;
+    border-radius: 10px;
+    text-align: center;
+    font-family: ui-monospace, monospace;
+    font-size: 19px;
+    font-weight: 700;
+    background: #141413;
+    border: 2px solid #33312C;
+    color: #F5F5F4;
+    transition: all 0.15s ease;
+}
+
+.plasticin-auth-otp-box:focus {
+    outline: none;
+    border-color: #C8F931;
+    background: #1C1B18;
+}
+
+/* ── Step 3: Password Security Checklist ── */
+.plasticin-auth-checklist-card {
+    background: #141413;
+    border: 1px solid #33312C;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.plasticin-auth-checklist-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.plasticin-auth-meter-track {
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: #252420;
+    overflow: hidden;
+}
+
+.plasticin-auth-meter-fill {
+    height: 100%;
+    transition: width 0.25s ease, background-color 0.25s ease;
+}
+
+.plasticin-auth-checklist {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0;
+    margin: 4px 0 0 0;
+}
+
+.plasticin-auth-checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: #78716C;
+}
+
+.plasticin-auth-checklist-item.met {
+    color: #F5F5F4;
+}
+
+.plasticin-auth-terms-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 11px;
+    color: #A8A29E;
+    cursor: pointer;
+    line-height: 1.4;
+}
+
+.plasticin-auth-terms-checkbox {
+    margin-top: 2px;
+    accent-color: #C8F931;
+    cursor: pointer;
+}
+
+/* ── Card Footer ── */
+.plasticin-auth-card-footer {
+    padding-top: 16px;
+    border-top: 1px solid #33312C;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.plasticin-auth-footer-brand-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #F5F5F4;
+}
+
+.plasticin-auth-footer-brand-list {
+    font-size: 10px;
+    color: #78716C;
+}
+
+/* ── Bottom Corner Illustrations ── */
+.plasticin-auth-bottom-illustrations {
+    position: relative;
+    width: 100%;
+    height: 110px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 48px;
+    pointer-events: none;
+    opacity: 0.35;
+    overflow: hidden;
+}
+
+@media (max-width: 640px) {
+    .plasticin-auth-bottom-illustrations {
+        display: none;
+    }
+}

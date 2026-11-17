@@ -31,12 +31,19 @@ interface AuthContextType {
     emailConfirmed: boolean;
     needsUsername: boolean;
     loading: boolean;
+    authModalOpen: boolean;
+    authModalMode: 'signin' | 'signup';
+    openAuthModal: (mode?: 'signin' | 'signup') => void;
+    closeAuthModal: () => void;
     showWelcomeModal: boolean;
     dismissWelcome: () => void;
     showPasswordResetModal: boolean;
     closePasswordResetModal: () => void;
     signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
     signUpWithEmail: (email: string, password: string, username?: string) => Promise<{ data: any; error: Error | null }>;
+    signInWithGoogle: () => Promise<{ error: Error | null }>;
+    sendOtpEmail: (email: string) => Promise<{ error: Error | null }>;
+    verifyOtp: (email: string, token: string) => Promise<{ session: any; error: Error | null }>;
     resetPasswordForEmail: (email: string) => Promise<{ data?: any; error: Error | null }>;
     signOut: () => Promise<void>;
     refreshProfile: () => Promise<void>;
@@ -48,6 +55,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [user, setUser] = useState<User | null>(null);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
+    const [authModalOpen, setAuthModalOpen] = useState(false);
+    const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup'>('signin');
     const [showWelcomeModal, setShowWelcomeModal] = useState(false);
     const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
     const mounted = useRef(true);
@@ -57,18 +66,95 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return () => { mounted.current = false; };
     }, []);
 
+    // Check URL hash for modal opening on mount
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const hash = window.location.hash.toLowerCase();
+        if (hash === '#signup' || hash === '#register' || hash === '#join') {
+            setAuthModalMode('signup');
+            setAuthModalOpen(true);
+        } else if (hash === '#signin' || hash === '#login') {
+            setAuthModalMode('signin');
+            setAuthModalOpen(true);
+        }
+    }, []);
+
+    const openAuthModal = useCallback((mode: 'signin' | 'signup' = 'signin') => {
+        setAuthModalMode(mode);
+        setAuthModalOpen(true);
+    }, []);
+
+    const closeAuthModal = useCallback(() => {
+        setAuthModalOpen(false);
+        if (typeof window !== 'undefined' && window.location.hash) {
+            const h = window.location.hash.toLowerCase();
+            if (h === '#login' || h === '#signin' || h === '#signup' || h === '#register' || h === '#join') {
+                try {
+                    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+                } catch {}
+            }
+        }
+    }, []);
+
     const fetchProfile = useCallback(async (userId: string): Promise<Profile | null> => {
         try {
-            const { data, error } = await supabase
+            // 0. Primary override for minimalmassive@gmail.com to guarantee full continuity
+            if (userId === '39192441-3caa-40fe-9102-f40924c03166' || userId === '4fb34c08-a3b7-45b3-a7ad-fda625eae464') {
+                return {
+                    id: userId,
+                    username: '@minimalmassive',
+                    display_name: 'minimalmassive',
+                    full_name: 'minimalmassive',
+                    role: 'admin',
+                    avatar_url: 'https://plasticin.com/default-avatar.png',
+                    created_at: '2026-11-13T09:00:14.725971+00:00',
+                };
+            }
+
+            // 1. Primary check: Central plasticin_users table in Master DB
+            const { data: plstData } = await supabaseAuth
+                .from('plasticin_users')
+                .select('*')
+                .eq('id', userId)
+                .maybeSingle();
+
+            if (plstData) {
+                const cleanUser = (plstData.username || '').replace(/^@+/, '') || 'user';
+                return {
+                    id: plstData.id,
+                    username: plstData.username?.startsWith('@') ? plstData.username : `@${cleanUser}`,
+                    display_name: plstData.display_name || cleanUser,
+                    full_name: plstData.display_name || cleanUser,
+                    avatar_url: plstData.avatar_url,
+                    role: 'user',
+                    created_at: plstData.created_at,
+                    updated_at: plstData.updated_at,
+                };
+            }
+
+            // 2. Secondary fallback: profiles table in Central Auth DB
+            const { data: authProfile } = await supabaseAuth
                 .from('profiles')
                 .select('*')
                 .eq('id', userId)
                 .maybeSingle();
 
-            if (error || !data) {
-                return null;
+            if (authProfile) {
+                return authProfile as Profile;
             }
-            return data as Profile | null;
+
+            // 3. Fallback to local Memcut DB profiles table
+            const { data: localProfile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .maybeSingle();
+
+            if (localProfile) {
+                return localProfile as Profile;
+            }
+
+            return null;
         } catch {
             return null;
         }
@@ -97,28 +183,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
                 if (!profileData && isActive) {
                     try {
-                        const fallbackUsername = currentUser.user_metadata?.username ||
+                        const rawName = currentUser.user_metadata?.user_name ||
+                            currentUser.user_metadata?.username ||
                             currentUser.user_metadata?.full_name ||
                             currentUser.email?.split('@')[0] ||
-                            'Plasticin';
+                            'plasticin';
+                        const cleanUser = rawName.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 15) || 'user';
+                        const cleanHandle = `@${cleanUser}`;
+                        const displayName = currentUser.user_metadata?.full_name || cleanUser;
+                        const avatarUrl = currentUser.user_metadata?.avatar_url || 'https://plasticin.com/default-avatar.png';
+
+                        // Upsert into Central plasticin_users master table
+                        try {
+                            await supabaseAuth.from('plasticin_users').upsert({
+                                id: currentUser.id,
+                                username: cleanHandle,
+                                display_name: displayName,
+                                email: currentUser.email || '',
+                                avatar_url: avatarUrl,
+                                origin_app: 'memcut.com',
+                            }, { onConflict: 'email' });
+                        } catch (plstErr) {
+                            console.warn('[Auth] plasticin_users upsert notice:', plstErr);
+                        }
 
                         const profilePayload = {
                             id: currentUser.id,
-                            username: fallbackUsername,
+                            username: cleanHandle,
                             role: 'user',
+                            avatar_url: avatarUrl,
+                            display_name: displayName,
+                            full_name: displayName,
                             created_at: new Date().toISOString()
                         };
 
-                        // Create profile on Central Auth DB
-                        const { data: newProfile } = await supabaseAuth
-                            .from('profiles')
-                            .insert(profilePayload)
-                            .select()
-                            .single();
+                        profileData = profilePayload as Profile;
 
-                        if (newProfile) profileData = newProfile;
-
-                        // Mirror to Yolofuck DB
+                        // Mirror to Memcut data DB so foreign keys / relations work
                         try {
                             await supabase.from('profiles').upsert(profilePayload);
                         } catch {}
@@ -126,7 +227,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         console.warn('[Auth] Auto profile catch:', pErr);
                     }
                 } else if (profileData) {
-                    // Mirror profile to Yolofuck DB so foreign keys / relations work
+                    // Mirror profile to Memcut DB for table relations
                     try {
                         await supabase
                             .from('profiles')
@@ -134,6 +235,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                                 id: currentUser.id,
                                 username: profileData.username,
                                 role: profileData.role || 'user',
+                                avatar_url: profileData.avatar_url,
                                 updated_at: new Date().toISOString()
                             });
                     } catch {}
@@ -144,7 +246,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
 
                 // Attribute local owner ID to current user so takes load seamlessly
-                if (!localStorage.getItem('memcut_local_owner_id')) {
+                if (currentUser.email === 'minimalmassive@gmail.com' || currentUser.id === '39192441-3caa-40fe-9102-f40924c03166') {
+                    localStorage.setItem('memcut_local_owner_id', '4fb34c08-a3b7-45b3-a7ad-fda625eae464');
+                    localStorage.setItem('yolofuck_local_owner_id', '4fb34c08-a3b7-45b3-a7ad-fda625eae464');
+                    localStorage.setItem('plasticin_id', 'usr_plst_f08ceecf');
+                    localStorage.setItem('plasticin_username', '@minimalmassive');
+                } else if (!localStorage.getItem('memcut_local_owner_id')) {
                     const existing = localStorage.getItem('yolofuck_local_owner_id') || currentUser.id;
                     localStorage.setItem('memcut_local_owner_id', existing);
                 }
@@ -172,13 +279,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const signInWithEmail = useCallback(async (email: string, password: string) => {
         try {
-            let res = await supabaseAuth.auth.signInWithPassword({ email: email.trim(), password });
-            if (res.error && (supabaseAuth as any) !== (supabase as any)) {
-                const fallback = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-                if (!fallback.error) {
-                    res = fallback;
-                }
-            }
+            const cleanEmail = email.trim().toLowerCase();
+            const res = await supabaseAuth.auth.signInWithPassword({ email: cleanEmail, password });
+            
+            // Dual authentication: also sign in to Memcut data DB so RLS accepts requests
+            try {
+                await supabase.auth.signInWithPassword({ email: cleanEmail, password });
+            } catch {}
+
             if (res.error) return { error: res.error };
             return { error: null };
         } catch (err: any) {
@@ -186,57 +294,121 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }, []);
 
-    const resetPasswordForEmail = useCallback(async (email: string) => {
+    const signUpWithEmail = useCallback(async (email: string, password: string, username?: string) => {
         try {
-            let res = await supabaseAuth.auth.resetPasswordForEmail(email.trim(), {
-                redirectTo: `${window.location.origin}/`,
-            });
-            if (res.error && (supabaseAuth as any) !== (supabase as any)) {
-                const fallback = await supabase.auth.resetPasswordForEmail(email.trim(), {
-                    redirectTo: `${window.location.origin}/`,
-                });
-                if (!fallback.error) {
-                    res = fallback;
+            const cleanEmail = email.trim().toLowerCase();
+            const rawUser = username || cleanEmail.split('@')[0];
+            const cleanUser = rawUser.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 15) || 'user';
+            const cleanHandle = `@${cleanUser}`;
+
+            const { data, error } = await supabaseAuth.auth.signUp({
+                email: cleanEmail,
+                password,
+                options: {
+                    emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/` : undefined,
+                    data: {
+                        user_name: cleanHandle,
+                        username: cleanHandle,
+                        full_name: cleanUser,
+                        profile_completed: true,
+                    }
                 }
+            });
+
+            if (error) return { data: null, error };
+
+            if (data.user) {
+                try {
+                    await supabaseAuth.from('plasticin_users').upsert({
+                        id: data.user.id,
+                        username: cleanHandle,
+                        display_name: cleanUser,
+                        email: cleanEmail,
+                        avatar_url: 'https://plasticin.com/default-avatar.png',
+                        origin_app: 'memcut.com',
+                    }, { onConflict: 'email' });
+                } catch {}
+
+                try {
+                    await supabase.from('profiles').upsert({
+                        id: data.user.id,
+                        username: cleanHandle,
+                        role: 'user',
+                        created_at: new Date().toISOString(),
+                    });
+                } catch {}
             }
-            return res;
+
+            return { data, error: null };
         } catch (err: any) {
             return { data: null, error: err };
         }
     }, []);
 
-    const signUpWithEmail = useCallback(async (email: string, password: string, username?: string) => {
+    const signInWithGoogle = useCallback(async () => {
         try {
-            const finalUsername = username || email.split('@')[0];
-            const { data, error } = await supabaseAuth.auth.signUp({
-                email,
-                password,
+            const { error } = await supabaseAuth.auth.signInWithOAuth({
+                provider: 'google',
                 options: {
-                    emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/` : undefined,
-                    data: {
-                        username: finalUsername,
-                        full_name: finalUsername,
-                    }
-                }
+                    redirectTo: `${window.location.origin}/`,
+                },
             });
-            if (error) return { data: null, error };
-            if (data.user) {
-                const profilePayload = {
-                    id: data.user.id,
-                    username: finalUsername,
-                    role: 'user',
-                    created_at: new Date().toISOString(),
-                };
-                // Upsert to Central Auth DB
-                try {
-                    await supabaseAuth.from('profiles').upsert(profilePayload);
-                } catch {}
-                // Mirror to Yolofuck Data DB
-                try {
-                    await supabase.from('profiles').upsert(profilePayload);
-                } catch {}
+            if (error) return { error };
+            return { error: null };
+        } catch (err: any) {
+            return { error: err };
+        }
+    }, []);
+
+    const sendOtpEmail = useCallback(async (targetEmail: string) => {
+        try {
+            const { error } = await supabaseAuth.auth.signInWithOtp({
+                email: targetEmail.trim().toLowerCase(),
+                options: {
+                    shouldCreateUser: true,
+                    emailRedirectTo: `${window.location.origin}/`,
+                },
+            });
+            if (error) return { error };
+            return { error: null };
+        } catch (err: any) {
+            return { error: err };
+        }
+    }, []);
+
+    const verifyOtp = useCallback(async (targetEmail: string, token: string) => {
+        const cleanEmail = targetEmail.trim().toLowerCase();
+        const cleanCode = token.trim().toUpperCase();
+        try {
+            let { data, error } = await supabaseAuth.auth.verifyOtp({
+                email: cleanEmail,
+                token: cleanCode,
+                type: 'email',
+            });
+            if (error) {
+                const signupRes = await supabaseAuth.auth.verifyOtp({
+                    email: cleanEmail,
+                    token: cleanCode,
+                    type: 'signup',
+                });
+                if (!signupRes.error) {
+                    data = signupRes.data;
+                    error = null;
+                }
             }
-            return { data, error: null };
+            if (error) return { session: null, error };
+            return { session: data?.session, error: null };
+        } catch (err: any) {
+            return { session: null, error: err };
+        }
+    }, []);
+
+    const resetPasswordForEmail = useCallback(async (email: string) => {
+        try {
+            const res = await supabaseAuth.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+                redirectTo: `${window.location.origin}/`,
+            });
+            return res;
         } catch (err: any) {
             return { data: null, error: err };
         }
@@ -267,16 +439,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         emailConfirmed: true,
         needsUsername: false,
         loading,
+        authModalOpen,
+        authModalMode,
+        openAuthModal,
+        closeAuthModal,
         showWelcomeModal,
         dismissWelcome,
         showPasswordResetModal,
         closePasswordResetModal,
         signInWithEmail,
         signUpWithEmail,
+        signInWithGoogle,
+        sendOtpEmail,
+        verifyOtp,
         resetPasswordForEmail,
         signOut,
         refreshProfile,
-    }), [user, profile, loading, showWelcomeModal, dismissWelcome, showPasswordResetModal, closePasswordResetModal, signInWithEmail, signUpWithEmail, resetPasswordForEmail, signOut, refreshProfile]);
+    }), [user, profile, loading, authModalOpen, authModalMode, openAuthModal, closeAuthModal, showWelcomeModal, dismissWelcome, showPasswordResetModal, closePasswordResetModal, signInWithEmail, signUpWithEmail, signInWithGoogle, sendOtpEmail, verifyOtp, resetPasswordForEmail, signOut, refreshProfile]);
 
     return (
         <AuthContext.Provider value={value}>
@@ -292,3 +471,4 @@ export const useAuth = () => {
     }
     return context;
 };
+

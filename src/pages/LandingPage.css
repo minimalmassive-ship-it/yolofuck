@@ -112,12 +112,49 @@
 }
 
 .yolofuck-header-right-action {
-    width: 60px;
     display: flex;
     justify-content: flex-end;
     align-items: center;
+    gap: 10px;
     flex-shrink: 0;
 }
+
+.memcut-header-signin-btn {
+    background: transparent;
+    border: 1px solid #33312c;
+    color: #f5f5f4;
+    padding: 7px 14px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.memcut-header-signin-btn:hover {
+    border-color: var(--yolo-lime);
+    color: var(--yolo-lime);
+    background: rgba(200, 247, 44, 0.06);
+}
+
+.memcut-header-join-btn {
+    background: var(--yolo-lime);
+    border: none;
+    color: #12110f;
+    padding: 7px 16px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(200, 247, 44, 0.3);
+    transition: all 0.15s ease;
+}
+
+.memcut-header-join-btn:hover {
+    background: #b8e624;
+    transform: translateY(-1px);
+}
+
 
 /* ── PWA Direct Install Button ── */
 .yolofuck-pwa-install-btn {
@@ -541,3 +578,204 @@
     color: #30363d;
     flex-shrink: 0;
 }
+
+/* ── Hero Right Card: Plasticin ID Unified Access ── */
+.memcut-hero-card-brand-header {
+    text-align: center;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #21262d;
+    margin-bottom: 18px;
+}
+
+.memcut-hero-card-parent-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    background: #141413;
+    border: 1px solid #33312c;
+    margin-bottom: 10px;
+}
+
+.memcut-hero-card-parent-icon {
+    width: 14px;
+    height: 14px;
+    object-fit: contain;
+}
+
+.memcut-hero-card-parent-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #f5f5f4;
+}
+
+.memcut-hero-card-parent-pill {
+    font-size: 9px;
+    font-family: ui-monospace, monospace;
+    font-weight: 700;
+    color: var(--yolo-lime);
+    background: rgba(200, 247, 44, 0.1);
+    padding: 1px 5px;
+    border-radius: 4px;
+}
+
+.memcut-hero-card-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #ffffff;
+    margin: 0;
+    letter-spacing: -0.3px;
+}
+
+.memcut-hero-card-subtitle {
+    font-size: 12px;
+    color: #8b949e;
+    margin: 6px 0 0 0;
+    line-height: 1.45;
+}
+
+.memcut-hero-card-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.memcut-hero-btn-plasticin {
+    position: relative;
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: #161b22;
+    border: 1px solid #30363d;
+    color: #f0f6fc;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.15s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.memcut-hero-btn-plasticin:hover {
+    background: #21262d;
+    border-color: var(--yolo-lime);
+    color: var(--yolo-lime);
+    transform: translateY(-1px);
+}
+
+.memcut-hero-btn-google {
+    position: relative;
+    width: 100%;
+    padding: 11px 16px;
+    border-radius: 12px;
+    background: #0d1117;
+    border: 1px solid #21262d;
+    color: #c9d1d9;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.15s ease;
+}
+
+.memcut-hero-btn-google:hover {
+    background: #161b22;
+    border-color: #30363d;
+    color: #ffffff;
+}
+
+.memcut-hero-btn-icon {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.memcut-hero-card-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 4px 0;
+}
+
+.memcut-hero-card-divider span {
+    flex: 1;
+    border-top: 1px solid #21262d;
+}
+
+.memcut-hero-card-divider em {
+    font-style: normal;
+    font-size: 11px;
+    color: #6e7681;
+    text-transform: uppercase;
+    font-family: ui-monospace, monospace;
+}
+
+.memcut-hero-btn-email {
+    width: 100%;
+    padding: 10px 16px;
+    border-radius: 12px;
+    background: transparent;
+    border: 1px dashed #30363d;
+    color: #8b949e;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.memcut-hero-btn-email:hover {
+    border-color: var(--yolo-lime);
+    color: #ffffff;
+}
+
+.memcut-hero-card-signup-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #8b949e;
+    margin-top: 4px;
+}
+
+.memcut-hero-create-link {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--yolo-lime);
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.memcut-hero-create-link:hover {
+    color: #b8e624;
+}
+
+.memcut-hero-card-badge-row {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid #21262d;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.memcut-hero-trust-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: #8b949e;
+}
+

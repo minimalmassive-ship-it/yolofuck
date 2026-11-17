@@ -23,7 +23,8 @@ import {
     Settings,
     Trash2,
     Target,
-    Users
+    Users,
+    MessageSquare
 } from 'lucide-react';
 
 import JournalStoryView from '../components/JournalStoryView';
@@ -33,6 +34,7 @@ import TrashBinModal from '../components/TrashBinModal';
 import UserSettingsModal from '../components/UserSettingsModal';
 import QuestPageModal from '../components/QuestPageModal';
 import FriendsPageModal from '../components/FriendsPageModal';
+import PlasticinChatModal from '../components/PlasticinChatModal';
 
 import './JournalPage.css';
 import '../styles/vizja-ui-system.css';
@@ -51,6 +53,7 @@ export const JournalPage: React.FC = () => {
     const [showUserSettingsModal, setShowUserSettingsModal] = useState(false);
     const [showQuestModal, setShowQuestModal] = useState(false);
     const [showFriendsModal, setShowFriendsModal] = useState(false);
+    const [showChatModal, setShowChatModal] = useState(false);
 
     // Listen for video player state to hide bars in fullscreen story mode
     useEffect(() => {
@@ -120,6 +123,16 @@ export const JournalPage: React.FC = () => {
                     >
                         <Share2 size={16} />
                         <span>Share</span>
+                    </button>
+
+                    <button 
+                        type="button"
+                        className={`yolofuck-desktop-nav-btn ${showChatModal ? 'active' : ''}`}
+                        onClick={() => setShowChatModal(true)}
+                        title="Plasticin ecosystem chat"
+                    >
+                        <MessageSquare size={16} />
+                        <span>Chat</span>
                     </button>
 
                     <button 
@@ -261,6 +274,16 @@ export const JournalPage: React.FC = () => {
 
                     <button 
                         type="button"
+                        className={`yolofuck-bottom-nav-btn ${showChatModal ? 'active' : ''}`}
+                        onClick={() => setShowChatModal(true)}
+                        title="Plasticin Ecosystem Chat"
+                    >
+                        <MessageSquare size={19} />
+                        <span>Chat</span>
+                    </button>
+
+                    <button 
+                        type="button"
                         className="yolofuck-bottom-record-btn"
                         onClick={() => setShowCaptureModal(true)}
                         title="Record Take"
@@ -302,6 +325,12 @@ export const JournalPage: React.FC = () => {
             {showFriendsModal && (
                 <FriendsPageModal onClose={() => setShowFriendsModal(false)} />
             )}
+
+            {/* Plasticin Ecosystem Chat Modal with Swipe Logic */}
+            <PlasticinChatModal 
+                isOpen={showChatModal} 
+                onClose={() => setShowChatModal(false)} 
+            />
         </div>
     );
 };

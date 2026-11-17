@@ -127,8 +127,25 @@ function generateStoragePath(userId: string, filename: string): string {
     return `${userId}/${timestamp}_${rand}_${filename}`;
 }
 
+import { MINIMALMASSIVE_IDS } from './journalLocalStorage';
+
 export function getTargetUserIds(userId?: string | null): string[] {
-    return userId ? [userId] : [];
+    if (!userId) return [];
+    const isMinimalMassive = MINIMALMASSIVE_IDS.includes(userId) ||
+        (typeof window !== 'undefined' && (
+            localStorage.getItem('plasticin_id') === 'usr_plst_f08ceecf' ||
+            localStorage.getItem('memcut_local_owner_id') === '4fb34c08-a3b7-45b3-a7ad-fda625eae464' ||
+            localStorage.getItem('plasticin_last_account')?.includes('minimalmassive')
+        ));
+
+    if (isMinimalMassive) {
+        return Array.from(new Set([userId, ...MINIMALMASSIVE_IDS]));
+    }
+    const localOwner = typeof window !== 'undefined' ? localStorage.getItem('memcut_local_owner_id') : null;
+    if (localOwner && localOwner !== userId) {
+        return [userId, localOwner];
+    }
+    return [userId];
 }
 
 // ── Entry CRUD ─────────────────────────────────────────────────────────────
@@ -139,10 +156,11 @@ export async function fetchEntriesByDate(
     date: string
 ): Promise<JournalEntry[]> {
     if (!userId) return [];
+    const userIds = getTargetUserIds(userId);
     const { data, error } = await supabase
         .from('journal_entries')
         .select('*')
-        .eq('user_id', userId)
+        .in('user_id', userIds)
         .eq('entry_date', date)
         .order('created_at', { ascending: true });
 
@@ -160,10 +178,11 @@ export async function fetchEntriesPaginated(
     limit: number = 50
 ): Promise<JournalEntry[]> {
     if (!userId) return [];
+    const userIds = getTargetUserIds(userId);
     const { data, error } = await supabase
         .from('journal_entries')
         .select('*')
-        .eq('user_id', userId)
+        .in('user_id', userIds)
         .order('created_at', { ascending: false })
         .range(page * limit, (page + 1) * limit - 1);
 
@@ -180,10 +199,11 @@ export async function fetchUnmergedClips(
     date: string
 ): Promise<JournalClip[]> {
     if (!userId) return [];
+    const userIds = getTargetUserIds(userId);
     const { data, error } = await supabase
         .from('journal_clips')
         .select('*')
-        .eq('user_id', userId)
+        .in('user_id', userIds)
         .eq('clip_date', date)
         .eq('is_merged', false)
         .order('clip_order', { ascending: true });
@@ -201,10 +221,11 @@ export async function fetchClipsByDate(
     date: string
 ): Promise<JournalClip[]> {
     if (!userId) return [];
+    const userIds = getTargetUserIds(userId);
     const { data, error } = await supabase
         .from('journal_clips')
         .select('*')
-        .eq('user_id', userId)
+        .in('user_id', userIds)
         .eq('clip_date', date)
         .order('clip_order', { ascending: true })
         .order('created_at', { ascending: true });
@@ -221,10 +242,11 @@ export async function fetchAllUserClips(
     userId: string
 ): Promise<JournalClip[]> {
     if (!userId) return [];
+    const userIds = getTargetUserIds(userId);
     const { data, error } = await supabase
         .from('journal_clips')
         .select('*')
-        .eq('user_id', userId)
+        .in('user_id', userIds)
         .order('clip_date', { ascending: false })
         .order('clip_order', { ascending: true })
         .order('created_at', { ascending: true });
