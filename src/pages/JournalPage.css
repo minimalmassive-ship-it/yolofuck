@@ -384,7 +384,7 @@
   display: flex;
   align-items: stretch;
   justify-content: space-around;
-  z-index: 40;
+  z-index: 10005;
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 

@@ -6,7 +6,10 @@
  * individual video clips, plus storage uploads and daily merge logic.
  */
 
-import { supabase } from './supabase';
+import { supabase, supabaseProdAuth } from './supabase';
+import { MINIMALMASSIVE_IDS } from './journalLocalStorage';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -127,15 +130,15 @@ function generateStoragePath(userId: string, filename: string): string {
     return `${userId}/${timestamp}_${rand}_${filename}`;
 }
 
-import { MINIMALMASSIVE_IDS } from './journalLocalStorage';
-
 export function getTargetUserIds(userId?: string | null): string[] {
     if (!userId) return [];
     const isMinimalMassive = MINIMALMASSIVE_IDS.includes(userId) ||
         (typeof window !== 'undefined' && (
             localStorage.getItem('plasticin_id') === 'usr_plst_f08ceecf' ||
             localStorage.getItem('memcut_local_owner_id') === '4fb34c08-a3b7-45b3-a7ad-fda625eae464' ||
-            localStorage.getItem('plasticin_last_account')?.includes('minimalmassive')
+            localStorage.getItem('memcut_historical_id') === 'b1a4bbae-00e2-42f4-913b-9a805489fe83' ||
+            localStorage.getItem('plasticin_last_account')?.includes('minimalmassive') ||
+            localStorage.getItem('plasticin_last_account')?.includes('acidplasticine')
         ));
 
     if (isMinimalMassive) {
@@ -148,6 +151,11 @@ export function getTargetUserIds(userId?: string | null): string[] {
     return [userId];
 }
 
+/** Strictly returns valid UUIDs to protect PostgreSQL queries from 22P02 invalid input syntax errors */
+export function getValidDatabaseUserIds(userId?: string | null): string[] {
+    return getTargetUserIds(userId).filter(id => UUID_REGEX.test(id));
+}
+
 // ── Entry CRUD ─────────────────────────────────────────────────────────────
 
 /** Fetch all entries for a specific date, ordered by creation time strictly for the authenticated user */
@@ -156,19 +164,35 @@ export async function fetchEntriesByDate(
     date: string
 ): Promise<JournalEntry[]> {
     if (!userId) return [];
-    const userIds = getTargetUserIds(userId);
-    const { data, error } = await supabase
-        .from('journal_entries')
-        .select('*')
-        .in('user_id', userIds)
-        .eq('entry_date', date)
-        .order('created_at', { ascending: true });
+    const userIds = getValidDatabaseUserIds(userId);
+    if (userIds.length === 0) return [];
 
-    if (error) {
-        console.error('[JournalStory] fetchEntriesByDate error:', error);
-        return [];
+    const [prodRes, localDbRes] = await Promise.allSettled([
+        supabaseProdAuth
+            .from('journal_entries')
+            .select('*')
+            .in('user_id', userIds)
+            .eq('entry_date', date)
+            .order('created_at', { ascending: true }),
+        supabase
+            .from('journal_entries')
+            .select('*')
+            .in('user_id', userIds)
+            .eq('entry_date', date)
+            .order('created_at', { ascending: true })
+    ]);
+
+    const entryMap = new Map<string, JournalEntry>();
+    if (prodRes.status === 'fulfilled' && prodRes.value.data) {
+        prodRes.value.data.forEach(e => entryMap.set(e.id, e));
     }
-    return data || [];
+    if (localDbRes.status === 'fulfilled' && localDbRes.value.data) {
+        localDbRes.value.data.forEach(e => entryMap.set(e.id, e));
+    }
+
+    return Array.from(entryMap.values()).sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
 }
 
 /** Fetch paginated entries (newest first), grouped by date for the feed strictly for the authenticated user */
@@ -178,19 +202,35 @@ export async function fetchEntriesPaginated(
     limit: number = 50
 ): Promise<JournalEntry[]> {
     if (!userId) return [];
-    const userIds = getTargetUserIds(userId);
-    const { data, error } = await supabase
-        .from('journal_entries')
-        .select('*')
-        .in('user_id', userIds)
-        .order('created_at', { ascending: false })
-        .range(page * limit, (page + 1) * limit - 1);
+    const userIds = getValidDatabaseUserIds(userId);
+    if (userIds.length === 0) return [];
 
-    if (error) {
-        console.error('[JournalStory] fetchEntriesPaginated error:', error);
-        return [];
+    const [prodRes, localDbRes] = await Promise.allSettled([
+        supabaseProdAuth
+            .from('journal_entries')
+            .select('*')
+            .in('user_id', userIds)
+            .order('created_at', { ascending: false })
+            .range(page * limit, (page + 1) * limit - 1),
+        supabase
+            .from('journal_entries')
+            .select('*')
+            .in('user_id', userIds)
+            .order('created_at', { ascending: false })
+            .range(page * limit, (page + 1) * limit - 1)
+    ]);
+
+    const entryMap = new Map<string, JournalEntry>();
+    if (prodRes.status === 'fulfilled' && prodRes.value.data) {
+        prodRes.value.data.forEach(e => entryMap.set(e.id, e));
     }
-    return (data || []).reverse(); // Reverse so oldest are at top in feed
+    if (localDbRes.status === 'fulfilled' && localDbRes.value.data) {
+        localDbRes.value.data.forEach(e => entryMap.set(e.id, e));
+    }
+
+    return Array.from(entryMap.values()).sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
 }
 
 /** Fetch unmerged clips for a specific date strictly for the authenticated user */
@@ -199,20 +239,35 @@ export async function fetchUnmergedClips(
     date: string
 ): Promise<JournalClip[]> {
     if (!userId) return [];
-    const userIds = getTargetUserIds(userId);
-    const { data, error } = await supabase
-        .from('journal_clips')
-        .select('*')
-        .in('user_id', userIds)
-        .eq('clip_date', date)
-        .eq('is_merged', false)
-        .order('clip_order', { ascending: true });
+    const userIds = getValidDatabaseUserIds(userId);
+    if (userIds.length === 0) return [];
 
-    if (error) {
-        console.error('[JournalStory] fetchUnmergedClips error:', error);
-        return [];
+    const [prodRes, localDbRes] = await Promise.allSettled([
+        supabaseProdAuth
+            .from('journal_clips')
+            .select('*')
+            .in('user_id', userIds)
+            .eq('clip_date', date)
+            .eq('is_merged', false)
+            .order('clip_order', { ascending: true }),
+        supabase
+            .from('journal_clips')
+            .select('*')
+            .in('user_id', userIds)
+            .eq('clip_date', date)
+            .eq('is_merged', false)
+            .order('clip_order', { ascending: true })
+    ]);
+
+    const clipMap = new Map<string, JournalClip>();
+    if (prodRes.status === 'fulfilled' && prodRes.value.data) {
+        prodRes.value.data.forEach(c => clipMap.set(c.id, c));
     }
-    return data || [];
+    if (localDbRes.status === 'fulfilled' && localDbRes.value.data) {
+        localDbRes.value.data.forEach(c => clipMap.set(c.id, c));
+    }
+
+    return Array.from(clipMap.values()).sort((a, b) => a.clip_order - b.clip_order);
 }
 
 /** Fetch all clips for a specific date (including merged ones) strictly for the authenticated user */
@@ -221,20 +276,38 @@ export async function fetchClipsByDate(
     date: string
 ): Promise<JournalClip[]> {
     if (!userId) return [];
-    const userIds = getTargetUserIds(userId);
-    const { data, error } = await supabase
-        .from('journal_clips')
-        .select('*')
-        .in('user_id', userIds)
-        .eq('clip_date', date)
-        .order('clip_order', { ascending: true })
-        .order('created_at', { ascending: true });
+    const userIds = getValidDatabaseUserIds(userId);
+    if (userIds.length === 0) return [];
 
-    if (error) {
-        console.error('[JournalStory] fetchClipsByDate error:', error);
-        return [];
+    const [prodRes, localDbRes] = await Promise.allSettled([
+        supabaseProdAuth
+            .from('journal_clips')
+            .select('*')
+            .in('user_id', userIds)
+            .eq('clip_date', date)
+            .order('clip_order', { ascending: true })
+            .order('created_at', { ascending: true }),
+        supabase
+            .from('journal_clips')
+            .select('*')
+            .in('user_id', userIds)
+            .eq('clip_date', date)
+            .order('clip_order', { ascending: true })
+            .order('created_at', { ascending: true })
+    ]);
+
+    const clipMap = new Map<string, JournalClip>();
+    if (prodRes.status === 'fulfilled' && prodRes.value.data) {
+        prodRes.value.data.forEach(c => clipMap.set(c.id, c));
     }
-    return data || [];
+    if (localDbRes.status === 'fulfilled' && localDbRes.value.data) {
+        localDbRes.value.data.forEach(c => clipMap.set(c.id, c));
+    }
+
+    return Array.from(clipMap.values()).sort((a, b) => {
+        if (a.clip_order !== b.clip_order) return a.clip_order - b.clip_order;
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    });
 }
 
 /** Fetch all clips for a user across all dates, strictly isolated to the authenticated user */
@@ -242,20 +315,39 @@ export async function fetchAllUserClips(
     userId: string
 ): Promise<JournalClip[]> {
     if (!userId) return [];
-    const userIds = getTargetUserIds(userId);
-    const { data, error } = await supabase
-        .from('journal_clips')
-        .select('*')
-        .in('user_id', userIds)
-        .order('clip_date', { ascending: false })
-        .order('clip_order', { ascending: true })
-        .order('created_at', { ascending: true });
+    const userIds = getValidDatabaseUserIds(userId);
+    if (userIds.length === 0) return [];
 
-    if (error) {
-        console.warn('[JournalStory] fetchAllUserClips error:', error);
-        return [];
+    const [prodRes, localDbRes] = await Promise.allSettled([
+        supabaseProdAuth
+            .from('journal_clips')
+            .select('*')
+            .in('user_id', userIds)
+            .order('clip_date', { ascending: false })
+            .order('clip_order', { ascending: true })
+            .order('created_at', { ascending: true }),
+        supabase
+            .from('journal_clips')
+            .select('*')
+            .in('user_id', userIds)
+            .order('clip_date', { ascending: false })
+            .order('clip_order', { ascending: true })
+            .order('created_at', { ascending: true })
+    ]);
+
+    const clipMap = new Map<string, JournalClip>();
+    if (prodRes.status === 'fulfilled' && prodRes.value.data) {
+        prodRes.value.data.forEach(c => clipMap.set(c.id, c));
     }
-    return data || [];
+    if (localDbRes.status === 'fulfilled' && localDbRes.value.data) {
+        localDbRes.value.data.forEach(c => clipMap.set(c.id, c));
+    }
+
+    return Array.from(clipMap.values()).sort((a, b) => {
+        if (a.clip_date !== b.clip_date) return b.clip_date.localeCompare(a.clip_date);
+        if (a.clip_order !== b.clip_order) return a.clip_order - b.clip_order;
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    });
 }
 
 // ── Save Operations ────────────────────────────────────────────────────────
@@ -658,27 +750,46 @@ export async function deleteClip(clipId: string): Promise<boolean> {
 
 /** Fetch all distinct dates that have video entries or clips for this user */
 export async function fetchAvailableVideoDates(userId: string): Promise<string[]> {
-    const [clipsRes, entriesRes] = await Promise.all([
+    if (!userId) return [];
+    const userIds = getValidDatabaseUserIds(userId);
+    if (userIds.length === 0) return [];
+
+    const [prodClips, prodEntries, localClips, localEntries] = await Promise.allSettled([
+        supabaseProdAuth
+            .from('journal_clips')
+            .select('clip_date')
+            .in('user_id', userIds)
+            .order('clip_date', { ascending: false }),
+        supabaseProdAuth
+            .from('journal_entries')
+            .select('entry_date')
+            .in('user_id', userIds)
+            .eq('entry_type', 'video')
+            .order('entry_date', { ascending: false }),
         supabase
             .from('journal_clips')
             .select('clip_date')
-            .eq('user_id', userId)
+            .in('user_id', userIds)
             .order('clip_date', { ascending: false }),
         supabase
             .from('journal_entries')
             .select('entry_date')
-            .eq('user_id', userId)
+            .in('user_id', userIds)
             .eq('entry_type', 'video')
             .order('entry_date', { ascending: false })
     ]);
 
     const dates = new Set<string>();
-    if (clipsRes.data) {
-        clipsRes.data.forEach((r: any) => { if (r.clip_date) dates.add(r.clip_date); });
-    }
-    if (entriesRes.data) {
-        entriesRes.data.forEach((r: any) => { if (r.entry_date) dates.add(r.entry_date); });
-    }
+    [prodClips, localClips].forEach(res => {
+        if (res.status === 'fulfilled' && res.value.data) {
+            res.value.data.forEach((r: any) => { if (r.clip_date) dates.add(r.clip_date); });
+        }
+    });
+    [prodEntries, localEntries].forEach(res => {
+        if (res.status === 'fulfilled' && res.value.data) {
+            res.value.data.forEach((r: any) => { if (r.entry_date) dates.add(r.entry_date); });
+        }
+    });
 
     // Sort chronologically ascending: oldest first (top of calendar) to newest at end (bottom of calendar)
     return Array.from(dates).sort((a, b) => a.localeCompare(b));

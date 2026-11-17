@@ -107,8 +107,11 @@ export const JournalPage: React.FC = () => {
                 <nav className="yolofuck-desktop-center-nav">
                     <button 
                         type="button"
-                        className={`yolofuck-desktop-nav-btn ${activeTab === 'story' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('story')}
+                        className={`yolofuck-desktop-nav-btn ${activeTab === 'story' && !showChatModal ? 'active' : ''}`}
+                        onClick={() => {
+                            setShowChatModal(false);
+                            setActiveTab('story');
+                        }}
                         title="Journal timeline"
                     >
                         <Layers size={16} />
@@ -117,8 +120,11 @@ export const JournalPage: React.FC = () => {
 
                     <button 
                         type="button"
-                        className={`yolofuck-desktop-nav-btn ${activeTab === 'shared' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('shared')}
+                        className={`yolofuck-desktop-nav-btn ${activeTab === 'shared' && !showChatModal ? 'active' : ''}`}
+                        onClick={() => {
+                            setShowChatModal(false);
+                            setActiveTab('shared');
+                        }}
                         title="Shared sequences"
                     >
                         <Share2 size={16} />
@@ -128,7 +134,7 @@ export const JournalPage: React.FC = () => {
                     <button 
                         type="button"
                         className={`yolofuck-desktop-nav-btn ${showChatModal ? 'active' : ''}`}
-                        onClick={() => setShowChatModal(true)}
+                        onClick={() => setShowChatModal(prev => !prev)}
                         title="Plasticin ecosystem chat"
                     >
                         <MessageSquare size={16} />
@@ -256,8 +262,11 @@ export const JournalPage: React.FC = () => {
                 <nav className="yolofuck-bottom-nav">
                     <button 
                         type="button"
-                        className={`yolofuck-bottom-nav-btn ${activeTab === 'story' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('story')}
+                        className={`yolofuck-bottom-nav-btn ${activeTab === 'story' && !showChatModal ? 'active' : ''}`}
+                        onClick={() => {
+                            setShowChatModal(false);
+                            setActiveTab('story');
+                        }}
                     >
                         <Layers size={19} />
                         <span>Journal</span>
@@ -265,8 +274,11 @@ export const JournalPage: React.FC = () => {
 
                     <button 
                         type="button"
-                        className={`yolofuck-bottom-nav-btn ${activeTab === 'shared' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('shared')}
+                        className={`yolofuck-bottom-nav-btn ${activeTab === 'shared' && !showChatModal ? 'active' : ''}`}
+                        onClick={() => {
+                            setShowChatModal(false);
+                            setActiveTab('shared');
+                        }}
                     >
                         <Share2 size={19} />
                         <span>Share</span>
@@ -275,7 +287,7 @@ export const JournalPage: React.FC = () => {
                     <button 
                         type="button"
                         className={`yolofuck-bottom-nav-btn ${showChatModal ? 'active' : ''}`}
-                        onClick={() => setShowChatModal(true)}
+                        onClick={() => setShowChatModal(prev => !prev)}
                         title="Plasticin Ecosystem Chat"
                     >
                         <MessageSquare size={19} />

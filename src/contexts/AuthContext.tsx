@@ -228,25 +228,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
                         profileData = profilePayload as Profile;
 
-                        // Mirror to Memcut data DB so foreign keys / relations work
+                        // Mirror to Memcut data DB only if an active session exists on this client
                         try {
-                            await supabase.from('profiles').upsert(profilePayload);
+                            const { data: memcutSession } = await supabase.auth.getSession();
+                            if (memcutSession?.session?.user) {
+                                await supabase.from('profiles').upsert(profilePayload);
+                            }
                         } catch {}
                     } catch (pErr) {
                         console.warn('[Auth] Auto profile catch:', pErr);
                     }
                 } else if (profileData) {
-                    // Mirror profile to Memcut DB for table relations
+                    // Mirror profile to Memcut DB only if an active session exists
                     try {
-                        await supabase
-                            .from('profiles')
-                            .upsert({
-                                id: currentUser.id,
-                                username: profileData.username,
-                                role: profileData.role || 'user',
-                                avatar_url: profileData.avatar_url,
-                                updated_at: new Date().toISOString()
-                            });
+                        const { data: memcutSession } = await supabase.auth.getSession();
+                        if (memcutSession?.session?.user) {
+                            await supabase
+                                .from('profiles')
+                                .upsert({
+                                    id: currentUser.id,
+                                    username: profileData.username,
+                                    role: profileData.role || 'user',
+                                    avatar_url: profileData.avatar_url,
+                                    updated_at: new Date().toISOString()
+                                });
+                        }
                     } catch {}
                 }
 
@@ -258,6 +264,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 if (currentUser.email === 'minimalmassive@gmail.com' || currentUser.id === '39192441-3caa-40fe-9102-f40924c03166') {
                     localStorage.setItem('memcut_local_owner_id', '4fb34c08-a3b7-45b3-a7ad-fda625eae464');
                     localStorage.setItem('yolofuck_local_owner_id', '4fb34c08-a3b7-45b3-a7ad-fda625eae464');
+                    localStorage.setItem('memcut_historical_id', 'b1a4bbae-00e2-42f4-913b-9a805489fe83');
                     localStorage.setItem('plasticin_id', 'usr_plst_f08ceecf');
                     localStorage.setItem('plasticin_username', '@acidplasticine');
                 } else if (!localStorage.getItem('memcut_local_owner_id')) {
@@ -397,12 +404,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 } catch {}
 
                 try {
-                    await supabase.from('profiles').upsert({
-                        id: data.user.id,
-                        username: cleanHandle,
-                        role: 'user',
-                        created_at: new Date().toISOString(),
-                    });
+                    const { data: memcutSession } = await supabase.auth.getSession();
+                    if (memcutSession?.session?.user) {
+                        await supabase.from('profiles').upsert({
+                            id: data.user.id,
+                            username: cleanHandle,
+                            role: 'user',
+                            created_at: new Date().toISOString(),
+                        });
+                    }
                 } catch {}
             }
 

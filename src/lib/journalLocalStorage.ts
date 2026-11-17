@@ -132,6 +132,8 @@ async function getEntriesFromDb(dbName: string): Promise<LocalJournalEntry[]> {
 
 export const MINIMALMASSIVE_IDS = [
     '39192441-3caa-40fe-9102-f40924c03166', // Plasticin Master UUID
+    'b1a4bbae-00e2-42f4-913b-9a805489fe83', // Archimantis / Ideanite PROD UUID (183 historical video clips)
+    'b095c23a-30ea-4e31-b6f9-b67b30a8fe35', // Ideanite DEV UUID
     '4fb34c08-a3b7-45b3-a7ad-fda625eae464', // Memcut Dedicated DB UUID
     'usr_plst_f08ceecf',                    // Plasticin ID handle
     'usr_2u9738jcmw9m8ngu',                 // Legacy ID
@@ -166,7 +168,9 @@ export async function getAllLocalJournalRecordings(targetUserId?: string): Promi
         (typeof window !== 'undefined' && (
             localStorage.getItem('plasticin_id') === 'usr_plst_f08ceecf' ||
             localStorage.getItem('memcut_local_owner_id') === '4fb34c08-a3b7-45b3-a7ad-fda625eae464' ||
-            localStorage.getItem('plasticin_last_account')?.includes('minimalmassive')
+            localStorage.getItem('memcut_historical_id') === 'b1a4bbae-00e2-42f4-913b-9a805489fe83' ||
+            localStorage.getItem('plasticin_last_account')?.includes('minimalmassive') ||
+            localStorage.getItem('plasticin_last_account')?.includes('acidplasticine')
         ));
 
     const userEntries: LocalJournalEntry[] = [];
