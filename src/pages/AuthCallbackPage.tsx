@@ -6,7 +6,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
-import { handlePlasticinCallback } from '../lib/plasticinSso';
+import { handlePlasticinCallback, initiatePlasticinSso } from '../lib/plasticinSso';
 
 export const AuthCallbackPage: React.FC = () => {
     const [status, setStatus] = useState<'loading' | 'error'>('loading');
@@ -120,28 +120,49 @@ export const AuthCallbackPage: React.FC = () => {
                                 {errorMessage}
                             </p>
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => { window.location.href = '/'; }}
-                            style={{
-                                marginTop: '8px',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                padding: '10px 18px',
-                                borderRadius: '12px',
-                                background: '#21201D',
-                                border: '1px solid #33312C',
-                                color: '#C8F931',
-                                fontSize: '12px',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                transition: 'all 0.15s ease',
-                            }}
-                        >
-                            <ArrowLeft size={14} />
-                            <span>Return to Home</span>
-                        </button>
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                            <button
+                                type="button"
+                                onClick={() => initiatePlasticinSso({ mode: 'signin' })}
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    padding: '10px 18px',
+                                    borderRadius: '12px',
+                                    background: '#10b981',
+                                    border: '1px solid #059669',
+                                    color: '#000000',
+                                    fontSize: '12px',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                }}
+                            >
+                                <span>Sign In with Plasticin</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { window.location.href = '/'; }}
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    padding: '10px 18px',
+                                    borderRadius: '12px',
+                                    background: '#21201D',
+                                    border: '1px solid #33312C',
+                                    color: '#A8A29E',
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                }}
+                            >
+                                <ArrowLeft size={14} />
+                                <span>Return to Home</span>
+                            </button>
+                        </div>
                     </>
                 )}
             </div>

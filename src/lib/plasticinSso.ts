@@ -67,6 +67,16 @@ function parseJwtPayload<T>(jwt: string): T {
     return JSON.parse(atob(base64));
 }
 
+let inFlightExchange: Promise<{
+    tokens: PlasticinTokenResponse;
+    user: PlasticinUserClaims;
+}> | null = null;
+let lastExchangedCode: string | null = null;
+let lastExchangeResult: {
+    tokens: PlasticinTokenResponse;
+    user: PlasticinUserClaims;
+} | null = null;
+
 /**
  * Initiates the central Atlassian-style Plasticin OAuth 2.1 PKCE redirect.
  * Directs user to https://plasticin.com/auth with requesting client credentials.
@@ -78,9 +88,39 @@ export async function initiatePlasticinSso(options: PlasticinSsoInitOptions = {}
     const state = crypto.randomUUID();
     const verifier = generateRandomString(64);
 
-    sessionStorage.setItem('plasticin_sso_state', state);
-    sessionStorage.setItem('plasticin_sso_verifier', verifier);
-    sessionStorage.setItem('plasticin_sso_redirect_uri', redirectUri);
+    const flowData = JSON.stringify({
+        state,
+        verifier,
+        redirectUri,
+        timestamp: Date.now()
+    });
+
+    try {
+        // Multi-state cache: store keyed by state to survive double-clicks and multiple tabs
+        sessionStorage.setItem(`plasticin_flow_${state}`, flowData);
+        sessionStorage.setItem('plasticin_sso_state', state);
+        sessionStorage.setItem('plasticin_sso_verifier', verifier);
+        sessionStorage.setItem('plasticin_sso_redirect_uri', redirectUri);
+
+        localStorage.setItem(`plasticin_flow_${state}`, flowData);
+        localStorage.setItem('plasticin_sso_state', state);
+        localStorage.setItem('plasticin_sso_verifier', verifier);
+        localStorage.setItem('plasticin_sso_redirect_uri', redirectUri);
+
+        // Prune expired flows older than 15 minutes
+        Object.keys(localStorage).forEach((key) => {
+            if (key.startsWith('plasticin_flow_')) {
+                try {
+                    const parsed = JSON.parse(localStorage.getItem(key) || '{}');
+                    if (Date.now() - (parsed.timestamp || 0) > 15 * 60 * 1000) {
+                        localStorage.removeItem(key);
+                    }
+                } catch {
+                    localStorage.removeItem(key);
+                }
+            }
+        });
+    } catch {}
 
     const challenge = await generateCodeChallenge(verifier);
 
@@ -131,97 +171,166 @@ export async function handlePlasticinCallback(): Promise<{
         throw new Error(errorDescription || `OAuth authorization failed: ${error}`);
     }
 
-    const storedState = sessionStorage.getItem('plasticin_sso_state');
-    const verifier = sessionStorage.getItem('plasticin_sso_verifier');
-    const storedRedirectUri = sessionStorage.getItem('plasticin_sso_redirect_uri') || `${window.location.origin}/auth/callback`;
-
-    if (!returnedState || returnedState !== storedState) {
-        throw new Error('CSRF state verification failed. Authentication response was not recognized.');
+    if (!code) {
+        throw new Error('Missing authorization code in callback.');
     }
 
-    if (!code || !verifier) {
-        throw new Error('Missing authorization code or PKCE verifier in callback.');
+    // Return cached exchange if React remounts on callback
+    if (lastExchangedCode === code && lastExchangeResult) {
+        return lastExchangeResult;
     }
 
-    // Exchange authorization code for tokens via Plasticin Token Endpoint
-    const response = await fetch(`${PLASTICIN_BASE_URL}/api/oauth/token`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            grant_type: 'authorization_code',
-            client_id: CLIENT_ID,
-            code,
-            redirect_uri: storedRedirectUri,
-            code_verifier: verifier,
-        }),
-    });
-
-    sessionStorage.removeItem('plasticin_sso_state');
-    sessionStorage.removeItem('plasticin_sso_verifier');
-    sessionStorage.removeItem('plasticin_sso_redirect_uri');
-
-    if (!response.ok) {
-        const errJson = await response.json().catch(() => ({}));
-        throw new Error(errJson.error_description || 'Failed to exchange authorization code for tokens.');
+    // Return in-flight exchange to prevent duplicate token redemption
+    if (inFlightExchange) {
+        return inFlightExchange;
     }
 
-    const tokens: PlasticinTokenResponse = await response.json();
-    const user = parseJwtPayload<PlasticinUserClaims>(tokens.id_token);
+    inFlightExchange = (async () => {
+        let verifier: string | null = null;
+        let storedRedirectUri: string = `${window.location.origin}/auth/callback`;
 
-    // 1. Establish official Central Supabase session using the service admin bridge
-    try {
-        const { data: linkData, error: linkErr } = await supabaseAuthAdmin.auth.admin.generateLink({
-            type: 'magiclink',
-            email: user.email.toLowerCase(),
+        // 1. First priority: look up flow by the exact returned state
+        if (returnedState) {
+            const rawFlow = sessionStorage.getItem(`plasticin_flow_${returnedState}`) ||
+                            localStorage.getItem(`plasticin_flow_${returnedState}`);
+            if (rawFlow) {
+                try {
+                    const parsed = JSON.parse(rawFlow);
+                    verifier = parsed.verifier;
+                    storedRedirectUri = parsed.redirectUri || storedRedirectUri;
+                } catch {}
+            }
+        }
+
+        // 2. Fallback: single-state pointer from sessionStorage or localStorage
+        if (!verifier) {
+            verifier = sessionStorage.getItem('plasticin_sso_verifier') || localStorage.getItem('plasticin_sso_verifier');
+            storedRedirectUri = sessionStorage.getItem('plasticin_sso_redirect_uri') || localStorage.getItem('plasticin_sso_redirect_uri') || storedRedirectUri;
+        }
+
+        // 3. Last fallback: look for any valid flow in localStorage or sessionStorage (most recent)
+        if (!verifier) {
+            const allKeys = [...Object.keys(localStorage), ...Object.keys(sessionStorage)];
+            const flowKeys = Array.from(new Set(allKeys.filter(k => k.startsWith('plasticin_flow_'))));
+            const flows: any[] = [];
+            for (const key of flowKeys) {
+                try {
+                    const raw = sessionStorage.getItem(key) || localStorage.getItem(key);
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        if (parsed.verifier) flows.push(parsed);
+                    }
+                } catch {}
+            }
+            flows.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            if (flows.length > 0) {
+                verifier = flows[0].verifier;
+                storedRedirectUri = flows[0].redirectUri || storedRedirectUri;
+            }
+        }
+
+        if (!verifier) {
+            throw new Error('CSRF state verification failed. Authentication response was not recognized.');
+        }
+
+        // Exchange authorization code for tokens via Plasticin Token Endpoint
+        const response = await fetch(`${PLASTICIN_BASE_URL}/api/oauth/token`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                grant_type: 'authorization_code',
+                client_id: CLIENT_ID,
+                code,
+                redirect_uri: storedRedirectUri,
+                code_verifier: verifier,
+            }),
         });
 
-        if (!linkErr && linkData?.properties?.hashed_token) {
-            await supabaseAuth.auth.verifyOtp({
-                token_hash: linkData.properties.hashed_token,
+        // Clean up redeemed flow data
+        try {
+            if (returnedState) {
+                sessionStorage.removeItem(`plasticin_flow_${returnedState}`);
+                localStorage.removeItem(`plasticin_flow_${returnedState}`);
+            }
+            sessionStorage.removeItem('plasticin_sso_state');
+            sessionStorage.removeItem('plasticin_sso_verifier');
+            sessionStorage.removeItem('plasticin_sso_redirect_uri');
+            localStorage.removeItem('plasticin_sso_state');
+            localStorage.removeItem('plasticin_sso_verifier');
+            localStorage.removeItem('plasticin_sso_redirect_uri');
+        } catch {}
+
+        if (!response.ok) {
+            const errJson = await response.json().catch(() => ({}));
+            throw new Error(errJson.error_description || 'Failed to exchange authorization code for tokens.');
+        }
+
+        const tokens: PlasticinTokenResponse = await response.json();
+        const user = parseJwtPayload<PlasticinUserClaims>(tokens.id_token);
+
+        // 1. Establish official Central Supabase session using the service admin bridge
+        try {
+            const { data: linkData, error: linkErr } = await supabaseAuthAdmin.auth.admin.generateLink({
                 type: 'magiclink',
+                email: user.email.toLowerCase(),
             });
+
+            if (!linkErr && linkData?.properties?.hashed_token) {
+                await supabaseAuth.auth.verifyOtp({
+                    token_hash: linkData.properties.hashed_token,
+                    type: 'magiclink',
+                });
+            }
+        } catch (sessionErr) {
+            console.warn('Notice: Central Supabase session bridge caught:', sessionErr);
         }
-    } catch (sessionErr) {
-        console.warn('Notice: Central Supabase session bridge caught:', sessionErr);
-    }
 
-    // 2. Save recognized account in localStorage for instant fast-resume
-    const cleanUser = user.preferred_username || user.email.split('@')[0];
-    const accountData = {
-        username: cleanUser.startsWith('@') ? cleanUser : `@${cleanUser}`,
-        cleanUsername: cleanUser.replace(/^@+/, ''),
-        email: user.email.toLowerCase(),
-        displayName: user.name || cleanUser.replace(/^@+/, ''),
-        avatarUrl: user.picture || 'https://plasticin.com/default-avatar.png',
-        hasPassword: true,
-    };
-    localStorage.setItem('plasticin_last_account', JSON.stringify(accountData));
-
-    // 3. Persist SSO User object for instant invariant fallback in AuthContext
-    const ssoUser = {
-        id: user.sub,
-        email: user.email.toLowerCase(),
-        aud: 'authenticated',
-        role: 'authenticated',
-        created_at: new Date().toISOString(),
-        user_metadata: {
-            user_name: cleanUser.startsWith('@') ? cleanUser : `@${cleanUser}`,
+        // 2. Save recognized account in localStorage for instant fast-resume
+        const cleanUser = user.preferred_username || user.email.split('@')[0];
+        const accountData = {
             username: cleanUser.startsWith('@') ? cleanUser : `@${cleanUser}`,
-            full_name: user.name || cleanUser.replace(/^@+/, ''),
-            avatar_url: user.picture || 'https://plasticin.com/default-avatar.png',
+            cleanUsername: cleanUser.replace(/^@+/, ''),
+            email: user.email.toLowerCase(),
+            displayName: user.name || cleanUser.replace(/^@+/, ''),
+            avatarUrl: user.picture || 'https://plasticin.com/default-avatar.png',
+            hasPassword: true,
+        };
+        localStorage.setItem('plasticin_last_account', JSON.stringify(accountData));
+
+        // 3. Persist SSO User object for instant invariant fallback in AuthContext
+        const ssoUser = {
+            id: user.sub,
+            email: user.email.toLowerCase(),
+            aud: 'authenticated',
+            role: 'authenticated',
+            created_at: new Date().toISOString(),
+            user_metadata: {
+                user_name: cleanUser.startsWith('@') ? cleanUser : `@${cleanUser}`,
+                username: cleanUser.startsWith('@') ? cleanUser : `@${cleanUser}`,
+                full_name: user.name || cleanUser.replace(/^@+/, ''),
+                avatar_url: user.picture || 'https://plasticin.com/default-avatar.png',
+            }
+        };
+        localStorage.setItem('plasticin_sso_user', JSON.stringify(ssoUser));
+
+        // 4. Link Memcut local owner ID and historical takes for seamless continuity
+        if (user.email.toLowerCase() === 'minimalmassive@gmail.com') {
+            localStorage.setItem('memcut_local_owner_id', '4fb34c08-a3b7-45b3-a7ad-fda625eae464');
+            localStorage.setItem('yolofuck_local_owner_id', '4fb34c08-a3b7-45b3-a7ad-fda625eae464');
+            localStorage.setItem('memcut_historical_id', 'b1a4bbae-00e2-42f4-913b-9a805489fe83');
+            localStorage.setItem('plasticin_id', 'usr_plst_f08ceecf');
+            localStorage.setItem('plasticin_username', '@acidplasticine');
         }
-    };
-    localStorage.setItem('plasticin_sso_user', JSON.stringify(ssoUser));
 
-    // 4. Link Memcut local owner ID for seamless takes & journal continuity
-    if (user.email.toLowerCase() === 'minimalmassive@gmail.com') {
-        localStorage.setItem('memcut_local_owner_id', '4fb34c08-a3b7-45b3-a7ad-fda625eae464');
-        localStorage.setItem('yolofuck_local_owner_id', '4fb34c08-a3b7-45b3-a7ad-fda625eae464');
-        localStorage.setItem('plasticin_id', 'usr_plst_f08ceecf');
-        localStorage.setItem('plasticin_username', '@acidplasticine');
-    }
+        const result = { tokens, user };
+        lastExchangedCode = code;
+        lastExchangeResult = result;
+        return result;
+    })().finally(() => {
+        inFlightExchange = null;
+    });
 
-    return { tokens, user };
+    return inFlightExchange;
 }
