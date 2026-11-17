@@ -38,7 +38,14 @@ import QuestPageModal from '../components/QuestPageModal';
 import FriendsPageModal from '../components/FriendsPageModal';
 import PlasticinChatModal from '../components/PlasticinChatModal';
 import OrganizationSettingsModal from '../components/OrganizationSettingsModal';
-import { isSameOrgEntity } from '../lib/ecosystemOrgSync';
+import {
+    isSameOrgEntity,
+    broadcastActiveOrgChange,
+    subscribeToActiveOrgSync,
+    CanonicalEcosystemOrgs,
+    DefaultWorkspacesByOrg,
+    type EcosystemWorkspaceItem,
+} from '../lib/ecosystemOrgSync';
 
 import './JournalPage.css';
 import '../styles/vizja-ui-system.css';
@@ -59,6 +66,86 @@ export const JournalPage: React.FC = () => {
     const [showFriendsModal, setShowFriendsModal] = useState(false);
     const [showChatModal, setShowChatModal] = useState(false);
     const [showOrgSettingsModal, setShowOrgSettingsModal] = useState(false);
+
+    // Cross-Ecosystem Organization & Workspace State (Plasticin Parity)
+    const [isOrgNavOpen, setIsOrgNavOpen] = useState(false);
+    const [isWsNavOpen, setIsWsNavOpen] = useState(false);
+    const [isMobileOrgNavOpen, setIsMobileOrgNavOpen] = useState(false);
+    const [isMobileWsNavOpen, setIsMobileWsNavOpen] = useState(false);
+
+    const effectiveOrgs = organizations && organizations.length > 0 ? organizations : CanonicalEcosystemOrgs;
+    const currentActiveOrg = activeOrganization || effectiveOrgs[0];
+
+    const currentWorkspaces = (currentActiveOrg?.id && DefaultWorkspacesByOrg[currentActiveOrg.id]) || [
+        { id: 'ws_default', name: 'Yolo' }
+    ];
+    const [activeWorkspace, setActiveWorkspace] = useState<EcosystemWorkspaceItem>(() => {
+        if (typeof window !== 'undefined') {
+            const savedWs = localStorage.getItem('memcut_active_workspace_name');
+            const found = currentWorkspaces.find(w => w.name === savedWs);
+            if (found) return found;
+        }
+        return currentWorkspaces[0];
+    });
+
+    // Cross-App Realtime Organization Synchronization
+    useEffect(() => {
+        const unsubscribe = subscribeToActiveOrgSync('memcut', (payload) => {
+            const match = effectiveOrgs.find(
+                (o) => isSameOrgEntity(o.id, payload.id) || o.name.toLowerCase() === payload.name.toLowerCase()
+            );
+            if (match) {
+                setActiveOrganization(match);
+                const wsList = DefaultWorkspacesByOrg[match.id] || [];
+                if (wsList.length > 0) {
+                    setActiveWorkspace(wsList[0]);
+                }
+            }
+        });
+        return unsubscribe;
+    }, [effectiveOrgs, setActiveOrganization]);
+
+    const handleSelectOrg = (org: typeof effectiveOrgs[0]) => {
+        setActiveOrganization(org);
+        setIsOrgNavOpen(false);
+        setIsMobileOrgNavOpen(false);
+        const wsList = DefaultWorkspacesByOrg[org.id] || [];
+        if (wsList.length > 0) {
+            setActiveWorkspace(wsList[0]);
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('memcut_active_workspace_id', wsList[0].id);
+                localStorage.setItem('memcut_active_workspace_name', wsList[0].name);
+            }
+        }
+        broadcastActiveOrgChange({
+            id: org.id,
+            name: org.name,
+            is_personal: (org as { is_personal?: boolean }).is_personal,
+            sourceApp: 'memcut',
+        });
+    };
+
+    const handleSelectWorkspace = (ws: EcosystemWorkspaceItem) => {
+        setActiveWorkspace(ws);
+        setIsWsNavOpen(false);
+        setIsMobileWsNavOpen(false);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('memcut_active_workspace_id', ws.id);
+            localStorage.setItem('memcut_active_workspace_name', ws.name);
+        }
+    };
+
+    // Close crumbs dropdown on click outside
+    useEffect(() => {
+        const handleOutside = () => {
+            setIsOrgNavOpen(false);
+            setIsWsNavOpen(false);
+            setIsMobileOrgNavOpen(false);
+            setIsMobileWsNavOpen(false);
+        };
+        document.addEventListener('pointerdown', handleOutside);
+        return () => document.removeEventListener('pointerdown', handleOutside);
+    }, []);
 
     // Listen for video player state to hide bars in fullscreen story mode
     useEffect(() => {
@@ -158,6 +245,98 @@ export const JournalPage: React.FC = () => {
                     </button>
                 </nav>
 
+                {/* Desktop Organization / Workspace Breadcrumbs */}
+                <div 
+                    className="yolofuck-crumbs-wrap"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {/* Organization Dropdown */}
+                    <div style={{ position: 'relative' }}>
+                        <button
+                            type="button"
+                            className="yolofuck-crumb-btn"
+                            onClick={() => {
+                                setIsWsNavOpen(false);
+                                setIsOrgNavOpen(!isOrgNavOpen);
+                            }}
+                            title="Active Organization"
+                        >
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {currentActiveOrg?.name || 'Personal'}
+                            </span>
+                            <ChevronDown size={12} className={`yolofuck-chevron ${isOrgNavOpen ? 'open' : ''}`} />
+                        </button>
+
+                        {isOrgNavOpen && (
+                            <div className="yolofuck-crumb-dropdown">
+                                <div className="yolofuck-crumb-dropdown-header">
+                                    Organizations
+                                </div>
+                                {effectiveOrgs.map((org) => {
+                                    const isActive = isSameOrgEntity(currentActiveOrg?.id, org.id);
+                                    return (
+                                        <button
+                                            key={org.id}
+                                            type="button"
+                                            className={`yolofuck-crumb-item ${isActive ? 'active' : ''}`}
+                                            onClick={() => handleSelectOrg(org)}
+                                        >
+                                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {org.name}
+                                            </span>
+                                            {isActive && <Check size={12} color="#c8f931" />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+
+                    <span style={{ opacity: 0.4, fontFamily: 'monospace' }}>/</span>
+
+                    {/* Workspace Dropdown */}
+                    <div style={{ position: 'relative' }}>
+                        <button
+                            type="button"
+                            className="yolofuck-crumb-btn"
+                            onClick={() => {
+                                setIsOrgNavOpen(false);
+                                setIsWsNavOpen(!isWsNavOpen);
+                            }}
+                            title="Active Workspace"
+                        >
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {activeWorkspace?.name || 'Yolo'}
+                            </span>
+                            <ChevronDown size={12} className={`yolofuck-chevron ${isWsNavOpen ? 'open' : ''}`} />
+                        </button>
+
+                        {isWsNavOpen && (
+                            <div className="yolofuck-crumb-dropdown">
+                                <div className="yolofuck-crumb-dropdown-header">
+                                    {currentActiveOrg?.name || 'Workspaces'}
+                                </div>
+                                {currentWorkspaces.map((ws) => {
+                                    const isActive = ws.id === activeWorkspace?.id;
+                                    return (
+                                        <button
+                                            key={ws.id}
+                                            type="button"
+                                            className={`yolofuck-crumb-item ${isActive ? 'active' : ''}`}
+                                            onClick={() => handleSelectWorkspace(ws)}
+                                        >
+                                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {ws.name}
+                                            </span>
+                                            {isActive && <Check size={12} color="#c8f931" />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
                 {/* User Dropdown Menu Button (Mobile & Desktop) */}
                 {user && (
                     <div className="yolofuck-top-user-wrap">
@@ -206,7 +385,7 @@ export const JournalPage: React.FC = () => {
                                                         justifyContent: 'space-between',
                                                     }}
                                                     onClick={() => {
-                                                        setActiveOrganization(org);
+                                                        handleSelectOrg(org);
                                                         setShowUserMenu(false);
                                                     }}
                                                 >
@@ -286,6 +465,92 @@ export const JournalPage: React.FC = () => {
                     </div>
                 )}
             </header>
+
+            {/* Mobile Row 2: Organization / Workspace 50/50 Split */}
+            <div 
+                className={`yolofuck-mobile-row2 ${isPlayerActive ? 'hidden-player-active' : ''}`}
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Left: Organization Dropdown */}
+                <div className="yolofuck-mobile-col">
+                    <button
+                        type="button"
+                        className="yolofuck-crumb-btn"
+                        style={{ width: '100%', justifyContent: 'space-between', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px', padding: '4px 8px', maxWidth: '100%' }}
+                        onClick={() => {
+                            setIsMobileWsNavOpen(false);
+                            setIsMobileOrgNavOpen(!isMobileOrgNavOpen);
+                        }}
+                    >
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {currentActiveOrg?.name || 'Personal'}
+                        </span>
+                        <ChevronDown size={12} className={`yolofuck-chevron ${isMobileOrgNavOpen ? 'open' : ''}`} />
+                    </button>
+
+                    {isMobileOrgNavOpen && (
+                        <div className="yolofuck-crumb-dropdown" style={{ left: 0, right: 'auto' }}>
+                            <div className="yolofuck-crumb-dropdown-header">Organizations</div>
+                            {effectiveOrgs.map((org) => {
+                                const isActive = isSameOrgEntity(currentActiveOrg?.id, org.id);
+                                return (
+                                    <button
+                                        key={org.id}
+                                        type="button"
+                                        className={`yolofuck-crumb-item ${isActive ? 'active' : ''}`}
+                                        onClick={() => handleSelectOrg(org)}
+                                    >
+                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {org.name}
+                                        </span>
+                                        {isActive && <Check size={12} color="#c8f931" />}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                {/* Right: Workspace Dropdown */}
+                <div className="yolofuck-mobile-col">
+                    <button
+                        type="button"
+                        className="yolofuck-crumb-btn"
+                        style={{ width: '100%', justifyContent: 'space-between', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px', padding: '4px 8px', maxWidth: '100%' }}
+                        onClick={() => {
+                            setIsMobileOrgNavOpen(false);
+                            setIsMobileWsNavOpen(!isMobileWsNavOpen);
+                        }}
+                    >
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {activeWorkspace?.name || 'Yolo'}
+                        </span>
+                        <ChevronDown size={12} className={`yolofuck-chevron ${isMobileWsNavOpen ? 'open' : ''}`} />
+                    </button>
+
+                    {isMobileWsNavOpen && (
+                        <div className="yolofuck-crumb-dropdown" style={{ right: 0, left: 'auto' }}>
+                            <div className="yolofuck-crumb-dropdown-header">{currentActiveOrg?.name || 'Workspaces'}</div>
+                            {currentWorkspaces.map((ws) => {
+                                const isActive = ws.id === activeWorkspace?.id;
+                                return (
+                                    <button
+                                        key={ws.id}
+                                        type="button"
+                                        className={`yolofuck-crumb-item ${isActive ? 'active' : ''}`}
+                                        onClick={() => handleSelectWorkspace(ws)}
+                                    >
+                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {ws.name}
+                                        </span>
+                                        {isActive && <Check size={12} color="#c8f931" />}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            </div>
 
             {/* Main Content Area */}
             <main className="yolofuck-content">

@@ -223,6 +223,7 @@ export interface PlasticinDirectoryOrg {
   planTier?: string;
   isPlatformOwned?: boolean;
   role?: string;
+  is_personal?: boolean;
 }
 
 export interface PlasticinDirectoryTeam {
@@ -490,5 +491,131 @@ export function subscribeToEcosystemOrgSync(handlers: OrgSyncHandlers): () => vo
       }
       sharedSyncChannel = null;
     }
+  };
+}
+
+export interface EcosystemActiveOrgPayload {
+  id: string;
+  name: string;
+  is_personal?: boolean;
+  sourceApp?: string;
+}
+
+export interface EcosystemWorkspaceItem {
+  id: string;
+  name: string;
+  color?: string | null;
+  is_public?: boolean;
+}
+
+export const CanonicalEcosystemOrgs: PlasticinDirectoryOrg[] = [
+  {
+    id: 'a1a1a1a1-ac1d-4000-8000-000000000001',
+    name: 'acidplasticine',
+    role: 'owner',
+    is_personal: true,
+  },
+  {
+    id: '7b595de8-80f7-4c9d-bf08-52a083b76074',
+    name: 'Singularity XXL',
+    role: 'owner',
+    is_personal: false,
+  },
+  {
+    id: '1f95e31d-909b-42b7-845b-d61329c038a8',
+    name: 'Plasticin Enterprise',
+    role: 'owner',
+    is_personal: false,
+  },
+  {
+    id: '397d899b-b317-45a6-910e-6c8f8d11e332',
+    name: 'Plasticin Environment',
+    role: 'owner',
+    is_personal: false,
+  },
+  {
+    id: 'ab7df93c-7a07-43ad-b7a0-581dcde113fc',
+    name: 'Bydgosranie',
+    role: 'owner',
+    is_personal: false,
+  },
+];
+
+export const DefaultWorkspacesByOrg: Record<string, EcosystemWorkspaceItem[]> = {
+  'a1a1a1a1-ac1d-4000-8000-000000000001': [
+    { id: 'ws_personal_yolo', name: 'Yolo' },
+    { id: 'ws_personal_journal', name: 'Daily Logs' },
+    { id: 'ws_personal_takes', name: 'Voice Notes' },
+  ],
+  '7b595de8-80f7-4c9d-bf08-52a083b76074': [
+    { id: 'ws_singularity_valentine', name: 'Valentine Binder' },
+    { id: 'ws_singularity_stories', name: 'Singularity Takes' },
+  ],
+  '1f95e31d-909b-42b7-845b-d61329c038a8': [
+    { id: 'ws_enterprise_main', name: 'Enterprise Stories' },
+    { id: 'ws_enterprise_compliance', name: 'Compliance Vault' },
+  ],
+  '397d899b-b317-45a6-910e-6c8f8d11e332': [
+    { id: 'ws_env_green', name: 'Field Notes' },
+  ],
+  'ab7df93c-7a07-43ad-b7a0-581dcde113fc': [
+    { id: 'ws_bydgosranie_local', name: 'Local Media' },
+  ],
+};
+
+export function broadcastActiveOrgChange(payload: EcosystemActiveOrgPayload): void {
+  if (typeof window === 'undefined') return;
+
+  try {
+    localStorage.setItem('plasticin_active_org_id', payload.id);
+    localStorage.setItem('plasticin_active_org_name', payload.name);
+    localStorage.setItem('memcut_active_org_id', payload.id);
+    localStorage.setItem('memcut_active_org_name', payload.name);
+
+    const bc = new BroadcastChannel('plasticin-ecosystem-sync');
+    bc.postMessage({ type: 'ORGANIZATION_CHANGED', payload });
+    bc.close();
+  } catch (err) {
+    console.warn('[EcosystemSync] Broadcast notice:', err);
+  }
+}
+
+export function subscribeToActiveOrgSync(
+  currentApp: string,
+  onOrgChanged: (payload: EcosystemActiveOrgPayload) => void
+): () => void {
+  if (typeof window === 'undefined') return () => {};
+
+  let bc: BroadcastChannel | null = null;
+  try {
+    bc = new BroadcastChannel('plasticin-ecosystem-sync');
+    bc.onmessage = (event) => {
+      if (event.data?.type === 'ORGANIZATION_CHANGED' && event.data.payload) {
+        if (event.data.payload.sourceApp !== currentApp) {
+          onOrgChanged(event.data.payload);
+        }
+      }
+    };
+  } catch {}
+
+  const storageHandler = (e: StorageEvent) => {
+    if ((e.key === 'plasticin_active_org_id' || e.key === 'memcut_active_org_id') && e.newValue) {
+      const name = localStorage.getItem('plasticin_active_org_name') || localStorage.getItem('memcut_active_org_name') || 'Organization';
+      onOrgChanged({
+        id: e.newValue,
+        name,
+        sourceApp: 'storage_sync',
+      });
+    }
+  };
+  window.addEventListener('storage', storageHandler);
+
+  return () => {
+    if (bc) {
+      try {
+        bc.close();
+      } catch {}
+    }
+    window.removeEventListener('storage', storageHandler);
   };
 }
