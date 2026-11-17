@@ -854,32 +854,40 @@
     flex-shrink: 0;
 }
 
-.memcut-hero-btn-plasticin {
+/* Continue primary button for top email form */
+.memcut-hero-btn-continue {
     position: relative;
     width: 100%;
-    padding: 12px 16px;
+    padding: 11px 16px;
     border-radius: 12px;
-    background: #161b22;
-    border: 1px solid #30363d;
-    color: #f0f6fc;
+    background: var(--yolo-lime);
+    color: #12110f;
+    border: none;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 800;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
     transition: all 0.15s ease;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 2px 10px rgba(200, 247, 44, 0.25);
 }
 
-.memcut-hero-btn-plasticin:hover {
-    background: #21262d;
-    border-color: var(--yolo-lime);
-    color: var(--yolo-lime);
+.memcut-hero-btn-continue:hover:not(:disabled) {
+    background: #b8e624;
     transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(200, 247, 44, 0.35);
 }
 
+.memcut-hero-btn-continue:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* Symmetrical SSO buttons (Plasticin and Google) with black background and inline icons */
+.memcut-hero-btn-sso,
+.memcut-hero-btn-plasticin,
 .memcut-hero-btn-google {
     position: relative;
     width: 100%;
@@ -896,12 +904,16 @@
     justify-content: center;
     gap: 10px;
     transition: all 0.15s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
+.memcut-hero-btn-sso:hover,
+.memcut-hero-btn-plasticin:hover,
 .memcut-hero-btn-google:hover {
     background: #161b22;
     border-color: #30363d;
     color: #ffffff;
+    transform: translateY(-1px);
 }
 
 .memcut-hero-btn-icon {
@@ -909,6 +921,8 @@
     height: 18px;
     object-fit: contain;
     flex-shrink: 0;
+    display: inline-block;
+    vertical-align: middle;
 }
 
 .memcut-hero-card-divider {

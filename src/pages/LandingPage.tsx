@@ -395,19 +395,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
                                 </div>
                             )}
 
-                            {/* Primary Button: Continue with Plasticin ID */}
+                            {/* Primary Button for Email form */}
                             <button
                                 type="submit"
                                 disabled={!identifier.trim() || isChecking}
-                                className="memcut-hero-btn-plasticin"
+                                className="memcut-hero-btn-continue"
                             >
-                                <img
-                                    src="/assets/plasticin_icon.png"
-                                    alt=""
-                                    className="memcut-hero-btn-icon"
-                                />
-                                <span>Continue with Plasticin ID</span>
-                                <ArrowRight size={15} style={{ marginLeft: 'auto' }} />
+                                <span>Continue</span>
                             </button>
                         </form>
 
@@ -418,11 +412,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
                             <span />
                         </div>
 
+                        {/* Button: Continue with Plasticin (RIGHT ABOVE GOOGLE) */}
+                        <button
+                            type="button"
+                            onClick={() => openAuthModal('signin', { identifier })}
+                            className="memcut-hero-btn-sso memcut-hero-btn-plasticin"
+                        >
+                            <img
+                                src="/assets/plasticin_icon.png"
+                                alt=""
+                                className="memcut-hero-btn-icon"
+                            />
+                            <span>Continue with Plasticin</span>
+                        </button>
+
                         {/* Secondary Button: Continue with Google */}
                         <button
                             type="button"
                             onClick={() => signInWithGoogle()}
-                            className="memcut-hero-btn-google"
+                            className="memcut-hero-btn-sso memcut-hero-btn-google"
                         >
                             <svg className="memcut-hero-btn-icon" viewBox="0 0 24 24">
                                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
