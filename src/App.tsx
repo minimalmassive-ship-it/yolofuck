@@ -41,7 +41,7 @@ const AuthCallbackHandler: React.FC = () => {
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
         }}>
             <Loader2 size={28} className="vizja-spin" color="#C8F931" />
-            <span style={{ fontSize: '13px', fontWeight: 600 }}>Connecting Plasticin ID...</span>
+            <span style={{ fontSize: '13px', fontWeight: 600 }}>Connecting Plasticin...</span>
         </div>
     );
 };

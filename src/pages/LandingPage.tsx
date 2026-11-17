@@ -301,13 +301,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
                         <div className="memcut-hero-card-parent-brand">
                             <img
                                 src="/assets/plasticin_icon.png"
-                                alt="Plasticin ID"
+                                alt="Plasticin"
                                 className="memcut-hero-card-parent-icon"
                                 onError={(e) => {
                                     (e.target as HTMLElement).style.display = 'none';
                                 }}
                             />
-                            <span className="memcut-hero-card-parent-label">Plasticin ID</span>
+                            <span className="memcut-hero-card-parent-label">Plasticin</span>
                             <span className="memcut-hero-card-parent-pill">SSO</span>
                         </div>
                         <h2 className="memcut-hero-card-title">
@@ -389,7 +389,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
                                 <div className="memcut-hero-recognized-pill">
                                     <img src="/assets/plasticin_icon.png" alt="" className="memcut-recognized-icon" />
                                     <span className="memcut-recognized-text">
-                                        Plasticin Account: <strong>{recognizedAccount.username}</strong>
+                                        Plasticin: <strong>{recognizedAccount.username}</strong>
                                     </span>
                                     <CheckCircle2 size={13} className="memcut-recognized-check" />
                                 </div>
