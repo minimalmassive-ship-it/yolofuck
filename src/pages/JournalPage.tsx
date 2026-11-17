@@ -24,7 +24,9 @@ import {
     Trash2,
     Target,
     Users,
-    MessageSquare
+    MessageSquare,
+    Building2,
+    Check
 } from 'lucide-react';
 
 import JournalStoryView from '../components/JournalStoryView';
@@ -35,12 +37,14 @@ import UserSettingsModal from '../components/UserSettingsModal';
 import QuestPageModal from '../components/QuestPageModal';
 import FriendsPageModal from '../components/FriendsPageModal';
 import PlasticinChatModal from '../components/PlasticinChatModal';
+import OrganizationSettingsModal from '../components/OrganizationSettingsModal';
+import { isSameOrgEntity } from '../lib/ecosystemOrgSync';
 
 import './JournalPage.css';
 import '../styles/vizja-ui-system.css';
 
 export const JournalPage: React.FC = () => {
-    const { user, profile, loading: authLoading, signOut } = useAuth();
+    const { user, profile, loading: authLoading, signOut, organizations, activeOrganization, setActiveOrganization } = useAuth();
 
     const [activeTab, setActiveTab] = useState<'story' | 'shared'>('story');
     const [showCaptureModal, setShowCaptureModal] = useState(false);
@@ -54,6 +58,7 @@ export const JournalPage: React.FC = () => {
     const [showQuestModal, setShowQuestModal] = useState(false);
     const [showFriendsModal, setShowFriendsModal] = useState(false);
     const [showChatModal, setShowChatModal] = useState(false);
+    const [showOrgSettingsModal, setShowOrgSettingsModal] = useState(false);
 
     // Listen for video player state to hide bars in fullscreen story mode
     useEffect(() => {
@@ -170,6 +175,51 @@ export const JournalPage: React.FC = () => {
 
                         {showUserMenu && (
                             <div className="yolofuck-user-dropdown-menu">
+                                <button
+                                    type="button"
+                                    className="yolofuck-user-menu-item"
+                                    onClick={() => {
+                                        setShowUserMenu(false);
+                                        setShowOrgSettingsModal(true);
+                                    }}
+                                >
+                                    <Building2 size={14} color="#C8F931" />
+                                    <span>Organization Settings</span>
+                                </button>
+
+                                {organizations.length > 0 && (
+                                    <div style={{ padding: '6px 8px', borderTop: '1px solid #21262d', borderBottom: '1px solid #21262d', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#78716c', padding: '0 4px' }}>
+                                            Organization
+                                        </span>
+                                        {organizations.map((org) => {
+                                            const isActive = activeOrganization ? isSameOrgEntity(activeOrganization.id, org.id) : false;
+                                            return (
+                                                <button
+                                                    key={org.id}
+                                                    type="button"
+                                                    className="yolofuck-user-menu-item"
+                                                    style={{
+                                                        padding: '6px 8px',
+                                                        background: isActive ? 'rgba(200, 249, 49, 0.12)' : 'transparent',
+                                                        color: isActive ? '#C8F931' : '#cbd5e1',
+                                                        justifyContent: 'space-between',
+                                                    }}
+                                                    onClick={() => {
+                                                        setActiveOrganization(org);
+                                                        setShowUserMenu(false);
+                                                    }}
+                                                >
+                                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '12px' }}>
+                                                        {org.name}
+                                                    </span>
+                                                    {isActive && <Check size={12} style={{ flexShrink: 0 }} />}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
                                 <button
                                     type="button"
                                     className="yolofuck-user-menu-item"
@@ -338,10 +388,17 @@ export const JournalPage: React.FC = () => {
                 <FriendsPageModal onClose={() => setShowFriendsModal(false)} />
             )}
 
-            {/* Plasticin Ecosystem Chat Modal with Swipe Logic */}
+            {/* Plasticin Ecosystem Chat Modal (Fullscreen) */}
             <PlasticinChatModal 
                 isOpen={showChatModal} 
                 onClose={() => setShowChatModal(false)} 
+                onOpenOrgSettings={() => setShowOrgSettingsModal(true)}
+            />
+
+            {/* Organization Settings Modal */}
+            <OrganizationSettingsModal
+                isOpen={showOrgSettingsModal}
+                onClose={() => setShowOrgSettingsModal(false)}
             />
         </div>
     );

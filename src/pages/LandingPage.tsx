@@ -32,13 +32,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
 
     // Direct Homepage Email & Ecosystem Recognition State
     const [identifier, setIdentifier] = useState('');
-    const [recognizedAccount, setRecognizedAccount] = useState<{
-        username: string;
-        email: string;
-        displayName?: string;
-        avatarUrl?: string;
-    } | null>(null);
-    const [isChecking, setIsChecking] = useState(false);
     const [activeSession, setActiveSession] = useState<{
         username: string;
         email: string;
@@ -98,69 +91,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
                         const parsed = JSON.parse(raw);
                         if (parsed && parsed.email) {
                             setIdentifier(parsed.email);
-                            setRecognizedAccount({
-                                username: parsed.username || `@${parsed.email.split('@')[0]}`,
-                                email: parsed.email,
-                                displayName: parsed.displayName,
-                                avatarUrl: parsed.avatarUrl
-                            });
                         }
                     }
                 } catch {}
             }
         }).catch(() => {});
     }, []);
-
-    // Debounced lookup in Master plasticin_users
-    useEffect(() => {
-        const clean = identifier.trim().toLowerCase();
-        if (!clean || clean.length < 3) {
-            setRecognizedAccount(null);
-            setIsChecking(false);
-            return;
-        }
-
-        setIsChecking(true);
-        const timer = setTimeout(async () => {
-            try {
-                if (clean === 'minimalmassive@gmail.com' || clean === 'minimalmassive' || clean === '@minimalmassive' || clean === 'acidplasticine' || clean === '@acidplasticine') {
-                    setRecognizedAccount({
-                        username: '@acidplasticine',
-                        email: 'minimalmassive@gmail.com',
-                        displayName: 'acidplasticine',
-                        avatarUrl: 'https://plasticin.com/default-avatar.png'
-                    });
-                    setIsChecking(false);
-                    return;
-                }
-
-                const isEmail = clean.includes('@') && clean.includes('.');
-                const cleanUser = clean.replace(/^@+/, '');
-                const query = supabaseAuth.from('plasticin_users').select('username, display_name, email, avatar_url');
-
-                const { data } = isEmail
-                    ? await query.eq('email', clean).maybeSingle()
-                    : await query.or(`username.ilike.@${cleanUser},username.ilike.${cleanUser}`).maybeSingle();
-
-                if (data) {
-                    setRecognizedAccount({
-                        username: data.username || `@${cleanUser}`,
-                        email: data.email || clean,
-                        displayName: data.display_name || cleanUser,
-                        avatarUrl: data.avatar_url || 'https://plasticin.com/default-avatar.png'
-                    });
-                } else {
-                    setRecognizedAccount(null);
-                }
-            } catch {
-                setRecognizedAccount(null);
-            } finally {
-                setIsChecking(false);
-            }
-        }, 280);
-
-        return () => clearTimeout(timer);
-    }, [identifier]);
 
     const handleHeroSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -373,33 +309,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
                                         type="text"
                                         inputMode="email"
                                         autoComplete="username"
-                                        placeholder="e.g. minimalmassive@gmail.com or @handle"
+                                        placeholder="name@company.com or @handle"
                                         value={identifier}
                                         onChange={(e) => setIdentifier(e.target.value)}
                                         className="memcut-hero-input"
                                         required
                                     />
-                                    {isChecking && (
-                                        <Loader2 size={16} className="vizja-spin memcut-hero-input-loader" />
-                                    )}
                                 </div>
                             </div>
-
-                            {/* Ecosystem Account Recognition Pill */}
-                            {recognizedAccount && (
-                                <div className="memcut-hero-recognized-pill">
-                                    <img src="/assets/plasticin_icon.png" alt="" className="memcut-recognized-icon" />
-                                    <span className="memcut-recognized-text">
-                                        Plasticin: <strong>{recognizedAccount.username}</strong>
-                                    </span>
-                                    <CheckCircle2 size={13} className="memcut-recognized-check" />
-                                </div>
-                            )}
 
                             {/* Primary Button for Email form */}
                             <button
                                 type="submit"
-                                disabled={!identifier.trim() || isChecking}
+                                disabled={!identifier.trim()}
                                 className="memcut-hero-btn-continue"
                             >
                                 <span>Continue</span>

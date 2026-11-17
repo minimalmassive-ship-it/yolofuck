@@ -7,9 +7,11 @@
  */
 
 import { supabase, supabaseProdAuth } from './supabase';
-import { MINIMALMASSIVE_IDS } from './journalLocalStorage';
+import { filterValidUuids, isValidUuid } from './ecosystemOrgSync';
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function sanitizeOptionalUuid(id: string | null | undefined): string | null {
+    return id && isValidUuid(id) ? id.trim() : null;
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -132,28 +134,12 @@ function generateStoragePath(userId: string, filename: string): string {
 
 export function getTargetUserIds(userId?: string | null): string[] {
     if (!userId) return [];
-    const isMinimalMassive = MINIMALMASSIVE_IDS.includes(userId) ||
-        (typeof window !== 'undefined' && (
-            localStorage.getItem('plasticin_id') === 'usr_plst_f08ceecf' ||
-            localStorage.getItem('memcut_local_owner_id') === '4fb34c08-a3b7-45b3-a7ad-fda625eae464' ||
-            localStorage.getItem('memcut_historical_id') === 'b1a4bbae-00e2-42f4-913b-9a805489fe83' ||
-            localStorage.getItem('plasticin_last_account')?.includes('minimalmassive') ||
-            localStorage.getItem('plasticin_last_account')?.includes('acidplasticine')
-        ));
-
-    if (isMinimalMassive) {
-        return Array.from(new Set([userId, ...MINIMALMASSIVE_IDS]));
-    }
-    const localOwner = typeof window !== 'undefined' ? localStorage.getItem('memcut_local_owner_id') : null;
-    if (localOwner && localOwner !== userId) {
-        return [userId, localOwner];
-    }
     return [userId];
 }
 
 /** Strictly returns valid UUIDs to protect PostgreSQL queries from 22P02 invalid input syntax errors */
 export function getValidDatabaseUserIds(userId?: string | null): string[] {
-    return getTargetUserIds(userId).filter(id => UUID_REGEX.test(id));
+    return filterValidUuids(getTargetUserIds(userId));
 }
 
 // ── Entry CRUD ─────────────────────────────────────────────────────────────
@@ -163,7 +149,7 @@ export async function fetchEntriesByDate(
     userId: string,
     date: string
 ): Promise<JournalEntry[]> {
-    if (!userId) return [];
+    if (!userId || !isValidUuid(userId)) return [];
     const userIds = getValidDatabaseUserIds(userId);
     if (userIds.length === 0) return [];
 
@@ -201,7 +187,7 @@ export async function fetchEntriesPaginated(
     page: number = 0,
     limit: number = 50
 ): Promise<JournalEntry[]> {
-    if (!userId) return [];
+    if (!userId || !isValidUuid(userId)) return [];
     const userIds = getValidDatabaseUserIds(userId);
     if (userIds.length === 0) return [];
 
@@ -238,7 +224,7 @@ export async function fetchUnmergedClips(
     userId: string,
     date: string
 ): Promise<JournalClip[]> {
-    if (!userId) return [];
+    if (!userId || !isValidUuid(userId)) return [];
     const userIds = getValidDatabaseUserIds(userId);
     if (userIds.length === 0) return [];
 
@@ -275,7 +261,7 @@ export async function fetchClipsByDate(
     userId: string,
     date: string
 ): Promise<JournalClip[]> {
-    if (!userId) return [];
+    if (!userId || !isValidUuid(userId)) return [];
     const userIds = getValidDatabaseUserIds(userId);
     if (userIds.length === 0) return [];
 
@@ -314,7 +300,7 @@ export async function fetchClipsByDate(
 export async function fetchAllUserClips(
     userId: string
 ): Promise<JournalClip[]> {
-    if (!userId) return [];
+    if (!userId || !isValidUuid(userId)) return [];
     const userIds = getValidDatabaseUserIds(userId);
     if (userIds.length === 0) return [];
 
@@ -499,11 +485,13 @@ export async function saveClip(
     }
 
     // 4. Insert DB row
+    if (!isValidUuid(userId)) return null;
+    const safeProjectId = sanitizeOptionalUuid(projectId);
     const { data, error: insertErr } = await supabase
         .from('journal_clips')
         .insert({
             user_id: userId,
-            project_id: projectId,
+            project_id: safeProjectId,
             clip_url: clipUrl,
             thumbnail_url: thumbnailUrl,
             transcription,
@@ -529,13 +517,15 @@ export async function saveTextEntry(
     projectId: string | null,
     text: string
 ): Promise<JournalEntry | null> {
+    if (!isValidUuid(userId)) return null;
     const today = getLocalDateISO();
+    const safeProjectId = sanitizeOptionalUuid(projectId);
 
     const { data, error } = await supabase
         .from('journal_entries')
         .insert({
             user_id: userId,
-            project_id: projectId,
+            project_id: safeProjectId,
             entry_type: 'text',
             content: text,
             entry_date: today,
@@ -556,6 +546,7 @@ export async function saveImageEntry(
     projectId: string | null,
     imageFile: File
 ): Promise<JournalEntry | null> {
+    if (!isValidUuid(userId)) return null;
     const today = getLocalDateISO();
     const storagePath = generateStoragePath(userId, imageFile.name);
 
@@ -582,7 +573,7 @@ export async function saveImageEntry(
         .from('journal_entries')
         .insert({
             user_id: userId,
-            project_id: projectId,
+            project_id: sanitizeOptionalUuid(projectId),
             entry_type: 'image',
             content: imageUrl,
             entry_date: today,
@@ -615,6 +606,8 @@ export async function syncDailyVideoEntry(
     projectId: string | null,
     date: string
 ): Promise<JournalEntry | null> {
+    if (!isValidUuid(userId)) return null;
+    const safeProjectId = sanitizeOptionalUuid(projectId);
     // 1. Fetch all clips for this date
     const clips = await fetchClipsByDate(userId, date);
     if (clips.length === 0) {
@@ -662,7 +655,7 @@ export async function syncDailyVideoEntry(
             .from('journal_entries')
             .insert({
                 user_id: userId,
-                project_id: projectId,
+                project_id: safeProjectId,
                 entry_type: 'video',
                 video_url: JSON.stringify(clipUrls),
                 transcription: transcriptions || null,
@@ -685,7 +678,10 @@ export async function searchEntries(
     userId: string,
     query: string
 ): Promise<JournalEntry[]> {
-    const searchTerm = `%${query}%`;
+    if (!isValidUuid(userId)) return [];
+    const safeQuery = query.replace(/[,()]/g, ' ').trim();
+    if (!safeQuery) return [];
+    const searchTerm = `%${safeQuery}%`;
 
     const { data, error } = await supabase
         .from('journal_entries')
@@ -706,6 +702,7 @@ export async function searchEntries(
 
 /** Update content of a journal entry (inline text edit) */
 export async function updateEntryContent(entryId: string, content: string): Promise<boolean> {
+    if (!isValidUuid(entryId)) return false;
     const { error } = await supabase
         .from('journal_entries')
         .update({ content, transcription: content, updated_at: new Date().toISOString() })
@@ -720,6 +717,7 @@ export async function updateEntryContent(entryId: string, content: string): Prom
 
 /** Delete a journal entry */
 export async function deleteEntry(entryId: string): Promise<boolean> {
+    if (!isValidUuid(entryId)) return false;
     const { error } = await supabase
         .from('journal_entries')
         .delete()
@@ -734,6 +732,7 @@ export async function deleteEntry(entryId: string): Promise<boolean> {
 
 /** Delete a journal clip */
 export async function deleteClip(clipId: string): Promise<boolean> {
+    if (!isValidUuid(clipId)) return false;
     const { error } = await supabase
         .from('journal_clips')
         .delete()
@@ -750,7 +749,7 @@ export async function deleteClip(clipId: string): Promise<boolean> {
 
 /** Fetch all distinct dates that have video entries or clips for this user */
 export async function fetchAvailableVideoDates(userId: string): Promise<string[]> {
-    if (!userId) return [];
+    if (!userId || !isValidUuid(userId)) return [];
     const userIds = getValidDatabaseUserIds(userId);
     if (userIds.length === 0) return [];
 
@@ -797,6 +796,7 @@ export async function fetchAvailableVideoDates(userId: string): Promise<string[]
 
 /** Check if a specific date's compilation is published */
 export async function checkIsDailyStoryPublished(userId: string, date: string): Promise<boolean> {
+    if (!isValidUuid(userId)) return false;
     const { data, error } = await supabase
         .from('journal_entries')
         .select('is_public, published_idea_id')
@@ -811,6 +811,7 @@ export async function checkIsDailyStoryPublished(userId: string, date: string): 
 
 /** Get the published idea slug for a specific date if published */
 export async function getDailyStoryPublishedSlug(userId: string, date: string): Promise<string | null> {
+    if (!isValidUuid(userId)) return null;
     const { data: entry } = await supabase
         .from('journal_entries')
         .select('published_idea_id')
@@ -819,7 +820,7 @@ export async function getDailyStoryPublishedSlug(userId: string, date: string): 
         .eq('entry_type', 'video')
         .maybeSingle();
 
-    if (!entry?.published_idea_id) return null;
+    if (!entry?.published_idea_id || !isValidUuid(entry.published_idea_id)) return null;
 
     const { data: story } = await supabase
         .from('shared_stories')
@@ -841,7 +842,7 @@ export async function ensureDailyStoryIdea(
     clips: JournalClip[],
     username?: string
 ): Promise<{ success: boolean; ideaId: string; slug: string }> {
-    if (!clips || clips.length === 0) return { success: false, ideaId: '', slug: '' };
+    if (!isValidUuid(userId) || !clips || clips.length === 0) return { success: false, ideaId: '', slug: '' };
 
     const safeDate = typeof date === 'string' && date ? date : getLocalDateISO();
     const d = new Date(safeDate + 'T00:00:00');
@@ -873,7 +874,7 @@ export async function ensureDailyStoryIdea(
         }
     }
 
-    if (existingEntry?.published_idea_id) {
+    if (existingEntry?.published_idea_id && isValidUuid(existingEntry.published_idea_id)) {
         const { data: existingStory } = await supabase
             .from('shared_stories')
             .select('id, slug, is_public, visibility')
@@ -971,10 +972,13 @@ export async function reorderDailyClips(
     date: string,
     reorderedClips: JournalClip[]
 ): Promise<boolean> {
+    if (!isValidUuid(userId)) return false;
     if (!reorderedClips || reorderedClips.length === 0) return true;
 
     try {
-        const updatePromises = reorderedClips.map((clip, idx) => 
+        const updatePromises = reorderedClips
+            .filter(clip => isValidUuid(clip.id))
+            .map((clip, idx) => 
             supabase
                 .from('journal_clips')
                 .update({ clip_order: idx + 1 })
@@ -1004,7 +1008,7 @@ export async function reorderDailyClips(
             .eq('entry_type', 'video')
             .maybeSingle();
 
-        if (entry?.published_idea_id) {
+        if (entry?.published_idea_id && isValidUuid(entry.published_idea_id)) {
             const { data: currentIdea } = await supabase
                 .from('shared_stories')
                 .select('description')
@@ -1045,7 +1049,8 @@ export async function reorderSharedStoryClips(
     reorderedClips: any[],
     date?: string
 ): Promise<boolean> {
-    if (!storyId || !reorderedClips || reorderedClips.length === 0) return true;
+    if (!isValidUuid(storyId)) return false;
+    if (!reorderedClips || reorderedClips.length === 0) return true;
 
     try {
         const { data: currentIdea } = await supabase
@@ -1134,7 +1139,7 @@ export async function publishDailyStory(
     clips: JournalClip[],
     username?: string
 ): Promise<{ success: boolean; ideaId?: string; slug?: string }> {
-    if (!clips || clips.length === 0) return { success: false };
+    if (!isValidUuid(userId) || !clips || clips.length === 0) return { success: false };
 
     const safeDate = typeof date === 'string' && date ? date : getLocalDateISO();
     const d = new Date(safeDate + 'T00:00:00');
@@ -1156,7 +1161,7 @@ export async function publishDailyStory(
         existingEntry = await syncDailyVideoEntry(userId, projectId, date);
     }
 
-    let publishedIdeaId = existingEntry?.published_idea_id;
+    let publishedIdeaId = sanitizeOptionalUuid(existingEntry?.published_idea_id);
     let publishedSlug = '';
 
     // Check if idea already exists to preserve existing visibility if set
@@ -1202,7 +1207,7 @@ export async function publishDailyStory(
         is_public: currentIsPublic,
         visibility: currentVisibility === 'stopped' ? 'private' : currentVisibility,
         user_id: userId,
-        project_id: projectId || null,
+        project_id: sanitizeOptionalUuid(projectId),
         level: 1,
         updated_at: new Date().toISOString()
     };
@@ -1253,11 +1258,12 @@ export async function publishDailyStory(
             .eq('id', existingEntry.id);
     }
 
-    return { success: true, ideaId: publishedIdeaId, slug: publishedSlug };
+    return { success: true, ideaId: publishedIdeaId ?? undefined, slug: publishedSlug };
 }
 
 /** Unpublish a daily compilation from public homepage */
 export async function unpublishDailyStory(userId: string, date: string): Promise<boolean> {
+    if (!isValidUuid(userId)) return false;
     const { data: existingEntry } = await supabase
         .from('journal_entries')
         .select('*')
@@ -1268,7 +1274,7 @@ export async function unpublishDailyStory(userId: string, date: string): Promise
 
     if (!existingEntry) return false;
 
-    if (existingEntry.published_idea_id) {
+    if (existingEntry.published_idea_id && isValidUuid(existingEntry.published_idea_id)) {
         await supabase
             .from('shared_stories')
             .update({ is_public: false, visibility: 'private' })
@@ -1292,6 +1298,7 @@ export async function updateDailyStoryVisibility(
     date: string, 
     visibility: 'private' | 'network' | 'public'
 ): Promise<{ success: boolean; ideaId?: string }> {
+    if (!isValidUuid(userId)) return { success: false };
     const { data: existingEntry } = await supabase
         .from('journal_entries')
         .select('*')
@@ -1300,7 +1307,7 @@ export async function updateDailyStoryVisibility(
         .eq('entry_type', 'video')
         .maybeSingle();
 
-    if (!existingEntry || !existingEntry.published_idea_id) {
+    if (!existingEntry || !existingEntry.published_idea_id || !isValidUuid(existingEntry.published_idea_id)) {
         return { success: false };
     }
 
@@ -1332,9 +1339,10 @@ export async function updateDailyStoryVisibility(
 
 /** Stop sharing daily story - immediately disables link and stops video playback */
 export async function stopDailyStorySharing(userId: string, date: string, ideaId?: string): Promise<boolean> {
-    let targetIdeaId = ideaId;
+    let targetIdeaId = sanitizeOptionalUuid(ideaId) || undefined;
 
     if (!targetIdeaId) {
+        if (!isValidUuid(userId)) return false;
         const { data: existingEntry } = await supabase
             .from('journal_entries')
             .select('published_idea_id')
@@ -1343,10 +1351,10 @@ export async function stopDailyStorySharing(userId: string, date: string, ideaId
             .eq('entry_type', 'video')
             .maybeSingle();
 
-        targetIdeaId = existingEntry?.published_idea_id;
+        targetIdeaId = sanitizeOptionalUuid(existingEntry?.published_idea_id) || undefined;
     }
 
-    if (!targetIdeaId) return false;
+    if (!targetIdeaId || !isValidUuid(targetIdeaId)) return false;
 
     // Fetch current provenance to preserve it with is_stopped flag
     const { data: idea } = await supabase
@@ -1384,7 +1392,7 @@ export async function stopDailyStorySharing(userId: string, date: string, ideaId
         .update({ is_public: false, published_at: null })
         .eq('published_idea_id', targetIdeaId);
 
-    if (userId && date) {
+    if (isValidUuid(userId) && date) {
         await supabase
             .from('journal_entries')
             .update({ is_public: false, published_at: null })
@@ -1406,6 +1414,7 @@ export async function resumeDailyStorySharing(
     ideaId: string, 
     restoreVisibility: 'private' | 'network' | 'public' = 'private'
 ): Promise<boolean> {
+    if (!isValidUuid(userId) || !isValidUuid(ideaId)) return false;
     const { data: idea } = await supabase
         .from('shared_stories')
         .select('description')
@@ -1452,7 +1461,7 @@ export async function refreshDailyStorySlug(
     username?: string,
     date?: string
 ): Promise<{ success: boolean; newSlug?: string }> {
-    if (!ideaId) return { success: false };
+    if (!isValidUuid(ideaId)) return { success: false };
     try {
         const baseSlug = generateUniqueStorySlug(username, userId, date);
         const salt = Math.random().toString(36).slice(2, 8);
@@ -1480,9 +1489,10 @@ export async function refreshDailyStorySlug(
 
 /** Permanently delete daily story share (removes from Shared page only, keeps journal clips/entry intact) */
 export async function deleteDailyStoryShare(userId: string, date: string, ideaId?: string): Promise<boolean> {
-    let targetIdeaId = ideaId;
+    let targetIdeaId = sanitizeOptionalUuid(ideaId) || undefined;
 
     if (!targetIdeaId) {
+        if (!isValidUuid(userId)) return false;
         const { data: existingEntry } = await supabase
             .from('journal_entries')
             .select('published_idea_id')
@@ -1491,21 +1501,23 @@ export async function deleteDailyStoryShare(userId: string, date: string, ideaId
             .eq('entry_type', 'video')
             .maybeSingle();
 
-        targetIdeaId = existingEntry?.published_idea_id;
+        targetIdeaId = sanitizeOptionalUuid(existingEntry?.published_idea_id) || undefined;
     }
 
-    if (!targetIdeaId) return false;
+    if (!targetIdeaId || !isValidUuid(targetIdeaId)) return false;
 
     // 1. Detach from journal_entries without deleting video_url or clips
-    await supabase
+    if (isValidUuid(userId)) {
+        await supabase
         .from('journal_entries')
         .update({
             published_idea_id: null,
             is_public: false,
             published_at: null
         })
-        .eq('user_id', userId)
-        .eq('entry_date', date);
+            .eq('user_id', userId)
+            .eq('entry_date', date);
+    }
 
     await supabase
         .from('journal_entries')
@@ -1536,7 +1548,7 @@ export async function deleteDailyStoryShare(userId: string, date: string, ideaId
 
 /** Fetch all shared daily stories for the user */
 export async function fetchUserSharedDailyStories(userId: string): Promise<any[]> {
-    if (!userId) return [];
+    if (!userId || !isValidUuid(userId)) return [];
     try {
         // Query ideas for this user, ordered by most recently updated/shared first
         const { data, error } = await supabase
@@ -1574,7 +1586,7 @@ export async function fetchUserSharedDailyStories(userId: string): Promise<any[]
             .order('created_at', { ascending: false });
 
         if (entries && entries.length > 0) {
-            const ideaIds = entries.map((e: any) => e.published_idea_id).filter(Boolean);
+            const ideaIds = filterValidUuids(entries.map((e: any) => e.published_idea_id));
             if (ideaIds.length > 0) {
                 const { data: linkedIdeas } = await supabase
                     .from('shared_stories')

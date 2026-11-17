@@ -130,23 +130,9 @@ async function getEntriesFromDb(dbName: string): Promise<LocalJournalEntry[]> {
     }
 }
 
-export const MINIMALMASSIVE_IDS = [
-    '39192441-3caa-40fe-9102-f40924c03166', // Plasticin Master UUID
-    'b1a4bbae-00e2-42f4-913b-9a805489fe83', // Archimantis / Ideanite PROD UUID (183 historical video clips)
-    'b095c23a-30ea-4e31-b6f9-b67b30a8fe35', // Ideanite DEV UUID
-    '4fb34c08-a3b7-45b3-a7ad-fda625eae464', // Memcut Dedicated DB UUID
-    'usr_plst_f08ceecf',                    // Plasticin ID handle
-    'usr_2u9738jcmw9m8ngu',                 // Legacy ID
-    'usr_yz3g4yodmw9m8chf',                 // Legacy ID
-    'local_user',
-    'anonymous',
-    'user'
-];
-
 /**
  * Lists all locally saved journal entries from both current and legacy IndexedDB databases.
  * Strictly requires targetUserId: users can only access their own recordings.
- * If targetUserId matches the local legacy owner, unowned legacy recordings are claimed and migrated.
  */
 export async function getAllLocalJournalRecordings(targetUserId?: string): Promise<LocalJournalEntry[]> {
     if (!targetUserId) {
@@ -164,25 +150,15 @@ export async function getAllLocalJournalRecordings(targetUserId?: string): Promi
     legacyList.forEach(item => entryMap.set(item.id, item));
     currentList.forEach(item => entryMap.set(item.id, item));
 
-    const isTargetMinimalMassive = MINIMALMASSIVE_IDS.includes(targetUserId) ||
-        (typeof window !== 'undefined' && (
-            localStorage.getItem('plasticin_id') === 'usr_plst_f08ceecf' ||
-            localStorage.getItem('memcut_local_owner_id') === '4fb34c08-a3b7-45b3-a7ad-fda625eae464' ||
-            localStorage.getItem('memcut_historical_id') === 'b1a4bbae-00e2-42f4-913b-9a805489fe83' ||
-            localStorage.getItem('plasticin_last_account')?.includes('minimalmassive') ||
-            localStorage.getItem('plasticin_last_account')?.includes('acidplasticine')
-        ));
-
     const userEntries: LocalJournalEntry[] = [];
     const entriesToMigrate: LocalJournalEntry[] = [];
 
     for (const item of entryMap.values()) {
         const itemUserId = item.userId;
         const matchesDirect = itemUserId === targetUserId;
-        const matchesMinimalMassive = isTargetMinimalMassive && (!itemUserId || MINIMALMASSIVE_IDS.includes(itemUserId));
         const isGeneric = !itemUserId || itemUserId === 'local_user' || itemUserId === 'anonymous' || itemUserId === 'user';
 
-        if (matchesDirect || matchesMinimalMassive || isGeneric) {
+        if (matchesDirect || isGeneric) {
             userEntries.push(item);
             if (item.userId !== targetUserId) {
                 entriesToMigrate.push({ ...item, userId: targetUserId });

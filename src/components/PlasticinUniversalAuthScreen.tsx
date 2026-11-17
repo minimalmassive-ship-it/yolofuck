@@ -129,31 +129,10 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
                 if (isEmail) {
                     const cleanMail = rawId.toLowerCase();
                     setEmail(cleanMail);
-                    if (cleanMail === 'minimalmassive@gmail.com') {
-                        setUsername('@acidplasticine');
-                    } else {
-                        setUsername(`@${cleanMail.split('@')[0]}`);
-                    }
+                    setUsername(`@${cleanMail.split('@')[0]}`);
                 } else {
                     const cleanUser = rawId.replace(/^@+/, '');
-                    if (cleanUser.toLowerCase() === 'minimalmassive' || cleanUser.toLowerCase() === 'acidplasticine') {
-                        setUsername('@acidplasticine');
-                        setEmail('minimalmassive@gmail.com');
-                    } else {
-                        setUsername(`@${cleanUser}`);
-                        (async () => {
-                            try {
-                                const { data } = await supabaseAuth
-                                    .from('plasticin_users')
-                                    .select('email, username')
-                                    .or(`username.ilike.@${cleanUser},username.ilike.${cleanUser}`)
-                                    .maybeSingle();
-                                if (data?.email) {
-                                    setEmail(data.email);
-                                }
-                            } catch {}
-                        })();
-                    }
+                    setUsername(`@${cleanUser}`);
                 }
 
                 if (initialStep) {
@@ -267,48 +246,22 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
         if (cleanInput.includes('@') && cleanInput.includes('.')) {
             // Standard email input
             resolvedEmail = cleanInput.toLowerCase();
-            if (resolvedEmail === 'minimalmassive@gmail.com') {
-                resolvedUsername = '@acidplasticine';
-            } else if (lastAccount && lastAccount.email?.toLowerCase() === resolvedEmail && lastAccount.cleanUsername) {
+            if (lastAccount && lastAccount.email?.toLowerCase() === resolvedEmail && lastAccount.cleanUsername) {
                 resolvedUsername = `@${lastAccount.cleanUsername}`;
             } else {
                 resolvedUsername = `@${resolvedEmail.split('@')[0]}`;
             }
         } else {
-            // Username lookup
+            // Username lookup strictly from local device hint (no unauthenticated DB enumeration)
             const cleanUser = cleanInput.replace(/^@+/, '').toLowerCase();
-            if (cleanUser === 'acidplasticine' || cleanUser === 'minimalmassive') {
-                resolvedUsername = '@acidplasticine';
-                resolvedEmail = 'minimalmassive@gmail.com';
-            } else {
-                resolvedUsername = `@${cleanUser}`;
-            }
+            resolvedUsername = `@${cleanUser}`;
 
-            // Check cached last account
-            if (!resolvedEmail && lastAccount && lastAccount.cleanUsername?.toLowerCase() === cleanUser) {
+            if (lastAccount && lastAccount.cleanUsername?.toLowerCase() === cleanUser) {
                 resolvedEmail = lastAccount.email;
             }
 
-            // Query Central Master DB plasticin_users table
             if (!resolvedEmail) {
-                try {
-                    const { data } = await supabaseAuth
-                        .from('plasticin_users')
-                        .select('email, username')
-                        .or(`username.ilike.@${cleanUser},username.ilike.${cleanUser}`)
-                        .maybeSingle();
-
-                    if (data?.email) {
-                        resolvedEmail = data.email;
-                        if (data.username) resolvedUsername = data.username;
-                    }
-                } catch (lookupErr) {
-                    console.warn('Plasticin username lookup notice:', lookupErr);
-                }
-            }
-
-            if (!resolvedEmail) {
-                setErrorMessage(`No Plasticin account found for "${resolvedUsername}". Please enter your full email address.`);
+                setErrorMessage(`Please enter your email address to continue with "${resolvedUsername}".`);
                 return;
             }
         }
@@ -536,17 +489,14 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
                 return;
             }
 
-            // Save last account
-            let finalUsername = username || `@${cleanEmail.split('@')[0]}`;
-            if (cleanEmail === 'minimalmassive@gmail.com') {
-                finalUsername = '@acidplasticine';
-            }
+            // Save last account hint
+            const finalUsername = username || `@${cleanEmail.split('@')[0]}`;
             const cleanUser = finalUsername.replace('@', '');
             const accountData: SavedAccount = {
                 username: finalUsername,
                 cleanUsername: cleanUser,
                 email: cleanEmail,
-                displayName: cleanEmail === 'minimalmassive@gmail.com' ? 'acidplasticine' : cleanUser,
+                displayName: cleanUser,
                 avatarUrl: 'https://plasticin.com/default-avatar.png',
                 hasPassword: true,
             };

@@ -7,7 +7,21 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { supabase, supabaseAuth, supabaseProdAuth, supabaseIdeaniteAuth, syncPasswordToPlasticinMaster } from '../lib/supabase';
+import { supabase, supabaseAuth } from '../lib/supabase';
+import {
+    PlatformPlasticinOrgId,
+    PrimaryPlasticinOrgId,
+    fetchPlasticinOrganizations,
+    isAbortError,
+    isSameOrgEntity,
+    resolveCanonicalPlasticinOrgId,
+    sanitizeOrgDescription,
+    sanitizeOrgName,
+    subscribeToEcosystemOrgSync,
+    type PlasticinDirectoryOrg,
+} from '../lib/ecosystemOrgSync';
+
+export type OrganizationItem = PlasticinDirectoryOrg;
 
 export interface Profile {
     id: string;
@@ -53,6 +67,11 @@ interface AuthContextType {
     resetPasswordForEmail: (email: string) => Promise<{ data?: any; error: Error | null }>;
     signOut: () => Promise<void>;
     refreshProfile: () => Promise<void>;
+    organizations: OrganizationItem[];
+    activeOrganization: OrganizationItem | null;
+    setActiveOrganization: (org: OrganizationItem | null) => void;
+    updateOrganizationInState: (orgId: string, name: string, description?: string) => void;
+    refreshOrganizations: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -66,7 +85,131 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [authModalPrefill, setAuthModalPrefill] = useState<AuthModalPrefill | null>(null);
     const [showWelcomeModal, setShowWelcomeModal] = useState(false);
     const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
+    const [organizations, setOrganizations] = useState<OrganizationItem[]>(() => {
+        if (typeof window === 'undefined') return [];
+        try {
+            const cached = localStorage.getItem('memcut_organizations');
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (Array.isArray(parsed)) return parsed;
+            }
+        } catch {}
+        return [];
+    });
+    const [activeOrganization, setActiveOrganizationState] = useState<OrganizationItem | null>(() => {
+        if (typeof window === 'undefined') return null;
+        try {
+            const cached = localStorage.getItem('memcut_organizations');
+            const savedId = localStorage.getItem('memcut_active_org_id');
+            if (savedId === 'personal') return null;
+            if (cached) {
+                const parsed = JSON.parse(cached) as OrganizationItem[];
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    if (savedId) {
+                        const match = parsed.find((o) => isSameOrgEntity(o.id, savedId));
+                        if (match) return match;
+                    }
+                    return parsed.find((o) => o.id === PrimaryPlasticinOrgId) || parsed[0];
+                }
+            }
+        } catch {}
+        return null;
+    });
     const mounted = useRef(true);
+
+    const setActiveOrganization = useCallback((org: OrganizationItem | null) => {
+        const normalized = org ? { ...org, id: resolveCanonicalPlasticinOrgId(org.id) } : null;
+        setActiveOrganizationState(normalized);
+        try {
+            if (normalized) {
+                localStorage.setItem('memcut_active_org_id', normalized.id);
+            } else {
+                localStorage.setItem('memcut_active_org_id', 'personal');
+            }
+        } catch {}
+    }, []);
+
+    const updateOrganizationInState = useCallback((orgId: string, name: string, description?: string) => {
+        const canonicalId = resolveCanonicalPlasticinOrgId(orgId);
+        const cleanName = sanitizeOrgName(name, '');
+        if (!cleanName) return;
+        if (canonicalId !== PlatformPlasticinOrgId && cleanName === 'Plasticin') return;
+        const cleanDesc = description !== undefined ? sanitizeOrgDescription(description) : undefined;
+
+        setOrganizations((prev) => {
+            const next = prev.map((org) =>
+                isSameOrgEntity(org.id, canonicalId)
+                    ? {
+                        ...org,
+                        id: canonicalId,
+                        name: cleanName,
+                        ...(cleanDesc !== undefined ? { description: cleanDesc } : {}),
+                    }
+                    : org
+            );
+            try {
+                localStorage.setItem('memcut_organizations', JSON.stringify(next));
+            } catch {}
+            return next;
+        });
+
+        setActiveOrganizationState((prev) => {
+            if (!prev || !isSameOrgEntity(prev.id, canonicalId)) return prev;
+            return {
+                ...prev,
+                id: canonicalId,
+                name: cleanName,
+                ...(cleanDesc !== undefined ? { description: cleanDesc } : {}),
+            };
+        });
+    }, []);
+
+    const refreshOrganizations = useCallback(async () => {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 3500);
+        try {
+            const list = await fetchPlasticinOrganizations(ctrl.signal);
+            if (!mounted.current || list.length === 0) return;
+            setOrganizations(list);
+            try {
+                localStorage.setItem('memcut_organizations', JSON.stringify(list));
+            } catch {}
+            setActiveOrganizationState((prev) => {
+                const savedId = localStorage.getItem('memcut_active_org_id');
+                if (savedId === 'personal') return null;
+                if (prev) {
+                    return list.find((o) => isSameOrgEntity(o.id, prev.id)) || prev;
+                }
+                if (savedId) {
+                    const matched = list.find((o) => isSameOrgEntity(o.id, savedId));
+                    if (matched) return matched;
+                }
+                return list.find((o) => o.id === PrimaryPlasticinOrgId) || list[0] || null;
+            });
+        } catch (err) {
+            if (!isAbortError(err)) {
+                console.warn('[Auth] Organization boot sync warning:', err);
+            }
+        } finally {
+            clearTimeout(timer);
+        }
+    }, []);
+
+    // Boot Sync + Ecosystem Realtime Channel (ecosystem-org-sync)
+    useEffect(() => {
+        refreshOrganizations();
+        const unsubscribe = subscribeToEcosystemOrgSync({
+            onOrganizationUpdated: ({ id, name, description }) => {
+                updateOrganizationInState(id, name, description);
+            },
+            onTeamsUpdated: () => {
+                refreshOrganizations();
+            },
+        });
+        return () => {
+            unsubscribe();
+        };
+    }, [refreshOrganizations, updateOrganizationInState]);
 
     useEffect(() => {
         mounted.current = true;
@@ -107,20 +250,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const fetchProfile = useCallback(async (userId: string): Promise<Profile | null> => {
         try {
-            // 0. Primary override for minimalmassive@gmail.com to guarantee full continuity
-            if (userId === '39192441-3caa-40fe-9102-f40924c03166' || userId === '4fb34c08-a3b7-45b3-a7ad-fda625eae464') {
-                return {
-                    id: userId,
-                    username: '@acidplasticine',
-                    display_name: 'acidplasticine',
-                    full_name: 'acidplasticine',
-                    role: 'admin',
-                    avatar_url: 'https://plasticin.com/default-avatar.png',
-                    created_at: '2026-11-13T09:00:14.725971+00:00',
-                };
-            }
+            // 1. Query IAM system role deterministically by immutable userId
+            let resolvedRole: 'user' | 'admin' = 'user';
+            try {
+                const { data: sysRole } = await supabaseAuth
+                    .from('plasticin_system_roles')
+                    .select('system_role')
+                    .eq('user_id', userId)
+                    .maybeSingle();
+                if (sysRole?.system_role) {
+                    resolvedRole = 'admin';
+                }
+            } catch {}
 
-            // 1. Primary check: Central plasticin_users table in Master DB
+            // 2. Central plasticin_users table in Master DB
             const { data: plstData } = await supabaseAuth
                 .from('plasticin_users')
                 .select('*')
@@ -135,13 +278,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     display_name: plstData.display_name || cleanUser,
                     full_name: plstData.display_name || cleanUser,
                     avatar_url: plstData.avatar_url,
-                    role: 'user',
+                    role: resolvedRole,
                     created_at: plstData.created_at,
                     updated_at: plstData.updated_at,
                 };
             }
 
-            // 2. Secondary fallback: profiles table in Central Auth DB
+            // 3. Secondary fallback: profiles table in Central Auth DB
             const { data: authProfile } = await supabaseAuth
                 .from('profiles')
                 .select('*')
@@ -149,10 +292,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 .maybeSingle();
 
             if (authProfile) {
-                return authProfile as Profile;
+                return { ...(authProfile as Profile), role: resolvedRole === 'admin' ? 'admin' : (authProfile.role || 'user') };
             }
 
-            // 3. Fallback to local Memcut DB profiles table
+            // 4. Fallback to local Memcut DB profiles table
             const { data: localProfile } = await supabase
                 .from('profiles')
                 .select('*')
@@ -160,7 +303,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 .maybeSingle();
 
             if (localProfile) {
-                return localProfile as Profile;
+                return { ...(localProfile as Profile), role: resolvedRole === 'admin' ? 'admin' : (localProfile.role || 'user') };
             }
 
             return null;
@@ -260,17 +403,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setProfile(profileData);
                 }
 
-                // Attribute local owner ID to current user so takes load seamlessly
-                if (currentUser.email === 'minimalmassive@gmail.com' || currentUser.id === '39192441-3caa-40fe-9102-f40924c03166') {
-                    localStorage.setItem('memcut_local_owner_id', '4fb34c08-a3b7-45b3-a7ad-fda625eae464');
-                    localStorage.setItem('yolofuck_local_owner_id', '4fb34c08-a3b7-45b3-a7ad-fda625eae464');
-                    localStorage.setItem('memcut_historical_id', 'b1a4bbae-00e2-42f4-913b-9a805489fe83');
-                    localStorage.setItem('plasticin_id', 'usr_plst_f08ceecf');
-                    localStorage.setItem('plasticin_username', '@acidplasticine');
-                } else if (!localStorage.getItem('memcut_local_owner_id')) {
-                    const existing = localStorage.getItem('yolofuck_local_owner_id') || currentUser.id;
-                    localStorage.setItem('memcut_local_owner_id', existing);
-                }
+                // Bind local owner ID strictly to authenticated user.id
+                try {
+                    localStorage.setItem('memcut_local_owner_id', currentUser.id);
+                    localStorage.removeItem('plasticin_sso_user');
+                } catch {}
             } else {
                 setUser(null);
                 setProfile(null);
@@ -281,22 +418,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         supabaseAuth.auth.getSession().then(({ data: { session } }) => {
             if (isActive) {
-                if (session) {
-                    handleAuthChange('INITIAL', session);
-                } else {
-                    // Invariant fallback: check if SSO authenticated session is cached
-                    try {
-                        const ssoUserRaw = localStorage.getItem('plasticin_sso_user');
-                        if (ssoUserRaw) {
-                            const parsed = JSON.parse(ssoUserRaw);
-                            if (parsed && parsed.id && parsed.email) {
-                                handleAuthChange('SSO_RELOAD', { user: parsed });
-                                return;
-                            }
-                        }
-                    } catch {}
-                    handleAuthChange('INITIAL', null);
-                }
+                handleAuthChange('INITIAL', session ?? null);
             }
         });
 
@@ -311,55 +433,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const signInWithEmail = useCallback(async (email: string, password: string) => {
         try {
             const cleanEmail = email.trim().toLowerCase();
-            let res = await supabaseAuth.auth.signInWithPassword({ email: cleanEmail, password });
-            
-            // If Central Master Auth rejects credentials, check ecosystem partner databases
-            // (e.g. Archimantis/Ideanite PROD, Ideanite DEV, or Memcut data DB)
-            if (res.error) {
-                console.warn('[Auth] Central Plasticin login rejected credentials, testing ecosystem databases...', res.error.message);
-                let ecosystemVerified = false;
+            const res = await supabaseAuth.auth.signInWithPassword({ email: cleanEmail, password });
 
-                // 1. Check Archimantis / Ideanite PROD (gauzjywsrqvhrjtbjuap)
+            // Dual authentication: also sign in to Memcut data DB if same credentials are registered
+            if (!res.error) {
                 try {
-                    const prodCheck = await supabaseProdAuth.auth.signInWithPassword({ email: cleanEmail, password });
-                    if (!prodCheck.error && prodCheck.data?.user) {
-                        ecosystemVerified = true;
-                    }
+                    await supabase.auth.signInWithPassword({ email: cleanEmail, password });
                 } catch {}
-
-                // 2. Check Ideanite DEV / Vault (pemllfgsegqnndesewbx)
-                if (!ecosystemVerified) {
-                    try {
-                        const ideaniteCheck = await supabaseIdeaniteAuth.auth.signInWithPassword({ email: cleanEmail, password });
-                        if (!ideaniteCheck.error && ideaniteCheck.data?.user) {
-                            ecosystemVerified = true;
-                        }
-                    } catch {}
-                }
-
-                // 3. Check Memcut Dedicated DB (ngzffnpyrqpjxuxkjvnl)
-                if (!ecosystemVerified) {
-                    try {
-                        const memcutCheck = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
-                        if (!memcutCheck.error && memcutCheck.data?.user) {
-                            ecosystemVerified = true;
-                        }
-                    } catch {}
-                }
-
-                if (ecosystemVerified) {
-                    console.log('[Auth] Password verified in Plasticin ecosystem! Synchronizing to Central Master Auth...');
-                    const synced = await syncPasswordToPlasticinMaster(cleanEmail, password);
-                    if (synced) {
-                        res = await supabaseAuth.auth.signInWithPassword({ email: cleanEmail, password });
-                    }
-                }
             }
-
-            // Dual authentication: also sign in to Memcut data DB so RLS accepts requests
-            try {
-                await supabase.auth.signInWithPassword({ email: cleanEmail, password });
-            } catch {}
 
             if (res.error) return { error: res.error };
             return { error: null };
@@ -534,7 +615,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         resetPasswordForEmail,
         signOut,
         refreshProfile,
-    }), [user, profile, loading, authModalOpen, authModalMode, authModalPrefill, openAuthModal, closeAuthModal, showWelcomeModal, dismissWelcome, showPasswordResetModal, closePasswordResetModal, signInWithEmail, signUpWithEmail, signInWithGoogle, sendOtpEmail, verifyOtp, resetPasswordForEmail, signOut, refreshProfile]);
+        organizations,
+        activeOrganization,
+        setActiveOrganization,
+        updateOrganizationInState,
+        refreshOrganizations,
+    }), [user, profile, loading, authModalOpen, authModalMode, authModalPrefill, openAuthModal, closeAuthModal, showWelcomeModal, dismissWelcome, showPasswordResetModal, closePasswordResetModal, signInWithEmail, signUpWithEmail, signInWithGoogle, sendOtpEmail, verifyOtp, resetPasswordForEmail, signOut, refreshProfile, organizations, activeOrganization, setActiveOrganization, updateOrganizationInState, refreshOrganizations]);
 
     return (
         <AuthContext.Provider value={value}>
