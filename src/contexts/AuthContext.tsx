@@ -274,7 +274,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         supabaseAuth.auth.getSession().then(({ data: { session } }) => {
             if (isActive) {
-                handleAuthChange('INITIAL', session);
+                if (session) {
+                    handleAuthChange('INITIAL', session);
+                } else {
+                    // Invariant fallback: check if SSO authenticated session is cached
+                    try {
+                        const ssoUserRaw = localStorage.getItem('plasticin_sso_user');
+                        if (ssoUserRaw) {
+                            const parsed = JSON.parse(ssoUserRaw);
+                            if (parsed && parsed.id && parsed.email) {
+                                handleAuthChange('SSO_RELOAD', { user: parsed });
+                                return;
+                            }
+                        }
+                    } catch {}
+                    handleAuthChange('INITIAL', null);
+                }
             }
         });
 
@@ -475,6 +490,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             localStorage.removeItem('memcut_local_owner_id');
             localStorage.removeItem('yolofuck_local_owner_id');
+            localStorage.removeItem('plasticin_sso_user');
             sessionStorage.clear();
         } catch {}
         setUser(null);

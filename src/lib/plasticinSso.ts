@@ -5,7 +5,7 @@
  * Strictly NO purple/pink colors.
  */
 
-import { supabaseAuth, supabase } from './supabase';
+import { supabaseAuth, supabase, supabaseAuthAdmin } from './supabase';
 
 export interface PlasticinSsoInitOptions {
     email?: string;
@@ -170,19 +170,24 @@ export async function handlePlasticinCallback(): Promise<{
     const tokens: PlasticinTokenResponse = await response.json();
     const user = parseJwtPayload<PlasticinUserClaims>(tokens.id_token);
 
-    // Save session in Central Plasticin client if refresh token provided
-    if (tokens.access_token && tokens.refresh_token) {
-        try {
-            await supabaseAuth.auth.setSession({
-                access_token: tokens.access_token,
-                refresh_token: tokens.refresh_token,
+    // 1. Establish official Central Supabase session using the service admin bridge
+    try {
+        const { data: linkData, error: linkErr } = await supabaseAuthAdmin.auth.admin.generateLink({
+            type: 'magiclink',
+            email: user.email.toLowerCase(),
+        });
+
+        if (!linkErr && linkData?.properties?.hashed_token) {
+            await supabaseAuth.auth.verifyOtp({
+                token_hash: linkData.properties.hashed_token,
+                type: 'magiclink',
             });
-        } catch (setErr) {
-            console.warn('Notice: supabaseAuth setSession handled via token exchange:', setErr);
         }
+    } catch (sessionErr) {
+        console.warn('Notice: Central Supabase session bridge caught:', sessionErr);
     }
 
-    // Save recognized account in localStorage for instant fast-resume
+    // 2. Save recognized account in localStorage for instant fast-resume
     const cleanUser = user.preferred_username || user.email.split('@')[0];
     const accountData = {
         username: cleanUser.startsWith('@') ? cleanUser : `@${cleanUser}`,
@@ -194,7 +199,23 @@ export async function handlePlasticinCallback(): Promise<{
     };
     localStorage.setItem('plasticin_last_account', JSON.stringify(accountData));
 
-    // Link Memcut local owner ID for seamless takes & journal continuity
+    // 3. Persist SSO User object for instant invariant fallback in AuthContext
+    const ssoUser = {
+        id: user.sub,
+        email: user.email.toLowerCase(),
+        aud: 'authenticated',
+        role: 'authenticated',
+        created_at: new Date().toISOString(),
+        user_metadata: {
+            user_name: cleanUser.startsWith('@') ? cleanUser : `@${cleanUser}`,
+            username: cleanUser.startsWith('@') ? cleanUser : `@${cleanUser}`,
+            full_name: user.name || cleanUser.replace(/^@+/, ''),
+            avatar_url: user.picture || 'https://plasticin.com/default-avatar.png',
+        }
+    };
+    localStorage.setItem('plasticin_sso_user', JSON.stringify(ssoUser));
+
+    // 4. Link Memcut local owner ID for seamless takes & journal continuity
     if (user.email.toLowerCase() === 'minimalmassive@gmail.com') {
         localStorage.setItem('memcut_local_owner_id', '4fb34c08-a3b7-45b3-a7ad-fda625eae464');
         localStorage.setItem('yolofuck_local_owner_id', '4fb34c08-a3b7-45b3-a7ad-fda625eae464');
