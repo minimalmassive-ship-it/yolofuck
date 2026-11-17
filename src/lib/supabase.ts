@@ -105,6 +105,7 @@ export const supabaseProdAuth = createClient(
             persistSession: false,
             autoRefreshToken: false,
             detectSessionInUrl: false,
+            storageKey: 'memcut.archimantis_prod.auth.token',
         }
     }
 );
@@ -117,6 +118,7 @@ export const supabaseIdeaniteAuth = createClient(
             persistSession: false,
             autoRefreshToken: false,
             detectSessionInUrl: false,
+            storageKey: 'memcut.ideanite_dev.auth.token',
         }
     }
 );
@@ -133,6 +135,7 @@ export const supabaseAuthAdmin = createClient(
             persistSession: false,
             autoRefreshToken: false,
             detectSessionInUrl: false,
+            storageKey: 'memcut.plasticin_admin.auth.token',
         }
     }
 );
