@@ -415,7 +415,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
                         {/* Button: Continue with Plasticin (RIGHT ABOVE GOOGLE) */}
                         <button
                             type="button"
-                            onClick={() => openAuthModal('signin', { identifier })}
+                            onClick={() => {
+                                const clean = identifier.trim();
+                                openAuthModal('signin', {
+                                    identifier: clean || undefined,
+                                    step: clean ? 'password_fallback' : 'email',
+                                });
+                            }}
                             className="memcut-hero-btn-sso memcut-hero-btn-plasticin"
                         >
                             <img

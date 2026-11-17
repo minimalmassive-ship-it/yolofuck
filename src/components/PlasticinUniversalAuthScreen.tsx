@@ -109,17 +109,6 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
 
     const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
     const identifierInputRef = useRef<HTMLInputElement>(null);
-    const passwordInputRef = useRef<HTMLInputElement>(null);
-
-    // Auto-focus password field when transitioning to password step to trigger browser autofill
-    useEffect(() => {
-        if (step === 'password_fallback' && isOpen) {
-            const timer = setTimeout(() => {
-                passwordInputRef.current?.focus();
-            }, 80);
-            return () => clearTimeout(timer);
-        }
-    }, [step, isOpen]);
 
     // Reset state whenever modal opens or props change
     useEffect(() => {
@@ -531,7 +520,7 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
         setErrorMessage(null);
         setSuccessMessage(null);
 
-        const cleanEmail = email.trim().toLowerCase();
+        const cleanEmail = (email || identifier).trim().toLowerCase();
         if (!password) {
             setErrorMessage('Please enter your password.');
             return;
@@ -1107,13 +1096,13 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
 
                         {/* STEP 4: PASSWORD FALLBACK (Direct Password Login) */}
                         {step === 'password_fallback' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                                 <div style={{ textAlign: 'center' }}>
                                     <h2 className="plasticin-auth-title">
                                         Enter your password
                                     </h2>
                                     <p className="plasticin-auth-subtitle">
-                                        Signing in as <strong style={{ color: '#f5f5f4', fontFamily: 'monospace' }}>{username || email}</strong>
+                                        Confirm your credentials to sign in to your unified Plasticin account
                                     </p>
                                 </div>
 
@@ -1124,30 +1113,64 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
                                     autoComplete="on"
                                     style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
                                 >
-                                    {/* Visible username input so Chrome Password Manager identifies account and proposes saved passwords */}
-                                    <div className="plasticin-auth-field">
-                                        <label htmlFor="plasticin-fallback-username" className="plasticin-auth-label">
-                                            Plasticin Account
-                                        </label>
-                                        <div className="plasticin-auth-input-wrap">
-                                            <Mail className="plasticin-auth-input-icon w-4 h-4" />
-                                            <input
-                                                id="plasticin-fallback-username"
-                                                name="username"
-                                                type="text"
-                                                inputMode="email"
-                                                autoComplete="username"
-                                                required
-                                                value={email || identifier}
-                                                onChange={(e) => {
-                                                    setEmail(e.target.value);
-                                                    setIdentifier(e.target.value);
+                                    {/* Atlassian / Google SSO Non-editable Account Badge */}
+                                    <div className="plasticin-auth-account-badge">
+                                        <div className="plasticin-auth-badge-avatar-wrap">
+                                            <img
+                                                src={lastAccount?.avatarUrl || '/assets/plasticin_icon.png'}
+                                                alt=""
+                                                className="plasticin-auth-badge-avatar"
+                                                onError={(e) => {
+                                                    (e.target as HTMLImageElement).src = '/assets/plasticin_icon.png';
                                                 }}
-                                                placeholder="username or email"
-                                                className="plasticin-auth-input"
                                             />
                                         </div>
+                                        <div className="plasticin-auth-badge-info">
+                                            <span className="plasticin-auth-badge-name">{username || '@acidplasticine'}</span>
+                                            <span className="plasticin-auth-badge-email">{email || identifier}</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setStep('email');
+                                                setPassword('');
+                                                setErrorMessage(null);
+                                            }}
+                                            className="plasticin-auth-badge-switch"
+                                        >
+                                            Switch
+                                        </button>
                                     </div>
+
+                                    {/* Associated username anchor for Chrome Password Manager & Google autofill */}
+                                    <input
+                                        type="text"
+                                        name="username"
+                                        id="plasticin-fallback-username"
+                                        autoComplete="username"
+                                        value={email || identifier}
+                                        defaultValue={email || identifier}
+                                        readOnly
+                                        tabIndex={-1}
+                                        aria-hidden="true"
+                                        style={{
+                                            position: 'absolute',
+                                            width: '1px',
+                                            height: '1px',
+                                            margin: '-1px',
+                                            padding: 0,
+                                            border: 0,
+                                            clip: 'rect(0 0 0 0)',
+                                            opacity: 0.001,
+                                            pointerEvents: 'none',
+                                        }}
+                                    />
+                                    <input
+                                        type="hidden"
+                                        name="email"
+                                        value={email || identifier}
+                                        autoComplete="email"
+                                    />
 
                                     <div className="plasticin-auth-field">
                                         <label htmlFor="plasticin-fallback-password-input" className="plasticin-auth-label">
@@ -1156,7 +1179,6 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
                                         <div className="plasticin-auth-input-wrap">
                                             <Lock className="plasticin-auth-input-icon w-4 h-4" />
                                             <input
-                                                ref={passwordInputRef}
                                                 id="plasticin-fallback-password-input"
                                                 name="password"
                                                 type={showPassword ? 'text' : 'password'}
@@ -1193,7 +1215,7 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
                                     <div style={{ textAlign: 'center', paddingTop: '4px' }}>
                                         <button
                                             type="button"
-                                            onClick={() => handleSendOtpCode(email)}
+                                            onClick={() => handleSendOtpCode(email || identifier)}
                                             className="plasticin-auth-text-link"
                                         >
                                             Sign in with an email verification code instead

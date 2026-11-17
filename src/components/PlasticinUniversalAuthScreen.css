@@ -585,6 +585,81 @@
     cursor: pointer;
 }
 
+/* ── Step 4: Password Step Account Badge (Atlassian / Google SSO Style) ── */
+.plasticin-auth-account-badge {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: #141413;
+    border: 1px solid #33312C;
+    border-radius: 12px;
+    margin-bottom: 2px;
+}
+
+.plasticin-auth-badge-avatar-wrap {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #21201D;
+    border: 1px solid #33312C;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.plasticin-auth-badge-avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.plasticin-auth-badge-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+    gap: 2px;
+}
+
+.plasticin-auth-badge-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #F5F5F4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.plasticin-auth-badge-email {
+    font-size: 11px;
+    color: #A8A29E;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.plasticin-auth-badge-switch {
+    background: transparent;
+    border: 1px solid #33312C;
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #C8F931;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.plasticin-auth-badge-switch:hover {
+    background: rgba(200, 249, 49, 0.1);
+    border-color: #C8F931;
+}
+
 /* ── Card Footer ── */
 .plasticin-auth-card-footer {
     padding-top: 16px;
