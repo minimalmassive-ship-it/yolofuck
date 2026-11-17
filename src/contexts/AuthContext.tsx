@@ -429,7 +429,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 // Bind local owner ID strictly to authenticated user.id
                 try {
                     localStorage.setItem('memcut_local_owner_id', currentUser.id);
-                    localStorage.removeItem('plasticin_sso_user');
                 } catch {}
             } else {
                 setUser(null);

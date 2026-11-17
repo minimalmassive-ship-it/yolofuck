@@ -17,9 +17,9 @@ export const PLASTICIN_AUTH_URL = 'https://igrxuwvlnpthvrbfhlpu.supabase.co';
 export const PLASTICIN_AUTH_ANON_KEY =
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlncnh1d3ZsbnB0aHZyYmZobHB1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ1MjEwNTcsImV4cCI6MjExMDA5NzA1N30.aRwxqgP_oS92a-TK_ov-F0kDhA_FyQitarhytGXzKvE';
 
-// ── Dedicated Memcut Database & Media Supabase (ngzffnpyrqpjxuxkjvnl) ─────────
-const DEFAULT_DATA_URL = 'https://ngzffnpyrqpjxuxkjvnl.supabase.co';
-const DEFAULT_DATA_ANON_KEY = 'sb_publishable_OTOXvTGJejxfXyClIEPjmg_vmx6tjy_';
+// ── Dedicated Memcut Database & Media Supabase (gauzjywsrqvhrjtbjuap - Ideanite Journal PROD) ─────────
+const DEFAULT_DATA_URL = 'https://gauzjywsrqvhrjtbjuap.supabase.co';
+const DEFAULT_DATA_ANON_KEY = 'sb_publishable_QtPeDBNfIkdfpu9sk8EiJQ_4Iq84UWu';
 
 export const dataSupabaseUrl = import.meta.env.VITE_SUPABASE_URL || DEFAULT_DATA_URL;
 export const dataSupabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || DEFAULT_DATA_ANON_KEY;

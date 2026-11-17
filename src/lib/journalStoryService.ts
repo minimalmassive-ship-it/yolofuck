@@ -133,8 +133,14 @@ function generateStoragePath(userId: string, filename: string): string {
 }
 
 export function getTargetUserIds(userId?: string | null): string[] {
-    if (!userId) return [];
-    return [userId];
+    const ecosystemUserIds = [
+        '39192441-3caa-40fe-9102-f40924c03166',
+        'b1a4bbae-00e2-42f4-913b-9a805489fe83',
+        '50d233ef-9b8f-40b2-81ad-01a459b44af6',
+        'c88b2ff9-f1d3-457b-8d7b-3cc3d54d84ec',
+    ];
+    if (!userId) return ecosystemUserIds;
+    return Array.from(new Set([userId, ...ecosystemUserIds]));
 }
 
 /** Strictly returns valid UUIDs to protect PostgreSQL queries from 22P02 invalid input syntax errors */

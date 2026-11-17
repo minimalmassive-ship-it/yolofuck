@@ -292,10 +292,16 @@ export async function handlePlasticinCallback(): Promise<{
                 } else if (bridgeData?.access_token || tokens.supabase_access_token) {
                     const sbAccess = bridgeData?.access_token || tokens.supabase_access_token || '';
                     const sbRefresh = bridgeData?.refresh_token || tokens.supabase_refresh_token || tokens.refresh_token || '';
-                    await supabaseAuth.auth.setSession({
-                        access_token: sbAccess,
-                        refresh_token: sbRefresh,
-                    });
+                    if (sbAccess && !sbAccess.startsWith('eyJhbGciOiJFUzI1NiI')) {
+                        try {
+                            await supabaseAuth.auth.setSession({
+                                access_token: sbAccess,
+                                refresh_token: sbRefresh,
+                            });
+                        } catch (setErr) {
+                            console.warn('[PlasticinSSO] Supabase local session hydration notice:', setErr);
+                        }
+                    }
                 }
             }
         } catch (bridgeErr) {
