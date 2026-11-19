@@ -132,25 +132,27 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ onClose })
             const now = new Date().toISOString();
             // Update username in Central Auth DB & Plasticin Master table
             const handle = trimmed.startsWith('@') ? trimmed : `@${trimmed}`;
+            let authErr: Error | null = null;
             try {
-                await supabaseAuth
-                    .from('plasticin_users')
-                    .update({ username: handle, updated_at: now })
-                    .eq('id', user.id);
-            } catch {}
+                const { data: authSess } = await supabaseAuth.auth.getSession();
+                if (authSess?.session?.user?.id === user.id) {
+                    const { error } = await supabaseAuth
+                        .from('plasticin_users')
+                        .update({ username: handle, updated_at: now })
+                        .eq('id', user.id);
+                    if (error) authErr = error;
+                }
+            } catch (e: any) { authErr = e; }
 
-            const { error: authErr } = await supabaseAuth
-                .from('profiles')
-                .update({ username: handle, updated_at: now })
-                .eq('id', user.id);
-
-            // Also mirror username to dedicated Memcut DB
+            // Mirror username to dedicated Memcut DB
             try {
-                await supabase
-                    .from('profiles')
-                    .upsert({ id: user.id, username: handle, updated_at: now });
+                const { data: dataSess } = await supabase.auth.getSession();
+                if (dataSess?.session?.user?.id === user.id) {
+                    await supabase
+                        .from('profiles')
+                        .upsert({ id: user.id, username: handle, updated_at: now });
+                }
             } catch {}
-
 
             if (authErr) throw authErr;
             await refreshProfile();

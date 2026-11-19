@@ -12,6 +12,7 @@ import {
     PlatformPlasticinOrgId,
     PrimaryPlasticinOrgId,
     fetchPlasticinOrganizations,
+  getPlasticinAuthHeaders,
     isAbortError,
     isSameOrgEntity,
     resolveCanonicalPlasticinOrgId,
@@ -164,11 +165,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
     }, []);
 
+    const refreshOrgsInFlightRef = useRef<Promise<void> | null>(null);
     const refreshOrganizations = useCallback(async () => {
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 3500);
-        try {
-            const list = await fetchPlasticinOrganizations(ctrl.signal);
+        if (refreshOrgsInFlightRef.current) return refreshOrgsInFlightRef.current;
+        const run = (async () => {
+            const headers = await getPlasticinAuthHeaders(false);
+            if (!headers['Authorization']) return;
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 3500);
+            try {
+                const list = await fetchPlasticinOrganizations(ctrl.signal);
             if (!mounted.current || list.length === 0) return;
             setOrganizations(list);
             try {
@@ -190,14 +196,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!isAbortError(err)) {
                 console.warn('[Auth] Organization boot sync warning:', err);
             }
-        } finally {
-            clearTimeout(timer);
-        }
+            } finally {
+                clearTimeout(timer);
+                refreshOrgsInFlightRef.current = null;
+            }
+        })();
+        refreshOrgsInFlightRef.current = run;
+        return run;
     }, []);
 
-    // Boot Sync + Ecosystem Realtime Channel (ecosystem-org-sync)
+    // Ecosystem Realtime Channel (sync triggers only after auth session resolves)
     useEffect(() => {
-        refreshOrganizations();
         const unsubscribe = subscribeToEcosystemOrgSync({
             onOrganizationUpdated: ({ id, name, description }) => {
                 updateOrganizationInState(id, name, description);
@@ -284,16 +293,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 };
             }
 
-            // 3. Secondary fallback: profiles table in Central Auth DB
-            const { data: authProfile } = await supabaseAuth
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .maybeSingle();
-
-            if (authProfile) {
-                return { ...(authProfile as Profile), role: resolvedRole === 'admin' ? 'admin' : (authProfile.role || 'user') };
-            }
+            // Central Plasticin Auth DB uses plasticin_users (no profiles table); fall through to Memcut DB profiles
 
             // 4. Fallback to local Memcut DB profiles table
             const { data: localProfile } = await supabase
@@ -368,16 +368,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         const displayName = currentUser.user_metadata?.full_name || cleanUser;
                         const avatarUrl = currentUser.user_metadata?.avatar_url || 'https://plasticin.com/default-avatar.png';
 
-                        // Upsert into Central plasticin_users master table
+                        // Sync to Central plasticin_users only when an authenticated Plasticin Auth session matches currentUser.id
                         try {
-                            await supabaseAuth.from('plasticin_users').upsert({
-                                id: currentUser.id,
-                                username: cleanHandle,
-                                display_name: displayName,
-                                email: currentUser.email || '',
-                                avatar_url: avatarUrl,
-                                origin_app: 'memcut.com',
-                            }, { onConflict: 'email' });
+                            const { data: authSessionData } = await supabaseAuth.auth.getSession();
+                            if (authSessionData?.session?.user?.id === currentUser.id) {
+                                await supabaseAuth.from('plasticin_users').upsert({
+                                    id: currentUser.id,
+                                    username: cleanHandle,
+                                    display_name: displayName,
+                                    email: currentUser.email || '',
+                                    avatar_url: avatarUrl,
+                                    origin_app: 'memcut.com',
+                                }, { onConflict: 'id' });
+                            }
                         } catch (plstErr) {
                             console.warn('[Auth] plasticin_users upsert notice:', plstErr);
                         }
@@ -425,6 +428,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 if (isActive && profileData) {
                     setProfile(profileData);
                 }
+                refreshOrganizations();
 
                 // Bind local owner ID strictly to authenticated user.id
                 try {
@@ -494,7 +498,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             if (error) return { data: null, error };
 
-            if (data.user) {
+            if (data.user && data.session) {
                 try {
                     await supabaseAuth.from('plasticin_users').upsert({
                         id: data.user.id,
@@ -503,7 +507,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         email: cleanEmail,
                         avatar_url: 'https://plasticin.com/default-avatar.png',
                         origin_app: 'memcut.com',
-                    }, { onConflict: 'email' });
+                    }, { onConflict: 'id' });
                 } catch {}
 
                 try {

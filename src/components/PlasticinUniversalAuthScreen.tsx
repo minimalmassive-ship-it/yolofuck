@@ -438,7 +438,7 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
                         email: cleanEmail,
                         avatar_url: 'https://plasticin.com/default-avatar.png',
                         origin_app: branding.originApp,
-                    }, { onConflict: 'email' });
+                    }, { onConflict: 'id' });
                 } catch (upsertErr) {
                     console.warn('plasticin_users upsert warning:', upsertErr);
                 }

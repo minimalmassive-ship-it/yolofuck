@@ -273,9 +273,11 @@ export const PlasticinChatModal: React.FC<PlasticinChatModalProps> = ({
 
         const loadRooms = async () => {
             try {
+                const authHeaders = await getPlasticinAuthHeaders(false);
+                if (!authHeaders['Authorization']) return;
                 const res = await fetch(
                     `${PlasticinChatHubUrl}?action=rooms&orgId=${encodeURIComponent(canonicalOrgId)}&orgName=${encodeURIComponent(currentOrgName)}`,
-                    { credentials: 'include', cache: 'no-store', signal: ctrl.signal }
+                    { headers: authHeaders, credentials: 'include', cache: 'no-store', signal: ctrl.signal }
                 );
                 if (!res.ok) return;
                 const data = await res.json();
@@ -339,10 +341,12 @@ export const PlasticinChatModal: React.FC<PlasticinChatModalProps> = ({
             try {
                 activeCtrl?.abort();
                 activeCtrl = new AbortController();
+                const authHeaders = await getPlasticinAuthHeaders(false);
+                if (!authHeaders['Authorization']) return;
                 const action = activeView === 'chat' ? 'messages' : 'inbox';
                 const res = await fetch(
-                    `${PlasticinChatHubUrl}?action=${action}&roomId=${encodeURIComponent(activeRoomId)}`,
-                    { credentials: 'include', cache: 'no-store', signal: activeCtrl.signal }
+                    `${PlasticinChatHubUrl}?action=${action}&orgId=${encodeURIComponent(canonicalOrgId)}&roomId=${encodeURIComponent(activeRoomId)}`,
+                    { headers: authHeaders, credentials: 'include', cache: 'no-store', signal: activeCtrl.signal }
                 );
                 if (!res.ok || !isMounted) return;
                 const data = await res.json();
@@ -362,7 +366,7 @@ export const PlasticinChatModal: React.FC<PlasticinChatModalProps> = ({
         };
 
         loadRoomData();
-        const interval = setInterval(loadRoomData, 8000);
+        const interval = setInterval(() => { if (!document.hidden) loadRoomData(); }, 45000);
 
         return () => {
             isMounted = false;

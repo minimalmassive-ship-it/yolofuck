@@ -1,5 +1,19 @@
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
-import { supabaseAuth } from './supabase';
+import { supabase, supabaseAuth } from './supabase';
+
+function isJwtUnexpired(token?: string | null, leewaySeconds = 20): boolean {
+  if (!token || typeof token !== 'string') return false;
+  const parts = token.trim().split('.');
+  if (parts.length !== 3) return false;
+  try {
+    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) base64 += '=';
+    const payload = JSON.parse(atob(base64)) as { exp?: number };
+    return typeof payload?.exp === 'number' && payload.exp > Math.floor(Date.now() / 1000) + leewaySeconds;
+  } catch {
+    return false;
+  }
+}
 
 export async function getPlasticinAuthHeaders(includeJsonContentType = false): Promise<Record<string, string>> {
   const headers: Record<string, string> = includeJsonContentType
@@ -7,17 +21,38 @@ export async function getPlasticinAuthHeaders(includeJsonContentType = false): P
     : {};
   try {
     const { data } = await supabaseAuth.auth.getSession();
-    if (data?.session?.access_token) {
-      headers['Authorization'] = `Bearer ${data.session.access_token}`;
+    let session = data?.session ?? null;
+    if (session?.expires_at && session.expires_at * 1000 < Date.now() + 30000) {
+      const { data: refreshed } = await supabaseAuth.auth.refreshSession();
+      if (refreshed?.session) session = refreshed.session;
+    }
+    if (session?.access_token && isJwtUnexpired(session.access_token, 10)) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
       return headers;
     }
   } catch {}
   try {
     if (typeof window !== 'undefined') {
-      const oidcToken = sessionStorage.getItem('plasticin_oidc_access_token');
-      if (oidcToken) {
-        headers['Authorization'] = `Bearer ${oidcToken}`;
+      const oidcCandidates = [
+        sessionStorage.getItem('plasticin_oidc_access_token'),
+        localStorage.getItem('plasticin_oidc_access_token'),
+      ];
+      const validOidc = oidcCandidates.find((t) => isJwtUnexpired(t, 20));
+      if (validOidc) {
+        headers['Authorization'] = `Bearer ${validOidc.trim()}`;
+        return headers;
       }
+    }
+  } catch {}
+  try {
+    const { data: dataSess } = await supabase.auth.getSession();
+    let dSession = dataSess?.session ?? null;
+    if (dSession?.expires_at && dSession.expires_at * 1000 < Date.now() + 30000) {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      if (refreshed?.session) dSession = refreshed.session;
+    }
+    if (dSession?.access_token && isJwtUnexpired(dSession.access_token, 10)) {
+      headers['Authorization'] = `Bearer ${dSession.access_token}`;
     }
   } catch {}
   return headers;
@@ -246,7 +281,10 @@ export interface PlasticinDirectoryMember {
 
 export async function fetchPlasticinOrganizations(signal?: AbortSignal): Promise<PlasticinDirectoryOrg[]> {
   try {
+    const headers = await getPlasticinAuthHeaders(false);
+    if (!headers['Authorization']) return [];
     const res = await fetch(`${PlasticinDirectorySyncUrl}?action=organizations`, {
+      headers,
       credentials: 'include',
       cache: 'no-store',
       ...(signal ? { signal } : {}),
