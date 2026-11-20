@@ -1,19 +1,22 @@
 /**
  * JournalPage.tsx — yolofuck
- * 
- * Standalone Video Journal application:
- * - Top bar: Clean full-width search bar only (no brand logos, no status badges).
- * - Bottom bar: Fixed 3-button dock with [Journal] on left, [Shared] in center, [Record] on right.
- * - Neumorphic dark styling with neon emerald (#10b981).
+ *
+ * Standalone Video Journal application.
+ * Desktop top bar redesign:
+ * - Brand logo + org/workspace breadcrumbs on the left.
+ * - Icon-only action buttons (Journal, Share, Chat, Record) right-aligned.
+ * - Collapsed search bar icon (circle) that animates-expands left.
+ * - Avatar profile picture replaces username text; click opens dropdown.
+ * - Search results overlay grid (transcript-based).
  * - Strictly NO purple/violet hues.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-    Video, 
-    Share2, 
-    Layers, 
+import {
+    Video,
+    Share2,
+    Layers,
     Search,
     X,
     Loader2,
@@ -58,6 +61,11 @@ export const JournalPage: React.FC = () => {
     const [isPlayerActive, setIsPlayerActive] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
+    // Desktop collapsed search bar state
+    const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+    const desktopSearchInputRef = useRef<HTMLInputElement>(null);
+    const desktopSearchWrapRef = useRef<HTMLDivElement>(null);
+
     // Dropdown and modal states
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [showTrashModal, setShowTrashModal] = useState(false);
@@ -87,6 +95,11 @@ export const JournalPage: React.FC = () => {
         }
         return currentWorkspaces[0];
     });
+
+    // Resolve avatar URL safely
+    const avatarUrl: string | null = profile?.avatar_url || user?.user_metadata?.avatar_url || null;
+    const displayName: string = profile?.username || user?.user_metadata?.username || 'Account';
+    const initials: string = displayName.slice(0, 2).toUpperCase();
 
     // Cross-App Realtime Organization Synchronization
     useEffect(() => {
@@ -135,13 +148,44 @@ export const JournalPage: React.FC = () => {
         }
     };
 
-    // Close crumbs dropdown on click outside
+    // Desktop search: expand on icon click, collapse on outside click or submit
+    const handleDesktopSearchIconClick = useCallback(() => {
+        if (!isSearchExpanded) {
+            setIsSearchExpanded(true);
+            setTimeout(() => desktopSearchInputRef.current?.focus(), 50);
+        } else {
+            // Collapse (search with current query or clear)
+            setIsSearchExpanded(false);
+        }
+    }, [isSearchExpanded]);
+
+    const handleDesktopSearchSubmit = useCallback(() => {
+        // Keep query, collapse bar — results are shown in JournalStoryView
+        setIsSearchExpanded(false);
+    }, []);
+
+    const handleDesktopSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            handleDesktopSearchSubmit();
+        } else if (e.key === 'Escape') {
+            setSearchQuery('');
+            setIsSearchExpanded(false);
+        }
+    }, [handleDesktopSearchSubmit]);
+
+    // Close menus and search on click outside
     useEffect(() => {
-        const handleOutside = () => {
+        const handleOutside = (e: PointerEvent) => {
+            // Close org/workspace dropdowns
             setIsOrgNavOpen(false);
             setIsWsNavOpen(false);
             setIsMobileOrgNavOpen(false);
             setIsMobileWsNavOpen(false);
+
+            // Close desktop search if click is outside search wrap
+            if (desktopSearchWrapRef.current && !desktopSearchWrapRef.current.contains(e.target as Node)) {
+                setIsSearchExpanded(false);
+            }
         };
         document.addEventListener('pointerdown', handleOutside);
         return () => document.removeEventListener('pointerdown', handleOutside);
@@ -158,35 +202,128 @@ export const JournalPage: React.FC = () => {
 
     return (
         <div className="yolofuck-root">
-            {/* Top Bar: Brand Logo on Left, Search Bar, Desktop Center Nav, Account Menu on Right */}
+            {/* Top Bar */}
             <header className={`yolofuck-top-bar ${isPlayerActive ? 'hidden-player-active' : ''}`}>
+
+                {/* ── LEFT SECTION: Brand + Org/Workspace Crumbs ── */}
                 <div className="yolofuck-top-left-section memcut-top-left-section">
                     <div className="memcut-top-brand yolofuck-top-brand-logo">
-                        <img 
-                            src="/memcut-glyph.png" 
-                            alt="Memcut" 
+                        <img
+                            src="/memcut-glyph.png"
+                            alt="Memcut"
                             className="memcut-top-glyph-img memcut-top-cube-img"
                         />
-                        <img 
-                            src="/memcut-wordmark.png" 
-                            alt="Memcut" 
+                        <img
+                            src="/memcut-wordmark.png"
+                            alt="Memcut"
                             className="memcut-top-wordmark-img"
                         />
                     </div>
 
-                    <div className="yolofuck-search-pill">
+                    {/* Desktop Org / Workspace Breadcrumbs — inline after wordmark */}
+                    <div
+                        className="yolofuck-crumbs-wrap"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Organization Dropdown */}
+                        <div style={{ position: 'relative' }}>
+                            <button
+                                type="button"
+                                className="yolofuck-crumb-btn"
+                                onClick={() => {
+                                    setIsWsNavOpen(false);
+                                    setIsOrgNavOpen(!isOrgNavOpen);
+                                }}
+                                title="Active Organization"
+                            >
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {currentActiveOrg?.name || 'Personal'}
+                                </span>
+                                <ChevronDown size={12} className={`yolofuck-chevron ${isOrgNavOpen ? 'open' : ''}`} />
+                            </button>
+
+                            {isOrgNavOpen && (
+                                <div className="yolofuck-crumb-dropdown">
+                                    <div className="yolofuck-crumb-dropdown-header">Organizations</div>
+                                    {effectiveOrgs.map((org) => {
+                                        const isActive = isSameOrgEntity(currentActiveOrg?.id, org.id);
+                                        return (
+                                            <button
+                                                key={org.id}
+                                                type="button"
+                                                className={`yolofuck-crumb-item ${isActive ? 'active' : ''}`}
+                                                onClick={() => handleSelectOrg(org)}
+                                            >
+                                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                    {org.name}
+                                                </span>
+                                                {isActive && <Check size={12} color="#c8f931" />}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        <span style={{ opacity: 0.4, fontFamily: 'monospace' }}>/</span>
+
+                        {/* Workspace Dropdown */}
+                        <div style={{ position: 'relative' }}>
+                            <button
+                                type="button"
+                                className="yolofuck-crumb-btn"
+                                onClick={() => {
+                                    setIsOrgNavOpen(false);
+                                    setIsWsNavOpen(!isWsNavOpen);
+                                }}
+                                title="Active Workspace"
+                            >
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {activeWorkspace?.name || 'Yolo'}
+                                </span>
+                                <ChevronDown size={12} className={`yolofuck-chevron ${isWsNavOpen ? 'open' : ''}`} />
+                            </button>
+
+                            {isWsNavOpen && (
+                                <div className="yolofuck-crumb-dropdown">
+                                    <div className="yolofuck-crumb-dropdown-header">
+                                        {currentActiveOrg?.name || 'Workspaces'}
+                                    </div>
+                                    {currentWorkspaces.map((ws) => {
+                                        const isActive = ws.id === activeWorkspace?.id;
+                                        return (
+                                            <button
+                                                key={ws.id}
+                                                type="button"
+                                                className={`yolofuck-crumb-item ${isActive ? 'active' : ''}`}
+                                                onClick={() => handleSelectWorkspace(ws)}
+                                            >
+                                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                    {ws.name}
+                                                </span>
+                                                {isActive && <Check size={12} color="#c8f931" />}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Mobile search pill (visible only on mobile) */}
+                    <div className="yolofuck-search-pill yolofuck-mobile-search-pill">
                         <Search size={15} color="var(--yolo-lime, #c8f72c)" />
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             className="yolofuck-search-input"
                             placeholder="Search spoken words..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                         {searchQuery && (
-                            <button 
-                                className="yolofuck-search-clear" 
-                                onClick={() => setSearchQuery('')} 
+                            <button
+                                className="yolofuck-search-clear"
+                                onClick={() => setSearchQuery('')}
                                 title="Clear search"
                             >
                                 <X size={14} />
@@ -195,275 +332,224 @@ export const JournalPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Desktop Central Navigation: Journal, Share, Record */}
-                <nav className="yolofuck-desktop-center-nav">
-                    <button 
-                        type="button"
-                        className={`yolofuck-desktop-nav-btn ${activeTab === 'story' && !showChatModal ? 'active' : ''}`}
-                        onClick={() => {
-                            setShowChatModal(false);
-                            setActiveTab('story');
-                        }}
-                        title="Journal timeline"
-                    >
-                        <Layers size={16} />
-                        <span>Journal</span>
-                    </button>
+                {/* ── RIGHT SECTION: Desktop icon actions + collapsed search + avatar ── */}
+                <div className="yolofuck-top-right-section">
 
-                    <button 
-                        type="button"
-                        className={`yolofuck-desktop-nav-btn ${activeTab === 'shared' && !showChatModal ? 'active' : ''}`}
-                        onClick={() => {
-                            setShowChatModal(false);
-                            setActiveTab('shared');
-                        }}
-                        title="Shared sequences"
-                    >
-                        <Share2 size={16} />
-                        <span>Share</span>
-                    </button>
-
-                    <button 
-                        type="button"
-                        className={`yolofuck-desktop-nav-btn ${showChatModal ? 'active' : ''}`}
-                        onClick={() => setShowChatModal(prev => !prev)}
-                        title="Plasticin ecosystem chat"
-                    >
-                        <MessageSquare size={16} />
-                        <span>Chat</span>
-                    </button>
-
-                    <button 
-                        type="button"
-                        className="yolofuck-desktop-record-btn"
-                        onClick={() => setShowCaptureModal(true)}
-                        title="Record new take"
-                    >
-                        <span className="yolofuck-rec-dot" />
-                        <Video size={16} />
-                        <span>Record</span>
-                    </button>
-                </nav>
-
-                {/* Desktop Organization / Workspace Breadcrumbs */}
-                <div 
-                    className="yolofuck-crumbs-wrap"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    {/* Organization Dropdown */}
-                    <div style={{ position: 'relative' }}>
+                    {/* Desktop Icon-Only Action Buttons */}
+                    <div className={`yolofuck-desktop-icon-actions ${isSearchExpanded ? 'search-expanded' : ''}`}>
                         <button
                             type="button"
-                            className="yolofuck-crumb-btn"
-                            onClick={() => {
-                                setIsWsNavOpen(false);
-                                setIsOrgNavOpen(!isOrgNavOpen);
-                            }}
-                            title="Active Organization"
+                            className={`yolofuck-icon-btn ${activeTab === 'story' && !showChatModal ? 'active' : ''}`}
+                            onClick={() => { setShowChatModal(false); setActiveTab('story'); }}
+                            title="Journal timeline"
                         >
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {currentActiveOrg?.name || 'Personal'}
-                            </span>
-                            <ChevronDown size={12} className={`yolofuck-chevron ${isOrgNavOpen ? 'open' : ''}`} />
+                            <Layers size={17} />
                         </button>
 
-                        {isOrgNavOpen && (
-                            <div className="yolofuck-crumb-dropdown">
-                                <div className="yolofuck-crumb-dropdown-header">
-                                    Organizations
-                                </div>
-                                {effectiveOrgs.map((org) => {
-                                    const isActive = isSameOrgEntity(currentActiveOrg?.id, org.id);
-                                    return (
-                                        <button
-                                            key={org.id}
-                                            type="button"
-                                            className={`yolofuck-crumb-item ${isActive ? 'active' : ''}`}
-                                            onClick={() => handleSelectOrg(org)}
-                                        >
-                                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                {org.name}
-                                            </span>
-                                            {isActive && <Check size={12} color="#c8f931" />}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-
-                    <span style={{ opacity: 0.4, fontFamily: 'monospace' }}>/</span>
-
-                    {/* Workspace Dropdown */}
-                    <div style={{ position: 'relative' }}>
                         <button
                             type="button"
-                            className="yolofuck-crumb-btn"
-                            onClick={() => {
-                                setIsOrgNavOpen(false);
-                                setIsWsNavOpen(!isWsNavOpen);
-                            }}
-                            title="Active Workspace"
+                            className={`yolofuck-icon-btn ${activeTab === 'shared' && !showChatModal ? 'active' : ''}`}
+                            onClick={() => { setShowChatModal(false); setActiveTab('shared'); }}
+                            title="Shared sequences"
                         >
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {activeWorkspace?.name || 'Yolo'}
-                            </span>
-                            <ChevronDown size={12} className={`yolofuck-chevron ${isWsNavOpen ? 'open' : ''}`} />
+                            <Share2 size={17} />
                         </button>
 
-                        {isWsNavOpen && (
-                            <div className="yolofuck-crumb-dropdown">
-                                <div className="yolofuck-crumb-dropdown-header">
-                                    {currentActiveOrg?.name || 'Workspaces'}
-                                </div>
-                                {currentWorkspaces.map((ws) => {
-                                    const isActive = ws.id === activeWorkspace?.id;
-                                    return (
-                                        <button
-                                            key={ws.id}
-                                            type="button"
-                                            className={`yolofuck-crumb-item ${isActive ? 'active' : ''}`}
-                                            onClick={() => handleSelectWorkspace(ws)}
-                                        >
-                                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                {ws.name}
-                                            </span>
-                                            {isActive && <Check size={12} color="#c8f931" />}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
+                        <button
+                            type="button"
+                            className={`yolofuck-icon-btn ${showChatModal ? 'active' : ''}`}
+                            onClick={() => setShowChatModal(prev => !prev)}
+                            title="Plasticin ecosystem chat"
+                        >
+                            <MessageSquare size={17} />
+                        </button>
+
+                        <button
+                            type="button"
+                            className="yolofuck-icon-btn yolofuck-icon-btn--record"
+                            onClick={() => setShowCaptureModal(true)}
+                            title="Record new take"
+                        >
+                            <span className="yolofuck-rec-dot" />
+                            <Video size={17} />
+                        </button>
                     </div>
+
+                    {/* Desktop Collapsed Search Bar */}
+                    <div
+                        ref={desktopSearchWrapRef}
+                        className={`yolofuck-desktop-search-wrap ${isSearchExpanded ? 'expanded' : ''}`}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {isSearchExpanded && (
+                            <input
+                                ref={desktopSearchInputRef}
+                                type="text"
+                                className="yolofuck-desktop-search-input"
+                                placeholder="Search spoken words..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onKeyDown={handleDesktopSearchKeyDown}
+                            />
+                        )}
+                        <button
+                            type="button"
+                            className={`yolofuck-search-icon-btn ${isSearchExpanded ? 'active' : ''}`}
+                            onClick={handleDesktopSearchIconClick}
+                            title={isSearchExpanded ? 'Search / collapse' : 'Open search'}
+                        >
+                            {isSearchExpanded && searchQuery ? (
+                                <Search size={15} />
+                            ) : isSearchExpanded ? (
+                                <X size={15} />
+                            ) : (
+                                <Search size={15} />
+                            )}
+                        </button>
+                    </div>
+
+                    {/* Avatar User Menu */}
+                    {user && (
+                        <div className="yolofuck-top-user-wrap">
+                            <button
+                                type="button"
+                                className={`yolofuck-top-avatar-btn ${showUserMenu ? 'active' : ''}`}
+                                onClick={() => setShowUserMenu(prev => !prev)}
+                                title={displayName}
+                            >
+                                {avatarUrl ? (
+                                    <img
+                                        src={avatarUrl}
+                                        alt={displayName}
+                                        className="yolofuck-avatar-img"
+                                        onError={(e) => {
+                                            (e.currentTarget as HTMLImageElement).style.display = 'none';
+                                            const next = e.currentTarget.nextElementSibling as HTMLElement | null;
+                                            if (next) next.style.display = 'flex';
+                                        }}
+                                    />
+                                ) : null}
+                                <span
+                                    className="yolofuck-avatar-initials"
+                                    style={avatarUrl ? { display: 'none' } : {}}
+                                >
+                                    {initials}
+                                </span>
+                            </button>
+
+                            {showUserMenu && (
+                                <div className="yolofuck-user-dropdown-menu">
+                                    <button
+                                        type="button"
+                                        className="yolofuck-user-menu-item"
+                                        onClick={() => {
+                                            setShowUserMenu(false);
+                                            setShowOrgSettingsModal(true);
+                                        }}
+                                    >
+                                        <Building2 size={14} color="#C8F931" />
+                                        <span>Organization Settings</span>
+                                    </button>
+
+                                    {organizations.length > 0 && (
+                                        <div style={{ padding: '6px 8px', borderTop: '1px solid #21262d', borderBottom: '1px solid #21262d', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#78716c', padding: '0 4px' }}>
+                                                Organization
+                                            </span>
+                                            {organizations.map((org) => {
+                                                const isActive = activeOrganization ? isSameOrgEntity(activeOrganization.id, org.id) : false;
+                                                return (
+                                                    <button
+                                                        key={org.id}
+                                                        type="button"
+                                                        className="yolofuck-user-menu-item"
+                                                        style={{
+                                                            padding: '6px 8px',
+                                                            background: isActive ? 'rgba(200, 249, 49, 0.12)' : 'transparent',
+                                                            color: isActive ? '#C8F931' : '#cbd5e1',
+                                                            justifyContent: 'space-between',
+                                                        }}
+                                                        onClick={() => {
+                                                            handleSelectOrg(org);
+                                                            setShowUserMenu(false);
+                                                        }}
+                                                    >
+                                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '12px' }}>
+                                                            {org.name}
+                                                        </span>
+                                                        {isActive && <Check size={12} style={{ flexShrink: 0 }} />}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+
+                                    <button
+                                        type="button"
+                                        className="yolofuck-user-menu-item"
+                                        onClick={() => {
+                                            setShowUserMenu(false);
+                                            setShowUserSettingsModal(true);
+                                        }}
+                                    >
+                                        <Settings size={14} color="#cbd5e1" />
+                                        <span>Settings</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        className="yolofuck-user-menu-item"
+                                        onClick={() => {
+                                            setShowUserMenu(false);
+                                            setShowTrashModal(true);
+                                        }}
+                                    >
+                                        <Trash2 size={14} color="#f87171" />
+                                        <span>Trash Bin</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        className="yolofuck-user-menu-item"
+                                        onClick={() => {
+                                            setShowUserMenu(false);
+                                            setShowQuestModal(true);
+                                        }}
+                                    >
+                                        <Target size={14} color="var(--yolo-lime, #c8f72c)" />
+                                        <span>Quests</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        className="yolofuck-user-menu-item"
+                                        onClick={() => {
+                                            setShowUserMenu(false);
+                                            setShowFriendsModal(true);
+                                        }}
+                                    >
+                                        <Users size={14} color="#60a5fa" />
+                                        <span>Friends</span>
+                                    </button>
+
+                                    <div className="yolofuck-user-menu-divider" />
+
+                                    <button
+                                        type="button"
+                                        className="yolofuck-user-menu-item logout"
+                                        onClick={() => {
+                                            setShowUserMenu(false);
+                                            signOut();
+                                        }}
+                                    >
+                                        <LogOut size={14} color="#f87171" />
+                                        <span>Log out</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
-
-                {/* User Dropdown Menu Button (Mobile & Desktop) */}
-                {user && (
-                    <div className="yolofuck-top-user-wrap">
-                        <button
-                            type="button"
-                            className={`yolofuck-top-user-btn ${showUserMenu ? 'active' : ''}`}
-                            onClick={() => setShowUserMenu(prev => !prev)}
-                            title="Account Menu"
-                        >
-                            <span className="yolofuck-top-username">
-                                {profile?.username || user?.user_metadata?.username || 'Account'}
-                            </span>
-                            <ChevronDown size={14} className={`yolofuck-chevron ${showUserMenu ? 'open' : ''}`} />
-                        </button>
-
-                        {showUserMenu && (
-                            <div className="yolofuck-user-dropdown-menu">
-                                <button
-                                    type="button"
-                                    className="yolofuck-user-menu-item"
-                                    onClick={() => {
-                                        setShowUserMenu(false);
-                                        setShowOrgSettingsModal(true);
-                                    }}
-                                >
-                                    <Building2 size={14} color="#C8F931" />
-                                    <span>Organization Settings</span>
-                                </button>
-
-                                {organizations.length > 0 && (
-                                    <div style={{ padding: '6px 8px', borderTop: '1px solid #21262d', borderBottom: '1px solid #21262d', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                        <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#78716c', padding: '0 4px' }}>
-                                            Organization
-                                        </span>
-                                        {organizations.map((org) => {
-                                            const isActive = activeOrganization ? isSameOrgEntity(activeOrganization.id, org.id) : false;
-                                            return (
-                                                <button
-                                                    key={org.id}
-                                                    type="button"
-                                                    className="yolofuck-user-menu-item"
-                                                    style={{
-                                                        padding: '6px 8px',
-                                                        background: isActive ? 'rgba(200, 249, 49, 0.12)' : 'transparent',
-                                                        color: isActive ? '#C8F931' : '#cbd5e1',
-                                                        justifyContent: 'space-between',
-                                                    }}
-                                                    onClick={() => {
-                                                        handleSelectOrg(org);
-                                                        setShowUserMenu(false);
-                                                    }}
-                                                >
-                                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '12px' }}>
-                                                        {org.name}
-                                                    </span>
-                                                    {isActive && <Check size={12} style={{ flexShrink: 0 }} />}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-
-                                <button
-                                    type="button"
-                                    className="yolofuck-user-menu-item"
-                                    onClick={() => {
-                                        setShowUserMenu(false);
-                                        setShowUserSettingsModal(true);
-                                    }}
-                                >
-                                    <Settings size={14} color="#cbd5e1" />
-                                    <span>Settings</span>
-                                </button>
-
-                                <button
-                                    type="button"
-                                    className="yolofuck-user-menu-item"
-                                    onClick={() => {
-                                        setShowUserMenu(false);
-                                        setShowTrashModal(true);
-                                    }}
-                                >
-                                    <Trash2 size={14} color="#f87171" />
-                                    <span>Trash Bin</span>
-                                </button>
-
-                                <button
-                                    type="button"
-                                    className="yolofuck-user-menu-item"
-                                    onClick={() => {
-                                        setShowUserMenu(false);
-                                        setShowQuestModal(true);
-                                    }}
-                                >
-                                    <Target size={14} color="var(--yolo-lime, #c8f72c)" />
-                                    <span>Quests</span>
-                                </button>
-
-                                <button
-                                    type="button"
-                                    className="yolofuck-user-menu-item"
-                                    onClick={() => {
-                                        setShowUserMenu(false);
-                                        setShowFriendsModal(true);
-                                    }}
-                                >
-                                    <Users size={14} color="#60a5fa" />
-                                    <span>Friends</span>
-                                </button>
-
-                                <div className="yolofuck-user-menu-divider" />
-
-                                <button
-                                    type="button"
-                                    className="yolofuck-user-menu-item logout"
-                                    onClick={() => {
-                                        setShowUserMenu(false);
-                                        signOut();
-                                    }}
-                                >
-                                    <LogOut size={14} color="#f87171" />
-                                    <span>Log out</span>
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
             </header>
 
             {/* Mobile Row 2: Organization / Workspace 50/50 Split */}

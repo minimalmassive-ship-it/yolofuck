@@ -90,6 +90,23 @@ function formatTakeTime(isoStr?: string): string {
     }
 }
 
+/**
+ * Derives a MIME type string from a video URL for use in <source type="...">.
+ * Falls back to 'video/mp4' for unknown extensions.
+ */
+function getMimeTypeFromUrl(url: string): string {
+    try {
+        const path = new URL(url).pathname.toLowerCase();
+        if (path.endsWith('.webm')) return 'video/webm';
+        if (path.endsWith('.ogg') || path.endsWith('.ogv')) return 'video/ogg';
+        if (path.endsWith('.mov')) return 'video/mp4'; // QuickTime MOV — browsers treat as mp4 container
+        if (path.endsWith('.mp4') || path.endsWith('.m4v')) return 'video/mp4';
+        return 'video/mp4'; // safe fallback
+    } catch {
+        return 'video/mp4';
+    }
+}
+
 export const JournalStoryView: React.FC<JournalStoryViewProps> = ({ 
     projectId: _projectId, 
     searchQuery = '',
@@ -586,7 +603,13 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
     useEffect(() => {
         if (!showVideoPlayer || !activeClip || !videoRef.current) return;
         const video = videoRef.current;
-        video.src = activeClip.clip_url;
+
+        // Set src directly (most compatible approach; <source> tags are set in JSX but
+        // programmatic .src bypasses them — that's intentional here for dynamic clip switching)
+        const clipUrl = activeClip.clip_url;
+        if (video.src !== clipUrl) {
+            video.src = clipUrl;
+        }
         video.currentTime = 0;
         video.muted = isMuted;
         video.volume = volume;
@@ -605,6 +628,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
             }
         }
     }, [showVideoPlayer, currentClipIndex, activeClip?.id, activeClip?.clip_url, volume, isMuted, isLooping, isPlaying]);
+
 
     // ── Start Full-screen Story Player ──
     const handleStartDayPlayer = useCallback((date: string, clipIdx = 0, _isSingle = false) => {
@@ -1173,12 +1197,14 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                         />
                                     ) : (
                                         <video
-                                            src={prevClip.clip_url}
                                             className="yolofuck-player-video"
                                             preload="auto"
                                             muted
                                             playsInline
-                                        />
+                                            crossOrigin="anonymous"
+                                        >
+                                            <source src={prevClip.clip_url} type={getMimeTypeFromUrl(prevClip.clip_url)} />
+                                        </video>
                                     )}
                                 </div>
                             )}
@@ -1197,6 +1223,7 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                     playsInline
                                     muted={isMuted}
                                     loop={isLooping}
+                                    crossOrigin="anonymous"
                                     onTimeUpdate={() => {
                                         if (videoRef.current) {
                                             setCurrentTime(videoRef.current.currentTime);
@@ -1230,12 +1257,14 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                         />
                                     ) : (
                                         <video
-                                            src={nextClip.clip_url}
                                             className="yolofuck-player-video"
                                             preload="auto"
                                             muted
                                             playsInline
-                                        />
+                                            crossOrigin="anonymous"
+                                        >
+                                            <source src={nextClip.clip_url} type={getMimeTypeFromUrl(nextClip.clip_url)} />
+                                        </video>
                                     )}
                                 </div>
                             )}
@@ -1547,13 +1576,15 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                                             >
                                                                 {isLoopingThis ? (
                                                                     <video
-                                                                        src={clip.clip_url}
                                                                         autoPlay
                                                                         loop
                                                                         playsInline
                                                                         muted={false}
                                                                         className="yolofuck-square-media"
-                                                                    />
+                                                                        crossOrigin="anonymous"
+                                                                    >
+                                                                        <source src={clip.clip_url} type={getMimeTypeFromUrl(clip.clip_url)} />
+                                                                    </video>
                                                                 ) : clip.thumbnail_url ? (
                                                                     <img 
                                                                         src={clip.thumbnail_url} 
@@ -1562,11 +1593,13 @@ export const JournalStoryView: React.FC<JournalStoryViewProps> = ({
                                                                     />
                                                                 ) : (
                                                                     <video
-                                                                        src={clip.clip_url}
                                                                         className="yolofuck-square-media"
                                                                         preload="metadata"
                                                                         muted
-                                                                    />
+                                                                        crossOrigin="anonymous"
+                                                                    >
+                                                                        <source src={clip.clip_url} type={getMimeTypeFromUrl(clip.clip_url)} />
+                                                                    </video>
                                                                 )}
 
                                                                 {/* Ghost indicator at original position */}
