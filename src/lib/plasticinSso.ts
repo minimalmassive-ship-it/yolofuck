@@ -148,7 +148,16 @@ export async function initiatePlasticinSso(options: PlasticinSsoInitOptions = {}
         authUrl.searchParams.set('prompt', options.prompt);
     }
 
-    window.location.href = authUrl.toString();
+    const isPwa =
+        typeof window !== 'undefined' &&
+        (window.matchMedia?.('(display-mode: standalone)').matches ||
+        (window.navigator as { standalone?: boolean }).standalone === true);
+
+    if (isPwa) {
+        window.open(authUrl.toString(), '_blank', 'noopener,noreferrer');
+    } else {
+        window.location.href = authUrl.toString();
+    }
 }
 
 /**
