@@ -97,9 +97,19 @@ export const JournalPage: React.FC = () => {
     });
 
     // Resolve avatar URL safely
-    const avatarUrl: string | null = profile?.avatar_url || user?.user_metadata?.avatar_url || null;
-    const displayName: string = profile?.username || user?.user_metadata?.username || 'Account';
-    const initials: string = displayName.slice(0, 2).toUpperCase();
+    const avatarUrl: string | null =
+        profile?.avatar_url ||
+        user?.user_metadata?.avatar_url ||
+        user?.user_metadata?.picture ||
+        user?.user_metadata?.avatarUrl ||
+        null;
+    const displayName: string =
+        profile?.display_name ||
+        profile?.username ||
+        user?.user_metadata?.username ||
+        user?.user_metadata?.full_name ||
+        'Account';
+    const initials: string = displayName.replace(/^@+/, '').slice(0, 2).toUpperCase() || 'MC';
 
     // Cross-App Realtime Organization Synchronization
     useEffect(() => {
@@ -425,13 +435,15 @@ export const JournalPage: React.FC = () => {
                                         onError={(e) => {
                                             (e.currentTarget as HTMLImageElement).style.display = 'none';
                                             const next = e.currentTarget.nextElementSibling as HTMLElement | null;
-                                            if (next) next.style.display = 'flex';
+                                            if (next) {
+                                                next.style.display = 'flex';
+                                            }
                                         }}
                                     />
                                 ) : null}
                                 <span
                                     className="yolofuck-avatar-initials"
-                                    style={avatarUrl ? { display: 'none' } : {}}
+                                    style={avatarUrl ? { display: 'none' } : { display: 'flex' }}
                                 >
                                     {initials}
                                 </span>

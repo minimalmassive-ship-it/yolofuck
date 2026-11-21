@@ -341,7 +341,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                                 user_metadata: {
                                     user_name: parsed.preferred_username || parsed.name || parsed.email.split('@')[0],
                                     full_name: parsed.name || parsed.preferred_username || parsed.email.split('@')[0],
-                                    avatar_url: parsed.picture || 'https://plasticin.com/default-avatar.png',
+                                    avatar_url: parsed.picture || parsed.avatar_url || parsed.avatarUrl || 'https://plasticin.com/default-avatar.png',
                                 },
                                 aud: 'authenticated',
                                 created_at: new Date().toISOString(),
@@ -366,7 +366,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         const cleanUser = rawName.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 15) || 'user';
                         const cleanHandle = `@${cleanUser}`;
                         const displayName = currentUser.user_metadata?.full_name || cleanUser;
-                        const avatarUrl = currentUser.user_metadata?.avatar_url || 'https://plasticin.com/default-avatar.png';
+                        const avatarUrl =
+                            currentUser.user_metadata?.avatar_url ||
+                            currentUser.user_metadata?.picture ||
+                            currentUser.user_metadata?.avatarUrl ||
+                            'https://plasticin.com/default-avatar.png';
 
                         // Sync to Central plasticin_users only when an authenticated Plasticin Auth session matches currentUser.id
                         try {
