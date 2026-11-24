@@ -160,7 +160,7 @@ export const JournalPage: React.FC = () => {
             (currentActiveOrg?.name && ws.name.trim().toLowerCase() === currentActiveOrg.name.trim().toLowerCase())
         );
         if (isMgmt) return resolveOrgAvatarUrl(currentActiveOrg);
-        return sanitizeSafeUrl(ws.avatarUrl || null, true);
+        return sanitizeSafeUrl(ws.avatarUrl || null, true) || resolveOrgAvatarUrl(currentActiveOrg);
     };
 
     // Cross-App Realtime Organization Synchronization
