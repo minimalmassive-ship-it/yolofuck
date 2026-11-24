@@ -268,6 +268,7 @@ export async function handlePlasticinCallback(): Promise<{
         } catch {}
 
         // 1. Establish official Central Supabase session via server-side OIDC session bridge
+        let sessionHydrated = false;
         try {
             const bridgeRes = await fetch(`${PLASTICIN_BASE_URL}/api/oauth/session-bridge`, {
                 method: 'POST',
@@ -289,6 +290,7 @@ export async function handlePlasticinCallback(): Promise<{
                         token_hash: bridgeData.token_hash,
                         type: 'magiclink',
                     });
+                    sessionHydrated = true;
                 } else if (bridgeData?.access_token || tokens.supabase_access_token) {
                     const sbAccess = bridgeData?.access_token || tokens.supabase_access_token || '';
                     const sbRefresh = bridgeData?.refresh_token || tokens.supabase_refresh_token || tokens.refresh_token || '';
@@ -298,6 +300,7 @@ export async function handlePlasticinCallback(): Promise<{
                                 access_token: sbAccess,
                                 refresh_token: sbRefresh,
                             });
+                            sessionHydrated = true;
                         } catch (setErr) {
                             console.warn('[PlasticinSSO] Supabase local session hydration notice:', setErr);
                         }
@@ -306,6 +309,18 @@ export async function handlePlasticinCallback(): Promise<{
             }
         } catch (bridgeErr) {
             console.warn('[PlasticinSSO] Session bridge notice (continuing with verified OIDC claims):', bridgeErr);
+        }
+
+        // Direct fallback: if bridge did not hydrate but tokens contained supabase_access_token
+        if (!sessionHydrated && tokens.supabase_access_token && !tokens.supabase_access_token.startsWith('eyJhbGciOiJFUzI1NiI')) {
+            try {
+                await supabaseAuth.auth.setSession({
+                    access_token: tokens.supabase_access_token,
+                    refresh_token: tokens.supabase_refresh_token || tokens.refresh_token || '',
+                });
+            } catch (directErr) {
+                console.warn('[PlasticinSSO] Direct session hydration notice:', directErr);
+            }
         }
 
         // 2. Save non-sensitive recognized account hint for UI convenience
