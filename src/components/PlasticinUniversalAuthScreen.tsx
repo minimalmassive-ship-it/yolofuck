@@ -950,7 +950,7 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
                                                 autoFocus
                                                 value={username}
                                                 onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
-                                                placeholder="e.g. acidplasticine"
+                                                placeholder="e.g. yourhandle"
                                                 className="plasticin-auth-input"
                                             />
                                         </div>
@@ -1076,7 +1076,7 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
                                             />
                                         </div>
                                         <div className="plasticin-auth-badge-info">
-                                            <span className="plasticin-auth-badge-name">{username || '@acidplasticine'}</span>
+                                            <span className="plasticin-auth-badge-name">{username || '@user'}</span>
                                             <span className="plasticin-auth-badge-email">{email || identifier}</span>
                                         </div>
                                         <button

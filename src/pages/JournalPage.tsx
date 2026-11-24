@@ -45,8 +45,9 @@ import {
     isSameOrgEntity,
     broadcastActiveOrgChange,
     subscribeToActiveOrgSync,
-    CanonicalEcosystemOrgs,
-    DefaultWorkspacesByOrg,
+    fetchPlasticinTeams,
+    PlatformPlasticinOrgId,
+    sanitizeSafeUrl,
     type EcosystemWorkspaceItem,
 } from '../lib/ecosystemOrgSync';
 
@@ -81,26 +82,56 @@ export const JournalPage: React.FC = () => {
     const [isMobileOrgNavOpen, setIsMobileOrgNavOpen] = useState(false);
     const [isMobileWsNavOpen, setIsMobileWsNavOpen] = useState(false);
 
-    const effectiveOrgs = organizations && organizations.length > 0 ? organizations : CanonicalEcosystemOrgs;
-    const currentActiveOrg = activeOrganization || effectiveOrgs[0];
+    const effectiveOrgs = organizations || [];
+    const currentActiveOrg = activeOrganization || effectiveOrgs[0] || null;
 
-    const currentWorkspaces = (currentActiveOrg?.id && DefaultWorkspacesByOrg[currentActiveOrg.id]) || [
-        { id: 'ws_default', name: 'Yolo' }
-    ];
-    const [activeWorkspace, setActiveWorkspace] = useState<EcosystemWorkspaceItem>(() => {
+    const [currentWorkspaces, setCurrentWorkspaces] = useState<EcosystemWorkspaceItem[]>([]);
+    const [activeWorkspace, setActiveWorkspace] = useState<EcosystemWorkspaceItem | null>(() => {
         if (typeof window !== 'undefined') {
-            const savedWs = localStorage.getItem('memcut_active_workspace_name');
-            const found = currentWorkspaces.find(w => w.name === savedWs);
-            if (found) return found;
+            const savedId = localStorage.getItem('memcut_active_workspace_id');
+            const savedName = localStorage.getItem('memcut_active_workspace_name');
+            if (savedId && savedName) {
+                return { id: savedId, name: savedName };
+            }
         }
-        return currentWorkspaces[0];
+        return null;
     });
 
-    // Resolve avatar URL safely
+    // Load live workspaces from Plasticin Master Directory for the active organization
+    useEffect(() => {
+        if (!currentActiveOrg?.id) {
+            setCurrentWorkspaces([]);
+            return;
+        }
+        let cancelled = false;
+        const ctrl = new AbortController();
+        fetchPlasticinTeams(currentActiveOrg.id, ctrl.signal).then((teams) => {
+            if (cancelled) return;
+            setCurrentWorkspaces(teams);
+            if (teams.length > 0) {
+                const savedId = typeof window !== 'undefined' ? localStorage.getItem('memcut_active_workspace_id') : null;
+                const savedName = typeof window !== 'undefined' ? localStorage.getItem('memcut_active_workspace_name') : null;
+                const matched = teams.find((w) => w.id === savedId || w.name === savedName) || teams[0];
+                setActiveWorkspace(matched);
+                try {
+                    localStorage.setItem('memcut_active_workspace_id', matched.id);
+                    localStorage.setItem('memcut_active_workspace_name', matched.name);
+                } catch {}
+            } else {
+                setActiveWorkspace(null);
+            }
+        });
+        return () => {
+            cancelled = true;
+            ctrl.abort();
+        };
+    }, [currentActiveOrg?.id]);
+
+    // Resolve avatar URL safely (prioritize live Plasticin OIDC picture)
     const avatarUrl: string | null =
-        profile?.avatar_url ||
         user?.user_metadata?.avatar_url ||
         user?.user_metadata?.picture ||
+        profile?.avatar_url ||
         user?.user_metadata?.avatarUrl ||
         null;
     const displayName: string =
@@ -111,6 +142,27 @@ export const JournalPage: React.FC = () => {
         'Account';
     const initials: string = displayName.replace(/^@+/, '').slice(0, 2).toUpperCase() || 'MC';
 
+    const resolveOrgAvatarUrl = (org: typeof effectiveOrgs[0] | null | undefined): string | null => {
+        if (!org) return null;
+        const isPersonal = Boolean(org.isPersonal || org.is_personal || String(org.id).startsWith('org_user_'));
+        const isPlatform = Boolean(org.isPlatformOwned || org.id === PlatformPlasticinOrgId);
+        const raw = isPersonal
+            ? (avatarUrl || org.avatarUrl || null)
+            : isPlatform
+                ? (org.avatarUrl || 'https://plasticin.com/assets/plasticin_icon.png')
+                : (org.avatarUrl || null);
+        return sanitizeSafeUrl(raw, true);
+    };
+
+    const resolveWorkspaceAvatarUrl = (ws: EcosystemWorkspaceItem): string | null => {
+        const isMgmt = Boolean(
+            ws.isManagement ||
+            (currentActiveOrg?.name && ws.name.trim().toLowerCase() === currentActiveOrg.name.trim().toLowerCase())
+        );
+        if (isMgmt) return resolveOrgAvatarUrl(currentActiveOrg);
+        return sanitizeSafeUrl(ws.avatarUrl || null, true);
+    };
+
     // Cross-App Realtime Organization Synchronization
     useEffect(() => {
         const unsubscribe = subscribeToActiveOrgSync('memcut', (payload) => {
@@ -119,10 +171,6 @@ export const JournalPage: React.FC = () => {
             );
             if (match) {
                 setActiveOrganization(match);
-                const wsList = DefaultWorkspacesByOrg[match.id] || [];
-                if (wsList.length > 0) {
-                    setActiveWorkspace(wsList[0]);
-                }
             }
         });
         return unsubscribe;
@@ -132,18 +180,10 @@ export const JournalPage: React.FC = () => {
         setActiveOrganization(org);
         setIsOrgNavOpen(false);
         setIsMobileOrgNavOpen(false);
-        const wsList = DefaultWorkspacesByOrg[org.id] || [];
-        if (wsList.length > 0) {
-            setActiveWorkspace(wsList[0]);
-            if (typeof window !== 'undefined') {
-                localStorage.setItem('memcut_active_workspace_id', wsList[0].id);
-                localStorage.setItem('memcut_active_workspace_name', wsList[0].name);
-            }
-        }
         broadcastActiveOrgChange({
             id: org.id,
             name: org.name,
-            is_personal: (org as { is_personal?: boolean }).is_personal,
+            is_personal: Boolean(org.isPersonal || org.is_personal || String(org.id).startsWith('org_user_')),
             sourceApp: 'memcut',
         });
     };
@@ -257,6 +297,7 @@ export const JournalPage: React.FC = () => {
                                     <div className="yolofuck-crumb-dropdown-header">Organizations</div>
                                     {effectiveOrgs.map((org) => {
                                         const isActive = isSameOrgEntity(currentActiveOrg?.id, org.id);
+                                        const orgAvatar = resolveOrgAvatarUrl(org);
                                         return (
                                             <button
                                                 key={org.id}
@@ -264,8 +305,17 @@ export const JournalPage: React.FC = () => {
                                                 className={`yolofuck-crumb-item ${isActive ? 'active' : ''}`}
                                                 onClick={() => handleSelectOrg(org)}
                                             >
-                                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                    {org.name}
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                                                    {orgAvatar ? (
+                                                        <img src={orgAvatar} alt="" style={{ width: '18px', height: '18px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                                                    ) : (
+                                                        <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#21201d', color: '#efede3', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, flexShrink: 0 }}>
+                                                            {(org.name || 'O').charAt(0).toUpperCase()}
+                                                        </span>
+                                                    )}
+                                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                        {org.name}
+                                                    </span>
                                                 </span>
                                                 {isActive && <Check size={12} color="#c8f931" />}
                                             </button>
@@ -289,7 +339,7 @@ export const JournalPage: React.FC = () => {
                                 title="Active Workspace"
                             >
                                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {activeWorkspace?.name || 'Yolo'}
+                                    {activeWorkspace?.name || currentActiveOrg?.name || 'Workspace'}
                                 </span>
                                 <ChevronDown size={12} className={`yolofuck-chevron ${isWsNavOpen ? 'open' : ''}`} />
                             </button>
@@ -301,6 +351,7 @@ export const JournalPage: React.FC = () => {
                                     </div>
                                     {currentWorkspaces.map((ws) => {
                                         const isActive = ws.id === activeWorkspace?.id;
+                                        const wsAvatar = resolveWorkspaceAvatarUrl(ws);
                                         return (
                                             <button
                                                 key={ws.id}
@@ -308,8 +359,17 @@ export const JournalPage: React.FC = () => {
                                                 className={`yolofuck-crumb-item ${isActive ? 'active' : ''}`}
                                                 onClick={() => handleSelectWorkspace(ws)}
                                             >
-                                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                    {ws.name}
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                                                    {wsAvatar ? (
+                                                        <img src={wsAvatar} alt="" style={{ width: '18px', height: '18px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                                                    ) : (
+                                                        <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#21201d', color: '#efede3', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, flexShrink: 0 }}>
+                                                            {(ws.name || 'W').charAt(0).toUpperCase()}
+                                                        </span>
+                                                    )}
+                                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                        {ws.name}
+                                                    </span>
                                                 </span>
                                                 {isActive && <Check size={12} color="#c8f931" />}
                                             </button>
@@ -591,6 +651,7 @@ export const JournalPage: React.FC = () => {
                             <div className="yolofuck-crumb-dropdown-header">Organizations</div>
                             {effectiveOrgs.map((org) => {
                                 const isActive = isSameOrgEntity(currentActiveOrg?.id, org.id);
+                                const orgAvatar = resolveOrgAvatarUrl(org);
                                 return (
                                     <button
                                         key={org.id}
@@ -598,8 +659,17 @@ export const JournalPage: React.FC = () => {
                                         className={`yolofuck-crumb-item ${isActive ? 'active' : ''}`}
                                         onClick={() => handleSelectOrg(org)}
                                     >
-                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                            {org.name}
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                                            {orgAvatar ? (
+                                                <img src={orgAvatar} alt="" style={{ width: '18px', height: '18px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                                            ) : (
+                                                <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#21201d', color: '#efede3', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, flexShrink: 0 }}>
+                                                    {(org.name || 'O').charAt(0).toUpperCase()}
+                                                </span>
+                                            )}
+                                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {org.name}
+                                            </span>
                                         </span>
                                         {isActive && <Check size={12} color="#c8f931" />}
                                     </button>
@@ -621,7 +691,7 @@ export const JournalPage: React.FC = () => {
                         }}
                     >
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {activeWorkspace?.name || 'Yolo'}
+                            {activeWorkspace?.name || currentActiveOrg?.name || 'Workspace'}
                         </span>
                         <ChevronDown size={12} className={`yolofuck-chevron ${isMobileWsNavOpen ? 'open' : ''}`} />
                     </button>
@@ -631,6 +701,7 @@ export const JournalPage: React.FC = () => {
                             <div className="yolofuck-crumb-dropdown-header">{currentActiveOrg?.name || 'Workspaces'}</div>
                             {currentWorkspaces.map((ws) => {
                                 const isActive = ws.id === activeWorkspace?.id;
+                                const wsAvatar = resolveWorkspaceAvatarUrl(ws);
                                 return (
                                     <button
                                         key={ws.id}
@@ -638,8 +709,17 @@ export const JournalPage: React.FC = () => {
                                         className={`yolofuck-crumb-item ${isActive ? 'active' : ''}`}
                                         onClick={() => handleSelectWorkspace(ws)}
                                     >
-                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                            {ws.name}
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                                            {wsAvatar ? (
+                                                <img src={wsAvatar} alt="" style={{ width: '18px', height: '18px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                                            ) : (
+                                                <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#21201d', color: '#efede3', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, flexShrink: 0 }}>
+                                                    {(ws.name || 'W').charAt(0).toUpperCase()}
+                                                </span>
+                                            )}
+                                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {ws.name}
+                                            </span>
                                         </span>
                                         {isActive && <Check size={12} color="#c8f931" />}
                                     </button>

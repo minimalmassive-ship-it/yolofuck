@@ -259,6 +259,8 @@ export interface PlasticinDirectoryOrg {
   isPlatformOwned?: boolean;
   role?: string;
   is_personal?: boolean;
+  isPersonal?: boolean;
+  avatarUrl?: string | null;
 }
 
 export interface PlasticinDirectoryTeam {
@@ -269,6 +271,7 @@ export interface PlasticinDirectoryTeam {
   description?: string;
   appTarget?: string;
   isManagement?: boolean;
+  avatarUrl?: string | null;
 }
 
 export interface PlasticinDirectoryMember {
@@ -285,7 +288,7 @@ export async function fetchPlasticinOrganizations(signal?: AbortSignal): Promise
     if (!headers['Authorization']) return [];
     const res = await fetch(`${PlasticinDirectorySyncUrl}?action=organizations`, {
       headers,
-      credentials: 'include',
+      credentials: 'omit',
       cache: 'no-store',
       ...(signal ? { signal } : {}),
     });
@@ -295,8 +298,10 @@ export async function fetchPlasticinOrganizations(signal?: AbortSignal): Promise
     return data.organizations.map((org: Record<string, unknown>) => {
       const cId = resolveCanonicalPlasticinOrgId(typeof org.id === 'string' ? org.id : '');
       const isPlatform = cId === PlatformPlasticinOrgId;
+      const isPersonal = Boolean(org.isPersonal || org.is_personal || cId.startsWith('org_user_'));
       const rawName = sanitizeOrgName(org.name, isPlatform ? 'Plasticin' : 'Organization');
       const safeSlug = sanitizeDisplayText(org.slug, 60);
+      const rawAvatar = typeof org.avatarUrl === 'string' ? org.avatarUrl : (typeof org.avatar_url === 'string' ? org.avatar_url : null);
       return {
         id: cId,
         name: !isPlatform && rawName === 'Plasticin' ? sanitizeOrgName(safeSlug, 'Organization') : rawName,
@@ -305,6 +310,9 @@ export async function fetchPlasticinOrganizations(signal?: AbortSignal): Promise
         description: sanitizeOrgDescription(org.description),
         planTier: typeof org.planTier === 'string' ? org.planTier : undefined,
         isPlatformOwned: isPlatform,
+        is_personal: isPersonal,
+        isPersonal,
+        avatarUrl: sanitizeSafeUrl(rawAvatar, true),
       };
     });
   } catch (err) {
@@ -326,7 +334,7 @@ export async function fetchPlasticinDirectoryDetail(
     const canonicalOrgId = resolveCanonicalPlasticinOrgId(orgId);
     const headers = await getPlasticinAuthHeaders(false);
     const res = await fetch(`${PlasticinDirectorySyncUrl}?orgId=${encodeURIComponent(canonicalOrgId)}`, {
-      credentials: 'include',
+      credentials: 'omit',
       cache: 'no-store',
       headers,
       ...(signal ? { signal } : {}),
@@ -345,6 +353,13 @@ export async function fetchPlasticinDirectoryDetail(
           description: sanitizeOrgDescription(data.organization.description),
           planTier: data.organization.planTier,
           isPlatformOwned: canonicalOrgId === PlatformPlasticinOrgId,
+          isPersonal: Boolean(data.organization.isPersonal || data.organization.is_personal || canonicalOrgId.startsWith('org_user_')),
+          avatarUrl: sanitizeSafeUrl(
+            typeof data.organization.avatarUrl === 'string'
+              ? data.organization.avatarUrl
+              : (typeof data.organization.avatar_url === 'string' ? data.organization.avatar_url : null),
+            true
+          ),
         }
       : null;
     const teams = Array.isArray(data?.teams)
@@ -358,6 +373,10 @@ export async function fetchPlasticinDirectoryDetail(
           description: sanitizeOrgDescription(t.description),
           appTarget: typeof t.appTarget === 'string' ? t.appTarget : undefined,
           isManagement: Boolean(t.isManagement),
+          avatarUrl: sanitizeSafeUrl(
+            typeof t.avatarUrl === 'string' ? t.avatarUrl : (typeof t.avatar_url === 'string' ? t.avatar_url : null),
+            true
+          ),
         }))
       : [];
     const members = Array.isArray(data?.members) ? data.members : [];
@@ -544,62 +563,65 @@ export interface EcosystemWorkspaceItem {
   name: string;
   color?: string | null;
   is_public?: boolean;
+  isManagement?: boolean;
+  avatarUrl?: string | null;
 }
 
-export const CanonicalEcosystemOrgs: PlasticinDirectoryOrg[] = [
-  {
-    id: 'a1a1a1a1-ac1d-4000-8000-000000000001',
-    name: 'acidplasticine',
-    role: 'owner',
-    is_personal: true,
-  },
-  {
-    id: '7b595de8-80f7-4c9d-bf08-52a083b76074',
-    name: 'Singularity XXL',
-    role: 'owner',
-    is_personal: false,
-  },
-  {
-    id: '1f95e31d-909b-42b7-845b-d61329c038a8',
-    name: 'Plasticin Enterprise',
-    role: 'owner',
-    is_personal: false,
-  },
-  {
-    id: '397d899b-b317-45a6-910e-6c8f8d11e332',
-    name: 'Plasticin Environment',
-    role: 'owner',
-    is_personal: false,
-  },
-  {
-    id: 'ab7df93c-7a07-43ad-b7a0-581dcde113fc',
-    name: 'Bydgosranie',
-    role: 'owner',
-    is_personal: false,
-  },
-];
+// Live directory is authoritative; never expose hardcoded private tenant names.
+export const CanonicalEcosystemOrgs: PlasticinDirectoryOrg[] = [];
 
-export const DefaultWorkspacesByOrg: Record<string, EcosystemWorkspaceItem[]> = {
-  'a1a1a1a1-ac1d-4000-8000-000000000001': [
-    { id: 'ws_personal_yolo', name: 'Yolo' },
-    { id: 'ws_personal_journal', name: 'Daily Logs' },
-    { id: 'ws_personal_takes', name: 'Voice Notes' },
-  ],
-  '7b595de8-80f7-4c9d-bf08-52a083b76074': [
-    { id: 'ws_singularity_valentine', name: 'Valentine Binder' },
-    { id: 'ws_singularity_stories', name: 'Singularity Takes' },
-  ],
-  '1f95e31d-909b-42b7-845b-d61329c038a8': [
-    { id: 'ws_enterprise_main', name: 'Enterprise Stories' },
-    { id: 'ws_enterprise_compliance', name: 'Compliance Vault' },
-  ],
-  '397d899b-b317-45a6-910e-6c8f8d11e332': [
-    { id: 'ws_env_green', name: 'Field Notes' },
-  ],
-  'ab7df93c-7a07-43ad-b7a0-581dcde113fc': [
-    { id: 'ws_bydgosranie_local', name: 'Local Media' },
-  ],
-};
+export const DefaultWorkspacesByOrg: Record<string, EcosystemWorkspaceItem[]> = {};
+
+export async function fetchPlasticinTeams(
+  orgId: string,
+  signal?: AbortSignal
+): Promise<EcosystemWorkspaceItem[]> {
+  if (!orgId) return [];
+  try {
+    const canonicalOrgId = resolveCanonicalPlasticinOrgId(orgId);
+    const headers = await getPlasticinAuthHeaders(false);
+    if (!headers['Authorization']) return [];
+    const res = await fetch(
+      `${PlasticinDirectorySyncUrl}?orgId=${encodeURIComponent(canonicalOrgId)}&action=teams`,
+      {
+        headers,
+        credentials: 'omit',
+        cache: 'no-store',
+        ...(signal ? { signal } : {}),
+      }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!data?.success || !Array.isArray(data.teams)) return [];
+    const out: EcosystemWorkspaceItem[] = [];
+    for (const t of data.teams as Array<Record<string, unknown>>) {
+      const name = sanitizeOrgName(t.name, '');
+      const slug = String(t.slug || '').toLowerCase();
+      if (!name || slug === 'test') continue;
+      const desc = typeof t.description === 'string' ? t.description : '';
+      const apps = (t.connected_apps || t.connectedApps) as Record<string, unknown> | undefined;
+      if (apps && apps.memcut === false) continue;
+      if (desc.includes('<!--connected:')) {
+        const m = desc.match(/<!--connected:([^>]+)-->/i);
+        if (m && !m[1].split(',').map((s) => s.trim().toLowerCase()).includes('memcut')) {
+          continue;
+        }
+      }
+      const rawAvatar = typeof t.avatarUrl === 'string' ? t.avatarUrl : (typeof t.avatar_url === 'string' ? t.avatar_url : null);
+      out.push({
+        id: String(t.id || name),
+        name,
+        isManagement: Boolean(t.isManagement),
+        avatarUrl: sanitizeSafeUrl(rawAvatar, true),
+      });
+    }
+    return out;
+  } catch (err) {
+    if (isAbortError(err)) return [];
+    console.warn('[EcosystemOrgSync] Failed to fetch Plasticin teams:', err);
+    return [];
+  }
+}
 
 export function broadcastActiveOrgChange(payload: EcosystemActiveOrgPayload): void {
   if (typeof window === 'undefined') return;

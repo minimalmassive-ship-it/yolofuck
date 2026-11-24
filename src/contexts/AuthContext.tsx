@@ -432,6 +432,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 if (isActive && profileData) {
                     setProfile(profileData);
                 }
+
+                // Live authoritative avatar refresh from id.plasticin.com OIDC userinfo
+                if (typeof window !== 'undefined') {
+                    const oidcToken =
+                        sessionStorage.getItem('plasticin_oidc_access_token') ||
+                        localStorage.getItem('plasticin_oidc_access_token');
+                    if (oidcToken) {
+                        fetch('https://plasticin.com/api/oauth/userinfo', {
+                            headers: { Authorization: `Bearer ${oidcToken}` },
+                            credentials: 'omit',
+                            cache: 'no-store',
+                        })
+                            .then((res) => (res.ok ? res.json() : null))
+                            .then((info) => {
+                                if (!isActive || !info) return;
+                                const freshPicture = typeof info.picture === 'string' && info.picture.trim() && !info.picture.startsWith('data:')
+                                    ? info.picture.trim()
+                                    : (typeof info.avatar_url === 'string' && info.avatar_url.trim() && !info.avatar_url.startsWith('data:')
+                                        ? info.avatar_url.trim()
+                                        : null);
+                                if (freshPicture) {
+                                    setProfile((prev) => (prev ? { ...prev, avatar_url: freshPicture } : prev));
+                                    setUser((prev) =>
+                                        prev
+                                            ? ({
+                                                  ...prev,
+                                                  user_metadata: {
+                                                      ...prev.user_metadata,
+                                                      avatar_url: freshPicture,
+                                                      picture: freshPicture,
+                                                  },
+                                              } as User)
+                                            : prev
+                                    );
+                                    try {
+                                        const cachedRaw = localStorage.getItem('plasticin_sso_user');
+                                        if (cachedRaw) {
+                                            const parsed = JSON.parse(cachedRaw);
+                                            parsed.picture = freshPicture;
+                                            parsed.avatar_url = freshPicture;
+                                            localStorage.setItem('plasticin_sso_user', JSON.stringify(parsed));
+                                        }
+                                    } catch {}
+                                }
+                            })
+                            .catch(() => {});
+                    }
+                }
+
                 refreshOrganizations();
 
                 // Bind local owner ID strictly to authenticated user.id
@@ -459,6 +508,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             subscription.unsubscribe();
         };
     }, [fetchProfile]);
+
+    // Live avatar refresh when returning to tab (throttled to 30s)
+    useEffect(() => {
+        if (typeof document === 'undefined' || !user) return;
+        let lastCheckedAt = Date.now();
+        const onVisibility = async () => {
+            if (document.visibilityState !== 'visible') return;
+            const now = Date.now();
+            if (now - lastCheckedAt < 30_000) return;
+            lastCheckedAt = now;
+            const oidcToken =
+                sessionStorage.getItem('plasticin_oidc_access_token') ||
+                localStorage.getItem('plasticin_oidc_access_token');
+            if (!oidcToken) return;
+            try {
+                const res = await fetch('https://plasticin.com/api/oauth/userinfo', {
+                    headers: { Authorization: `Bearer ${oidcToken}` },
+                    credentials: 'omit',
+                    cache: 'no-store',
+                });
+                if (!res.ok) return;
+                const info = await res.json();
+                const freshPicture = typeof info?.picture === 'string' && info.picture.trim() && !info.picture.startsWith('data:')
+                    ? info.picture.trim()
+                    : (typeof info?.avatar_url === 'string' && info.avatar_url.trim() && !info.avatar_url.startsWith('data:')
+                        ? info.avatar_url.trim()
+                        : null);
+                if (freshPicture && mounted.current) {
+                    setProfile((prev) => (prev ? { ...prev, avatar_url: freshPicture } : prev));
+                    setUser((prev) =>
+                        prev
+                            ? ({
+                                  ...prev,
+                                  user_metadata: {
+                                      ...prev.user_metadata,
+                                      avatar_url: freshPicture,
+                                      picture: freshPicture,
+                                  },
+                              } as User)
+                            : prev
+                    );
+                }
+            } catch {
+                // Non-blocking background refresh
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibility);
+        return () => document.removeEventListener('visibilitychange', onVisibility);
+    }, [user]);
 
     const signInWithEmail = useCallback(async (email: string, password: string) => {
         try {
