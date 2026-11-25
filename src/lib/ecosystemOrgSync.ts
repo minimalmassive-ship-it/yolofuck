@@ -565,6 +565,8 @@ export interface EcosystemWorkspaceItem {
   is_public?: boolean;
   isManagement?: boolean;
   avatarUrl?: string | null;
+  teamRole?: string;
+  memberCount?: number;
 }
 
 // Live directory is authoritative; never expose hardcoded private tenant names.
@@ -608,11 +610,15 @@ export async function fetchPlasticinTeams(
         }
       }
       const rawAvatar = typeof t.avatarUrl === 'string' ? t.avatarUrl : (typeof t.avatar_url === 'string' ? t.avatar_url : null);
+      const rawTeamRole = typeof t.teamRole === 'string' ? t.teamRole : (typeof t.team_role === 'string' ? t.team_role : undefined);
+      const rawMemberCount = typeof t.memberCount === 'number' ? t.memberCount : undefined;
       out.push({
         id: String(t.id || name),
         name,
         isManagement: Boolean(t.isManagement),
         avatarUrl: sanitizeSafeUrl(rawAvatar, true),
+        teamRole: rawTeamRole,
+        memberCount: rawMemberCount,
       });
     }
     return out;
@@ -678,4 +684,136 @@ export function subscribeToActiveOrgSync(
     }
     window.removeEventListener('storage', storageHandler);
   };
+}
+
+export interface PlasticinOrgRoleGroup {
+  id: string;
+  name: string;
+  description?: string;
+  isSystem?: boolean;
+  permissions?: {
+    admin?: boolean;
+    manage_team?: boolean;
+    [key: string]: unknown;
+  };
+}
+
+export async function fetchPlasticinOrgGroups(
+  orgId: string,
+  signal?: AbortSignal
+): Promise<{
+  groups: PlasticinOrgRoleGroup[];
+  groupMemberships: Record<string, string[]>;
+  callerGroupIds: string[];
+}> {
+  const canonicalOrgId = resolveCanonicalPlasticinOrgId(orgId);
+  if (!canonicalOrgId || canonicalOrgId === 'personal') {
+    return { groups: [], groupMemberships: {}, callerGroupIds: [] };
+  }
+  try {
+    const headers = await getPlasticinAuthHeaders(false);
+    if (!headers['Authorization']) {
+      return { groups: [], groupMemberships: {}, callerGroupIds: [] };
+    }
+    const res = await fetch(
+      `${PlasticinDirectorySyncUrl}?orgId=${encodeURIComponent(canonicalOrgId)}&action=groups`,
+      {
+        headers,
+        credentials: 'omit',
+        cache: 'no-store',
+        ...(signal ? { signal } : {}),
+      }
+    );
+    if (!res.ok) {
+      return { groups: [], groupMemberships: {}, callerGroupIds: [] };
+    }
+    const data = (await res.json()) as {
+      groups?: Array<Record<string, unknown>>;
+      groupMemberships?: Record<string, string[]>;
+      callerGroupIds?: string[];
+    };
+    const groups: PlasticinOrgRoleGroup[] = Array.isArray(data?.groups)
+      ? data.groups
+          .map((g) => ({
+            id: String(g.id || ''),
+            name: sanitizeOrgName(g.name, ''),
+            description: sanitizeOrgDescription(g.description),
+            isSystem: Boolean(g.isSystem ?? g.is_system),
+            permissions:
+              g.permissions && typeof g.permissions === 'object'
+                ? (g.permissions as PlasticinOrgRoleGroup['permissions'])
+                : undefined,
+          }))
+          .filter((g) => Boolean(g.id && g.name))
+      : [];
+    const groupMemberships =
+      data?.groupMemberships && typeof data.groupMemberships === 'object'
+        ? data.groupMemberships
+        : {};
+    const callerGroupIds = Array.isArray(data?.callerGroupIds)
+      ? data.callerGroupIds.map(String)
+      : [];
+    return { groups, groupMemberships, callerGroupIds };
+  } catch (err) {
+    if (isAbortError(err)) {
+      return { groups: [], groupMemberships: {}, callerGroupIds: [] };
+    }
+    console.warn('[EcosystemOrgSync] Failed to fetch Plasticin org groups:', err);
+    return { groups: [], groupMemberships: {}, callerGroupIds: [] };
+  }
+}
+
+export async function syncWorkspaceMemberRoleToPlasticin(params: {
+  orgId: string;
+  teamId: string;
+  userId: string;
+  role: string;
+  signal?: AbortSignal;
+}): Promise<{ ok: boolean; teamRole?: 'lead' | 'member'; matchedRoleGroupId?: string | null; error?: string }> {
+  const canonicalOrgId = resolveCanonicalPlasticinOrgId(params.orgId);
+  if (!canonicalOrgId || canonicalOrgId === 'personal' || !params.teamId || !params.userId || !params.role) {
+    return { ok: false, error: 'Missing organization, workspace, user, or role identifier.' };
+  }
+  try {
+    const headers = await getPlasticinAuthHeaders(true);
+    if (!headers['Authorization']) {
+      return { ok: false, error: 'Plasticin session token unavailable.' };
+    }
+    const res = await fetch(PlasticinDirectorySyncUrl, {
+      method: 'POST',
+      headers,
+      credentials: 'omit',
+      cache: 'no-store',
+      body: JSON.stringify({
+        action: 'sync_workspace_member_role',
+        orgId: canonicalOrgId,
+        teamId: params.teamId,
+        userId: params.userId,
+        role: params.role,
+      }),
+      ...(params.signal ? { signal: params.signal } : {}),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      success?: boolean;
+      teamRole?: 'lead' | 'member';
+      matchedRoleGroupId?: string | null;
+      error?: string;
+    };
+    if (!res.ok || !data?.success) {
+      return { ok: false, error: data?.error || `Sync failed with status ${res.status}` };
+    }
+    return {
+      ok: true,
+      teamRole: data.teamRole,
+      matchedRoleGroupId: data.matchedRoleGroupId ?? null,
+    };
+  } catch (err) {
+    if (isAbortError(err)) {
+      return { ok: false, error: 'Sync aborted.' };
+    }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Network error syncing workspace role.',
+    };
+  }
 }

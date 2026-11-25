@@ -842,6 +842,8 @@ export const JournalPage: React.FC = () => {
             <OrganizationSettingsModal
                 isOpen={showOrgSettingsModal}
                 onClose={() => setShowOrgSettingsModal(false)}
+                activeWorkspace={activeWorkspace}
+                workspaces={currentWorkspaces}
             />
         </div>
     );
