@@ -13,6 +13,12 @@ import { Loader2 } from 'lucide-react';
 
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import PublicSharedStoryPage from './pages/PublicSharedStoryPage';
+import { TermsOfServicePage } from './pages/TermsOfServicePage';
+import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage';
+import { CookiePolicyPage } from './pages/CookiePolicyPage';
+import { DpaPage } from './pages/DpaPage';
+import { AcceptableUsePage } from './pages/AcceptableUsePage';
+import { CookieBanner } from './components/legal/CookieBanner';
 
 const AppRoutes: React.FC = () => {
     const { user, loading } = useAuth();
@@ -48,6 +54,14 @@ const AppRoutes: React.FC = () => {
             <Route path="/journal" element={user ? <JournalPage /> : <Navigate to="/" replace />} />
             <Route path="/story/:slug" element={<PublicSharedStoryPage />} />
             <Route path="/shared" element={user ? <JournalPage /> : <LandingPage />} />
+            <Route path="/terms" element={<TermsOfServicePage />} />
+            <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+            <Route path="/cookies" element={<CookiePolicyPage />} />
+            <Route path="/cookie-policy" element={<CookiePolicyPage />} />
+            <Route path="/dpa" element={<DpaPage />} />
+            <Route path="/acceptable-use" element={<AcceptableUsePage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );
@@ -58,6 +72,7 @@ export const App: React.FC = () => {
         <AuthProvider>
             <BrowserRouter>
                 <AppRoutes />
+                <CookieBanner />
             </BrowserRouter>
         </AuthProvider>
     );

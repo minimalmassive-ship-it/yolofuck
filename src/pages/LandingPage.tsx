@@ -5,7 +5,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { ObfuscatedEmail } from '../components/legal/ObfuscatedEmail';
 import { Video, Mic, Calendar, Download, Sparkles, ShieldCheck, Mail, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
 import { supabaseAuth } from '../lib/supabase';
 import { PlasticinUniversalAuthScreen, DEFAULT_MEMCUT_BRANDING } from '../components/PlasticinUniversalAuthScreen';
@@ -337,6 +339,31 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
                     </div>
                 </div>
             </main>
+
+            <footer
+                style={{
+                    padding: '16px 24px 22px',
+                    borderTop: '1px solid #1e232a',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    fontSize: '11.5px',
+                    color: '#94a3b8',
+                    background: '#000000',
+                }}
+            >
+                <span>Memcut (memcut.com) · Bydgoszcz, Poland (EU)</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '16px' }}>
+                    <Link to="/terms" style={{ color: '#cbd5e1', textDecoration: 'none' }}>Terms of Service</Link>
+                    <Link to="/privacy" style={{ color: '#cbd5e1', textDecoration: 'none' }}>Privacy Policy</Link>
+                    <Link to="/cookies" style={{ color: '#cbd5e1', textDecoration: 'none' }}>Cookie Policy</Link>
+                    <Link to="/dpa" style={{ color: '#cbd5e1', textDecoration: 'none' }}>DPA</Link>
+                    <Link to="/acceptable-use" style={{ color: '#cbd5e1', textDecoration: 'none' }}>Acceptable Use</Link>
+                    <ObfuscatedEmail preset="plasticin-support" label="Contact" />
+                </div>
+            </footer>
 
             {/* ── Global Full-Screen Universal Plasticin Auth Modal ── */}
             <PlasticinUniversalAuthScreen

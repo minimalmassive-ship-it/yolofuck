@@ -1,0 +1,782 @@
+/* ============================================================================
+   Memcut Legal Hub Design System
+   Uses Memcut pitch-black + Neon Lime (#c8f72c) native Dark styling
+   alongside crisp Light Mode parity (data-memcut-legal-theme="light").
+   Zero purple/pink hues.
+   ============================================================================ */
+
+.memcut-legal-root {
+  --ml-bg: #000000;
+  --ml-rail: #0d0f12;
+  --ml-card: #12151a;
+  --ml-subtle: #181c22;
+  --ml-border: #262b33;
+  --ml-ink: #f8fafc;
+  --ml-body: #cbd5e1;
+  --ml-muted: #94a3b8;
+  --ml-accent: #c8f72c;
+  --ml-accent-fg: #050508;
+  --ml-link: #c8f72c;
+  --ml-pill-bg: rgba(200, 247, 44, 0.12);
+  --ml-pill-border: rgba(200, 247, 44, 0.35);
+  --ml-pill-text: #c8f72c;
+  --ml-alert-bg: rgba(245, 158, 11, 0.1);
+  --ml-alert-border: rgba(245, 158, 11, 0.32);
+  --ml-alert-text: #fde68a;
+  --ml-next-bg: #f8fafc;
+  --ml-next-fg: #050508;
+
+  min-height: 100vh;
+  width: 100%;
+  background: var(--ml-bg);
+  color: var(--ml-body);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  padding: 28px 20px 64px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.memcut-legal-root[data-memcut-legal-theme='light'] {
+  --ml-bg: #f8fafc;
+  --ml-rail: #f1f5f9;
+  --ml-card: #ffffff;
+  --ml-subtle: #f1f5f9;
+  --ml-border: #cbd5e1;
+  --ml-ink: #0f172a;
+  --ml-body: #334155;
+  --ml-muted: #64748b;
+  --ml-accent: #4d7c0f;
+  --ml-accent-fg: #ffffff;
+  --ml-link: #3f6212;
+  --ml-pill-bg: #ecfccb;
+  --ml-pill-border: #a3e635;
+  --ml-pill-text: #365314;
+  --ml-alert-bg: rgba(217, 119, 6, 0.08);
+  --ml-alert-border: rgba(217, 119, 6, 0.28);
+  --ml-alert-text: #78350f;
+  --ml-next-bg: #0f172a;
+  --ml-next-fg: #ffffff;
+}
+
+.memcut-legal-shell {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.memcut-legal-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--ml-border);
+}
+
+.memcut-legal-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ml-muted);
+}
+
+.memcut-legal-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ml-link);
+  cursor: pointer;
+}
+
+.memcut-legal-back-btn:hover {
+  text-decoration: underline;
+}
+
+.memcut-legal-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.memcut-legal-theme-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 9999px;
+  border: 1px solid var(--ml-border);
+  background: var(--ml-card);
+  color: var(--ml-ink);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.memcut-legal-pdf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 9999px;
+  border: none;
+  background: var(--ml-accent);
+  color: var(--ml-accent-fg);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.memcut-legal-mobile-nav {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.memcut-legal-mobile-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.memcut-legal-mobile-pill {
+  padding: 6px 11px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--ml-border);
+  background: var(--ml-card);
+  color: var(--ml-ink);
+  cursor: pointer;
+}
+
+.memcut-legal-mobile-pill--active {
+  background: var(--ml-accent);
+  border-color: var(--ml-accent);
+  color: var(--ml-accent-fg);
+}
+
+.memcut-legal-mobile-select-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ml-muted);
+}
+
+.memcut-legal-mobile-select {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--ml-border);
+  background: var(--ml-card);
+  color: var(--ml-ink);
+  font-size: 12px;
+}
+
+.memcut-legal-grid {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+
+.memcut-legal-sidebar {
+  position: sticky;
+  top: 24px;
+  padding: 18px 14px;
+  border-radius: 16px;
+  background: var(--ml-rail);
+  border: 1px solid var(--ml-border);
+}
+
+.memcut-legal-sidebar-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ml-muted);
+  margin-bottom: 12px;
+  padding: 0 8px;
+}
+
+.memcut-legal-doc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.memcut-legal-doc-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--ml-body);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.memcut-legal-doc-btn:hover {
+  background: var(--ml-subtle);
+  color: var(--ml-ink);
+}
+
+.memcut-legal-doc-btn--active {
+  background: var(--ml-card);
+  border: 1px solid var(--ml-border);
+  color: var(--ml-ink);
+  font-weight: 700;
+}
+
+.memcut-legal-doc-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+  background: var(--ml-muted);
+}
+
+.memcut-legal-doc-btn--active .memcut-legal-doc-dot {
+  background: var(--ml-accent);
+}
+
+.memcut-legal-toc {
+  list-style: none;
+  margin: 6px 0 8px 14px;
+  padding: 0 0 0 12px;
+  border-left: 1px solid var(--ml-border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.memcut-legal-toc-btn {
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 4px 0;
+  text-align: left;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--ml-muted);
+  cursor: pointer;
+}
+
+.memcut-legal-toc-btn:hover {
+  color: var(--ml-ink);
+}
+
+.memcut-legal-toc-btn--active {
+  color: var(--ml-link);
+  font-weight: 600;
+}
+
+.memcut-legal-sidebar-meta {
+  margin-top: 16px;
+  padding: 12px 8px 0;
+  border-top: 1px solid var(--ml-border);
+  font-size: 11px;
+  color: var(--ml-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.memcut-legal-sidebar-meta strong {
+  color: var(--ml-ink);
+}
+
+.memcut-legal-header {
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--ml-border);
+}
+
+.memcut-legal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: var(--ml-card);
+  border: 1px solid var(--ml-border);
+  color: var(--ml-link);
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.memcut-legal-title {
+  margin: 0 0 12px 0;
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--ml-ink);
+}
+
+.memcut-legal-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 18px;
+  font-size: 12px;
+  color: var(--ml-muted);
+}
+
+.memcut-legal-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.memcut-legal-status-pill {
+  padding: 2px 9px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--ml-pill-bg);
+  border: 1px solid var(--ml-pill-border);
+  color: var(--ml-pill-text);
+}
+
+.memcut-legal-summary {
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: var(--ml-rail);
+  border: 1px solid var(--ml-border);
+  margin-bottom: 22px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--ml-body);
+}
+
+.memcut-legal-summary-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ml-ink);
+  margin-bottom: 6px;
+}
+
+.memcut-legal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.memcut-legal-section {
+  padding: 22px 24px;
+  border-radius: 16px;
+  background: var(--ml-card);
+  border: 1px solid var(--ml-border);
+  color: var(--ml-body);
+  font-size: 13.5px;
+  line-height: 1.68;
+  scroll-margin-top: 24px;
+}
+
+.memcut-legal-section h2 {
+  margin: 0 0 12px 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ml-ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.memcut-legal-section h3 {
+  margin: 14px 0 6px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ml-ink);
+}
+
+.memcut-legal-section p {
+  margin: 0 0 10px 0;
+}
+
+.memcut-legal-section p:last-child {
+  margin-bottom: 0;
+}
+
+.memcut-legal-section ul {
+  margin: 6px 0 12px 0;
+  padding-left: 20px;
+}
+
+.memcut-legal-section li {
+  margin-bottom: 6px;
+}
+
+.memcut-legal-section strong {
+  color: var(--ml-ink);
+}
+
+.memcut-legal-section code {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--ml-subtle);
+  border: 1px solid var(--ml-border);
+  color: var(--ml-ink);
+}
+
+.memcut-legal-section a,
+.memcut-legal-inline-link {
+  color: var(--ml-link);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.memcut-legal-section a:hover,
+.memcut-legal-inline-link:hover {
+  text-decoration: underline;
+}
+
+.memcut-legal-num {
+  font-family: ui-monospace, Consolas, monospace;
+  color: var(--ml-link);
+}
+
+.memcut-legal-alert {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--ml-alert-bg);
+  border: 1px solid var(--ml-alert-border);
+  color: var(--ml-alert-text);
+  font-size: 12.5px;
+  margin-bottom: 12px;
+}
+
+.memcut-legal-subgrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.memcut-legal-subcard {
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--ml-subtle);
+  border: 1px solid var(--ml-border);
+  font-size: 12.5px;
+}
+
+.memcut-legal-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 8px;
+}
+
+.memcut-legal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+  border: 1px solid var(--ml-border);
+}
+
+.memcut-legal-table th {
+  background: var(--ml-subtle);
+  color: var(--ml-ink);
+  padding: 9px 10px;
+  border: 1px solid var(--ml-border);
+  font-weight: 700;
+}
+
+.memcut-legal-table td {
+  padding: 9px 10px;
+  border: 1px solid var(--ml-border);
+  color: var(--ml-body);
+  vertical-align: top;
+}
+
+.memcut-legal-footer-card {
+  margin-top: 28px;
+  padding: 20px 24px;
+  border-radius: 16px;
+  background: var(--ml-card);
+  border: 1px solid var(--ml-border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.memcut-legal-next-btn {
+  padding: 9px 18px;
+  border-radius: 9999px;
+  border: none;
+  background: var(--ml-next-bg);
+  color: var(--ml-next-fg);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.memcut-obfuscated-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.memcut-obfuscated-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: inherit;
+  font-weight: 600;
+  color: var(--ml-link);
+  cursor: pointer;
+}
+
+.memcut-obfuscated-btn:hover {
+  text-decoration: underline;
+}
+
+.memcut-obfuscated-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--ml-border);
+  background: var(--ml-subtle);
+  color: var(--ml-muted);
+  font-size: 10.5px;
+  cursor: pointer;
+}
+
+.memcut-obfuscated-static {
+  font-family: ui-monospace, Consolas, monospace;
+  color: var(--ml-muted);
+}
+
+/* Cookie Banner */
+.memcut-cookie-banner {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  left: 16px;
+  z-index: 9999;
+  pointer-events: none;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.memcut-cookie-card {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 520px;
+  border-radius: 16px;
+  background: #0d0f12;
+  border: 1px solid #2c323b;
+  padding: 18px 20px;
+  color: #cbd5e1;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85);
+}
+
+.memcut-cookie-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.memcut-cookie-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #171b22;
+  border: 1px solid #2c323b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c8f72c;
+  flex-shrink: 0;
+}
+
+.memcut-cookie-pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #c8f72c;
+  background: rgba(200, 247, 44, 0.12);
+  border: 1px solid rgba(200, 247, 44, 0.3);
+  border-radius: 9999px;
+  padding: 2px 8px;
+  margin-bottom: 4px;
+}
+
+.memcut-cookie-header h3 {
+  margin: 0;
+  font-size: 15px;
+  color: #f8fafc;
+}
+
+.memcut-cookie-desc {
+  margin: 0 0 14px 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #94a3b8;
+}
+
+.memcut-cookie-desc a {
+  color: #c8f72c;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.memcut-cookie-desc a:hover {
+  text-decoration: underline;
+}
+
+.memcut-cookie-prefs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #000000;
+  border: 1px solid #262b33;
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+
+.memcut-cookie-pref-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.memcut-cookie-pref-row strong {
+  display: block;
+  color: #f8fafc;
+}
+
+.memcut-cookie-pref-row span {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.memcut-cookie-req-badge {
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(200, 247, 44, 0.15);
+  color: #c8f72c !important;
+  font-weight: 700;
+}
+
+.memcut-cookie-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.memcut-cookie-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.memcut-cookie-btn-primary,
+.memcut-cookie-btn-secondary,
+.memcut-cookie-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.memcut-cookie-btn-primary {
+  background: #c8f72c;
+  color: #050508;
+  border: none;
+  flex: 1;
+}
+
+.memcut-cookie-btn-secondary {
+  background: #171b22;
+  color: #f8fafc;
+  border: 1px solid #2c323b;
+}
+
+.memcut-cookie-btn-ghost {
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid transparent;
+}
+
+@media (max-width: 960px) {
+  .memcut-legal-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .memcut-legal-sidebar {
+    display: none;
+  }
+  .memcut-legal-mobile-nav {
+    display: flex;
+  }
+}
+
+@media (max-width: 640px) {
+  .memcut-legal-subgrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .memcut-legal-title {
+    font-size: 24px;
+  }
+  .memcut-legal-section {
+    padding: 16px;
+  }
+}
+
+@media print {
+  .memcut-legal-topbar,
+  .memcut-legal-sidebar,
+  .memcut-legal-mobile-nav,
+  .memcut-legal-next-btn,
+  .memcut-obfuscated-copy,
+  .memcut-cookie-banner {
+    display: none !important;
+  }
+  .memcut-legal-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .memcut-legal-root {
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+  }
+}
