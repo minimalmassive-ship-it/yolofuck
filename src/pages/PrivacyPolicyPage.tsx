@@ -63,11 +63,11 @@ export const PrivacyPolicyPage: React.FC = () => {
           </div>
           <div className="memcut-legal-subcard">
             <strong style={{ display: 'block', marginBottom: '4px' }}>C. BYOK AI &amp; Transcription Credentials</strong>
-            User-configured keys for Deepgram, OpenAI Whisper, Groq, Gladia, AssemblyAI, Google Gemini, DeepSeek, or OpenRouter stored inside user profile settings.
+            User-configured keys for Deepgram, OpenAI Whisper, Groq, Gladia, AssemblyAI, Google Gemini, DeepSeek, or OpenRouter encrypted strictly on-device via WebCrypto AES-256-GCM (<code>memcut_encrypted_byok_v1_*</code>) and isolated from plaintext cloud <code>profiles.settings</code>.
           </div>
           <div className="memcut-legal-subcard">
             <strong style={{ display: 'block', marginBottom: '4px' }}>D. Camera, Microphone &amp; Device Logs</strong>
-            Device audio/camera device enumeration only during active capture workflows (`microphonePermissionManager` / `audioDeviceManager`), plus security &amp; CDN telemetry (GDPR Art. 6(1)(f)).
+            Device audio/camera device enumeration only during active capture workflows (<code>microphonePermissionManager</code> / <code>audioDeviceManager</code>), plus security &amp; CDN telemetry (GDPR Art. 6(1)(f)).
           </div>
         </div>
       </section>
@@ -77,8 +77,8 @@ export const PrivacyPolicyPage: React.FC = () => {
           <span className="memcut-legal-num">03.</span> Local Device IndexedDB vs. Cloud Sync &amp; Shared Stories
         </h2>
         <ul>
-          <li><strong>Local Storage Only:</strong> Clips recorded offline/local remain in browser IndexedDB (`memcut_local_storage`) on your hardware until explicitly synced or published. Memcut does <strong>not</strong> run facial recognition or visual biometric identification on video streams.</li>
-          <li><strong>Public Story Links (`/story/:slug`):</strong> Turning sharing to Public generates a publicly accessible Story URL viewable without sign-in until you switch visibility back to Stopped or Private.</li>
+          <li><strong>Local Storage Only:</strong> Clips recorded offline/local remain in browser IndexedDB (<code>memcut_local_storage</code>) on your hardware until explicitly synced or published. Memcut does <strong>not</strong> run facial recognition or visual biometric identification on video streams.</li>
+          <li><strong>Public Story Links (<code>/story/:slug</code>):</strong> Turning sharing to Public generates a publicly accessible Story URL viewable without sign-in until you switch visibility back to Stopped or Private.</li>
         </ul>
       </section>
 
@@ -87,7 +87,7 @@ export const PrivacyPolicyPage: React.FC = () => {
           <span className="memcut-legal-num">04.</span> Speech Transcription, BYOK AI, Chat, NanCat &amp; MCP
         </h2>
         <p>
-          If you select <strong>Native Browser Web Speech API</strong>, audio transcription executes locally/through your OS browser speech service without Memcut server intervention. When you configure BYOK APIs (Deepgram, Groq, Google Gemini, OpenAI, DeepSeek, AssemblyAI, Gladia, OpenRouter), audio/transcript payloads transmit directly to those vendor endpoints under your credentials. Embedded Plasticin Chat rooms (`chat.plasticin.com`), Organization directory updates, NanCat clip bridges, and Central MCP Gateway queries (when authorized by you) exchange designated metadata over TLS.
+          If you select <strong>Native Browser Web Speech API</strong>, audio transcription executes locally/through your OS browser speech service without transmitting external Memcut BYOK audio payloads. When you choose cloud BYOK APIs (Deepgram, Groq, Google Gemini, OpenAI, DeepSeek, AssemblyAI, Gladia, OpenRouter), recorded audio/transcript payloads transmit directly to those vendor endpoints under your explicit opt-in consent and credentials (local web ONNX Whisper is not bundled in the standard web build). Embedded Plasticin Chat rooms (<code>chat.plasticin.com</code>), Organization directory updates, NanCat clip bridges, and Central MCP Gateway queries (when authorized by you) exchange designated metadata over TLS.
         </p>
       </section>
 
@@ -121,7 +121,7 @@ export const PrivacyPolicyPage: React.FC = () => {
                 <td>Global / US (DPF, EU SCCs)</td>
               </tr>
               <tr>
-                <td><strong>Plasticin Core (`plasticin.com`)</strong></td>
+                <td><strong>Plasticin Core (<code>plasticin.com</code>)</strong></td>
                 <td>Plasticin ID OAuth 2.1 authentication, Org directory &amp; embedded Chat Hub</td>
                 <td>Poland / EU &amp; EU Cloud (Zero-Trust IAM)</td>
               </tr>
@@ -140,9 +140,9 @@ export const PrivacyPolicyPage: React.FC = () => {
           <span className="memcut-legal-num">06.</span> Security Controls &amp; Data Retention Schedule
         </h2>
         <ul>
-          <li><strong>Security:</strong> PostgreSQL Row-Level Security hardening (`supabase_rls_hardening.sql`), TLS transport encryption, PKCE S256 OAuth, and strict DOM/URL sanitization across chat and story players.</li>
+          <li><strong>Security:</strong> PostgreSQL Row-Level Security hardening (<code>supabase_rls_hardening.sql</code>), TLS transport encryption, PKCE S256 OAuth, client-side AES-256-GCM BYOK isolation, and strict DOM/URL sanitization across chat and story players.</li>
           <li><strong>Local Clips:</strong> Kept in IndexedDB until you delete them or clear browser storage.</li>
-          <li><strong>Cloud Takes, Transcripts &amp; Account:</strong> Retained while your account is active until removed from Journal / Trash Bin or full account deletion (plus up to 30 days encrypted backup cycle).</li>
+          <li><strong>Cloud Takes, Transcripts &amp; Account:</strong> Retained while your account is active until removed from Journal / Trash Bin or exported/deleted inside Settings (plus up to 30 days encrypted backup cycle).</li>
         </ul>
       </section>
 
@@ -151,7 +151,7 @@ export const PrivacyPolicyPage: React.FC = () => {
           <span className="memcut-legal-num">07.</span> Global Rights, Children under 16 &amp; PUODO Oversight
         </h2>
         <p>
-          EU/EEA &amp; UK residents hold GDPR Art. 15–22 rights (access, rectification, erasure, restriction, portability, objection, consent withdrawal). Swiss (FADP), Brazilian (LGPD — 15-day disclosure), and US State residents (California CCPA/CPRA &amp; multi-state laws) enjoy full zero-sale guarantees and automatic honoring of Global Privacy Control (`GPC`) signals.
+          EU/EEA &amp; UK residents hold GDPR Art. 15–22 rights (access, rectification, erasure, restriction, JSON data portability via Settings, objection, consent withdrawal). Swiss (FADP), Brazilian (LGPD — 15-day disclosure), and US State residents (California CCPA/CPRA &amp; multi-state laws) enjoy full zero-sale guarantees and automatic honoring of Global Privacy Control (<code>GPC</code>) signals.
         </p>
         <p>
           Memcut is prohibited for children under <strong>16</strong>. Confirmed breaches are notified to PUODO within <strong>72 hours</strong>. Polish supervisory authority: <strong>Urząd Ochrony Danych Osobowych (PUODO)</strong>, ul. Stawki 2, 00-193 Warsaw, Poland (<a href="https://uodo.gov.pl/" target="_blank" rel="noopener noreferrer">uodo.gov.pl</a>).

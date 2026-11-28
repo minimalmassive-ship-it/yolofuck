@@ -405,7 +405,6 @@
     padding: 0 10px;
     font-size: 10px;
     font-family: ui-monospace, monospace;
-    text-transform: uppercase;
     letter-spacing: 1px;
     color: #78716C;
 }
@@ -585,7 +584,7 @@
     cursor: pointer;
 }
 
-/* ── Step 4: Password Step Account Badge (Atlassian / Google SSO Style) ── */
+/* ── Step 4: Password Step Account Badge (Plasticin ID / Google SSO Style) ── */
 .plasticin-auth-account-badge {
     display: flex;
     align-items: center;

@@ -738,6 +738,68 @@
   border: 1px solid transparent;
 }
 
+/* Adaptive Light Theme for Memcut Cookie Banner */
+.memcut-cookie-banner--light .memcut-cookie-card {
+  background: #ffffff;
+  border-color: #e3e8ee;
+  color: #425466;
+  box-shadow: 0 18px 44px rgba(10, 37, 64, 0.14);
+}
+
+.memcut-cookie-banner--light .memcut-cookie-icon {
+  background: #f6f9fc;
+  border-color: #e3e8ee;
+  color: #0066ff;
+}
+
+.memcut-cookie-banner--light .memcut-cookie-pill {
+  color: #0066ff;
+  background: rgba(0, 102, 255, 0.08);
+  border-color: rgba(0, 102, 255, 0.25);
+}
+
+.memcut-cookie-banner--light .memcut-cookie-header h3 {
+  color: #0a2540;
+}
+
+.memcut-cookie-banner--light .memcut-cookie-desc,
+.memcut-cookie-banner--light .memcut-cookie-pref-row span {
+  color: #425466;
+}
+
+.memcut-cookie-banner--light .memcut-cookie-desc a {
+  color: #0066ff;
+}
+
+.memcut-cookie-banner--light .memcut-cookie-prefs {
+  background: #f6f9fc;
+  border-color: #e3e8ee;
+}
+
+.memcut-cookie-banner--light .memcut-cookie-pref-row strong {
+  color: #0a2540;
+}
+
+.memcut-cookie-banner--light .memcut-cookie-req-badge {
+  background: rgba(0, 102, 255, 0.1);
+  color: #0066ff !important;
+}
+
+.memcut-cookie-banner--light .memcut-cookie-btn-primary {
+  background: #0066ff;
+  color: #ffffff;
+}
+
+.memcut-cookie-banner--light .memcut-cookie-btn-secondary {
+  background: #f6f9fc;
+  color: #0a2540;
+  border-color: #cbd5e1;
+}
+
+.memcut-cookie-banner--light .memcut-cookie-btn-ghost {
+  color: #425466;
+}
+
 @media (max-width: 960px) {
   .memcut-legal-grid {
     grid-template-columns: minmax(0, 1fr);

@@ -58,7 +58,6 @@
   letter-spacing: 0.8px;
   color: #94a3b8;
   font-family: -apple-system, BlinkMacSystemFont, "Roboto", "Segoe UI", Arial, sans-serif;
-  text-transform: uppercase;
 }
 
 /* ── Progressive 2-Stage Reveal Drawer (Exact 72px x 128px 9:16 Card) ── */
@@ -528,7 +527,6 @@
   color: var(--yolo-lime, #c8f72c);
   font-size: 9px;
   font-weight: 700;
-  text-transform: uppercase;
   letter-spacing: 0.5px;
   pointer-events: none;
   z-index: 5;

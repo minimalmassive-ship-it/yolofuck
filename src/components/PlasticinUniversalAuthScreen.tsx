@@ -99,7 +99,6 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [agreeTerms, setAgreeTerms] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -399,11 +398,6 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
             return;
         }
 
-        if (!agreeTerms) {
-            setErrorMessage('Please accept the Plasticin Customer Agreement to finish setting up your account.');
-            return;
-        }
-
         setIsLoading(true);
         const cleanEmail = email.trim().toLowerCase();
         const cleanUsername = `@${cleanUser}`;
@@ -657,7 +651,7 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
                                         @
                                     </div>
                                     <div>
-                                        <div style={{ fontSize: '9px', color: '#78716c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Active Session</div>
+                                        <div style={{ fontSize: '9px', color: '#78716c', letterSpacing: '0.5px' }}>Active Session</div>
                                         <div style={{ color: '#f5f5f4', fontWeight: 600 }}>{profile.username}</div>
                                     </div>
                                 </div>
@@ -1016,22 +1010,21 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
                                         </ul>
                                     </div>
 
-                                    {/* Customer Agreement Checkbox */}
-                                    <label className="plasticin-auth-terms-row">
-                                        <input
-                                            type="checkbox"
-                                            checked={agreeTerms}
-                                            onChange={(e) => setAgreeTerms(e.target.checked)}
-                                            className="plasticin-auth-terms-checkbox"
-                                        />
-                                        <span>
-                                            I agree to the Plasticin Customer Agreement and acknowledge the Privacy Policy.
-                                        </span>
-                                    </label>
+                                    <p style={{ fontSize: '12px', lineHeight: 1.5, opacity: 0.8, margin: '4px 0' }}>
+                                        By creating a Plasticin ID account, you agree to the{' '}
+                                        <a href="/terms" className="plasticin-auth-link">
+                                            Terms of Service
+                                        </a>{' '}
+                                        and acknowledge the{' '}
+                                        <a href="/privacy" className="plasticin-auth-link">
+                                            Privacy Policy
+                                        </a>
+                                        .
+                                    </p>
 
                                     <button
                                         type="submit"
-                                        disabled={isLoading || !isPasswordValid || !agreeTerms || !username.trim()}
+                                        disabled={isLoading || !isPasswordValid || !username.trim()}
                                         className="plasticin-auth-btn-accent"
                                     >
                                         {isLoading ? (
@@ -1063,7 +1056,7 @@ export const PlasticinUniversalAuthScreen: React.FC<PlasticinUniversalAuthScreen
                                     autoComplete="on"
                                     style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
                                 >
-                                    {/* Atlassian / Google SSO Non-editable Account Badge */}
+                                    {/* Central Plasticin ID / Google SSO Non-editable Account Badge */}
                                     <div className="plasticin-auth-account-badge">
                                         <div className="plasticin-auth-badge-avatar-wrap">
                                             <img

@@ -13,6 +13,14 @@ export interface MemcutCookiePreferences {
 const consentStorageKey = 'memcut_cookie_consent';
 const policyVersion = '1.0';
 
+export function isGlobalPrivacyControlActive(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return (
+    (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl === true ||
+    navigator.doNotTrack === '1'
+  );
+}
+
 function setConsentCookie(value: string, days = 365): void {
   if (typeof document === 'undefined') return;
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
@@ -35,9 +43,10 @@ export function getCookiePreferences(): MemcutCookiePreferences | null {
 
 export function setCookiePreferences(analytics: boolean): void {
   if (typeof window === 'undefined') return;
+  const gpcActive = isGlobalPrivacyControlActive();
   const payload: MemcutCookiePreferences = {
     essential: true,
-    analytics: Boolean(analytics),
+    analytics: gpcActive ? false : Boolean(analytics),
     timestamp: new Date().toISOString(),
     version: policyVersion,
   };

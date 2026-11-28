@@ -240,7 +240,6 @@ body {
     font-size: 9px;
     font-weight: 500;
     color: var(--accent-sage);
-    text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-top: 2px;
 }
@@ -286,7 +285,6 @@ body {
     color: #2A2A2A;
     font-size: 10px;
     font-weight: 600;
-    text-transform: uppercase;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1328,7 +1326,6 @@ body.sidebar-collapsed .sidebar-divider-spacer {
     cursor: pointer;
     user-select: none;
     font-weight: 600;
-    text-transform: uppercase;
     letter-spacing: 0.5px;
     font-size: 13px;
     /* Larger font to fit block size */
@@ -1544,7 +1541,6 @@ body.sidebar-collapsed .sidebar-divider-spacer {
     font-size: 12px;
     font-weight: 700;
     color: #E0E0E0;
-    text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 

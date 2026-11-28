@@ -293,7 +293,6 @@
   letter-spacing: 0.8px;
   color: #94a3b8;
   font-family: -apple-system, BlinkMacSystemFont, "Roboto", "Segoe UI", Arial, sans-serif;
-  text-transform: uppercase;
 }
 
 /* Responsive visibility: Mobile (<= 768px) shows vertical date strip, hides 1:1 square */
@@ -1009,7 +1008,6 @@
   color: var(--yolo-lime, #c8f72c);
   font-size: 9px;
   font-weight: 700;
-  text-transform: uppercase;
   letter-spacing: 0.5px;
   pointer-events: none;
   z-index: 5;

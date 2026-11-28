@@ -722,7 +722,7 @@ export const PlasticinChatModal: React.FC<PlasticinChatModalProps> = ({
                     <aside className="plasticin-chat-sidebar">
                         <div className="plasticin-chat-org-wrap">
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#78716C' }}>
+                                <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.6px', color: '#78716C' }}>
                                     Organization
                                 </span>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>

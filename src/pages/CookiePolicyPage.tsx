@@ -25,7 +25,7 @@ export const CookiePolicyPage: React.FC = () => {
       summaryTitle="How Memcut Stores Sessions, Friends Lists &amp; Offline Video Takes"
       summaryBody={
         <p>
-          Memcut deploys zero third-party advertising cookies. Strictly necessary browser keys manage your <strong>Plasticin ID OAuth/SSO</strong> login, PWA UI state, Friends list cache, and consent proof (`memcut_cookie_consent`), while <strong>IndexedDB</strong> optionally stores local-only video takes right on your device.
+          Memcut deploys zero third-party advertising cookies. Strictly necessary browser keys manage your <strong>Plasticin ID OAuth/SSO</strong> login, PWA UI state, Friends list cache, WebCrypto BYOK key storage, and consent proof (<code>memcut_cookie_consent</code>), while <strong>IndexedDB</strong> optionally stores local-only video takes right on your device.
         </p>
       }
       sections={legalSections}
@@ -58,10 +58,34 @@ export const CookiePolicyPage: React.FC = () => {
             </thead>
             <tbody>
               <tr>
-                <td><code>sb-*-auth-token</code> &amp; PKCE keys</td>
+                <td><code>sb-*-auth-token</code>, <code>memcut-auth-token</code>, <code>plasticin-auth-token</code>, <code>yolofuck-auth-token</code> &amp; <code>plasticin_oidc_access_token</code></td>
                 <td><code>localStorage</code> / Cookie</td>
                 <td>Strictly Necessary</td>
-                <td>Maintains authenticated Plasticin ID / Supabase Auth session and PKCE flow.</td>
+                <td>Maintains authenticated Plasticin ID / Supabase Auth session and federated OIDC tokens.</td>
+              </tr>
+              <tr>
+                <td><code>plasticin_sso_verifier</code>, <code>plasticin_sso_state</code>, <code>plasticin_sso_user</code>, <code>plasticin_sso_redirect_uri</code></td>
+                <td><code>localStorage</code> / Session</td>
+                <td>Strictly Necessary (Transient)</td>
+                <td>Enforces PKCE S256 code verifier, anti-CSRF state, and OAuth return handshake during SSO login.</td>
+              </tr>
+              <tr>
+                <td><code>memcut_encrypted_byok_v1_*</code> &amp; IndexedDB <code>memcut_byok_aes_key_v1_*</code></td>
+                <td><code>localStorage</code> + IndexedDB</td>
+                <td>Strictly Necessary (Security Vault)</td>
+                <td>Stores user-supplied BYOK AI/STT API keys locally encrypted with a device WebCrypto AES-256-GCM key instead of plain cloud database JSON.</td>
+              </tr>
+              <tr>
+                <td><code>memcut_active_org_*</code>, <code>memcut_active_workspace_*</code>, <code>memcut_organizations</code>, <code>plasticin_active_org_*</code></td>
+                <td><code>localStorage</code></td>
+                <td>Strictly Necessary (Tenant State)</td>
+                <td>Synchronizes active Organization workspace and Chat channels across Plasticin apps.</td>
+              </tr>
+              <tr>
+                <td><code>memcut_local_owner_id</code></td>
+                <td><code>localStorage</code></td>
+                <td>Strictly Necessary (Local Ownership)</td>
+                <td>Links locally recorded drafts to the device profile before sign-in sync.</td>
               </tr>
               <tr>
                 <td><code>memcut_cookie_consent</code></td>
@@ -103,7 +127,7 @@ export const CookiePolicyPage: React.FC = () => {
           <span className="memcut-legal-num">03.</span> Withdraw Consent Anytime &amp; Global Privacy Control
         </h2>
         <p>
-          Memcut honors browser <strong>Global Privacy Control (GPC)</strong> signals (`navigator.globalPrivacyControl` / `Sec-GPC: 1`) by keeping optional diagnostics suppressed automatically. Resetting your preferences reopens the consent banner immediately (note: clearing site data will also remove unbacked IndexedDB local videos). Questions? Write to <ObfuscatedEmail preset="plasticin-support" showCopy />.
+          Memcut honors browser <strong>Global Privacy Control (GPC)</strong> signals (<code>navigator.globalPrivacyControl</code> / <code>Sec-GPC: 1</code>) by keeping optional diagnostics suppressed automatically. Resetting your preferences reopens the consent banner immediately (note: clearing site data will also remove unbacked IndexedDB local videos and device-encrypted BYOK keys). Questions? Write to <ObfuscatedEmail preset="plasticin-support" showCopy />.
         </p>
         <div className="memcut-legal-subcard" style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <span>Reopen Privacy Consent Preferences (GDPR Art. 7(3)):</span>

@@ -641,7 +641,7 @@
     gap: 12px;
 }
 
-/* ── Active Ecosystem Session Banner (Atlassian Standard) ── */
+/* ── Active Ecosystem Session Banner (Plasticin Standard) ── */
 .memcut-active-session-banner {
     background: #161b22;
     border: 1px solid #30363d;
@@ -672,7 +672,6 @@
     font-size: 11px;
     font-weight: 700;
     color: var(--yolo-lime);
-    text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
@@ -942,7 +941,6 @@
     font-style: normal;
     font-size: 11px;
     color: #6e7681;
-    text-transform: uppercase;
     font-family: ui-monospace, monospace;
 }
 

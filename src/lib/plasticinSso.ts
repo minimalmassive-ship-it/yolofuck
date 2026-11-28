@@ -80,7 +80,7 @@ let lastExchangeResult: {
 } | null = null;
 
 /**
- * Initiates the central Atlassian-style Plasticin OAuth 2.1 PKCE redirect.
+ * Initiates the central Plasticin ID OAuth 2.1 PKCE redirect.
  * Directs user to https://plasticin.com/auth with requesting client credentials.
  */
 export async function initiatePlasticinSso(options: PlasticinSsoInitOptions = {}): Promise<void> {

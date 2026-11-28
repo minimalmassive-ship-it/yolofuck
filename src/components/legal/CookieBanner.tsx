@@ -1,15 +1,35 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, Cookie, Sliders, X } from 'lucide-react';
-import { getCookiePreferences, setCookiePreferences } from '../../lib/cookieConsent';
+import {
+  getCookiePreferences,
+  setCookiePreferences,
+  isGlobalPrivacyControlActive,
+} from '../../lib/cookieConsent';
 import './MemcutLegalLayout.css';
 
 export const CookieBanner: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [showCustomize, setShowCustomize] = useState(false);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
+  const gpcActive = isGlobalPrivacyControlActive();
+  const [isLightMode, setIsLightMode] = useState(false);
 
   useEffect(() => {
+    const syncTheme = () => {
+      try {
+        const legalTheme = window.localStorage.getItem('memcut_legal_theme');
+        const prefersLight =
+          typeof window.matchMedia === 'function' &&
+          window.matchMedia('(prefers-color-scheme: light)').matches;
+        const onLegalPage = Boolean(document.querySelector('.memcut-legal-page'));
+        setIsLightMode(onLegalPage ? legalTheme === 'light' : legalTheme === 'light' || (!legalTheme && prefersLight));
+      } catch {
+        setIsLightMode(false);
+      }
+    };
+    syncTheme();
+
     const timer = window.setTimeout(() => {
       const existing = getCookiePreferences();
       if (!existing) {
@@ -23,9 +43,13 @@ export const CookieBanner: React.FC = () => {
     };
 
     window.addEventListener('memcut-cookies-revoked', handleRevoke);
+    window.addEventListener('storage', syncTheme);
+    window.addEventListener('memcut-theme-changed', syncTheme);
     return () => {
       window.clearTimeout(timer);
       window.removeEventListener('memcut-cookies-revoked', handleRevoke);
+      window.removeEventListener('storage', syncTheme);
+      window.removeEventListener('memcut-theme-changed', syncTheme);
     };
   }, []);
 
@@ -50,7 +74,7 @@ export const CookieBanner: React.FC = () => {
     <div
       role="region"
       aria-label="Memcut Storage and Cookie Preferences"
-      className="memcut-cookie-banner"
+      className={`memcut-cookie-banner ${isLightMode ? 'memcut-cookie-banner--light' : ''}`}
     >
       <div className="memcut-cookie-card">
         <div className="memcut-cookie-header">
@@ -67,6 +91,11 @@ export const CookieBanner: React.FC = () => {
           Memcut uses strictly necessary local storage (IndexedDB journal cache, Plasticin ID SSO tokens)
           to run reliably on web and mobile PWA. Optional diagnostics run only with your consent. Read our{' '}
           <Link to="/cookies">Cookie Policy</Link> and <Link to="/privacy">Privacy Policy</Link>.
+          {gpcActive && (
+            <span style={{ display: 'block', marginTop: '4px', opacity: 0.85 }}>
+              Global Privacy Control (GPC) / DNT detected &mdash; optional diagnostics stay disabled.
+            </span>
+          )}
         </p>
 
         {showCustomize && (

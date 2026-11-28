@@ -89,6 +89,7 @@ export const MemcutLegalLayout: React.FC<MemcutLegalLayoutProps> = ({
   useEffect(() => {
     try {
       window.localStorage.setItem('memcut_legal_theme', themeMode);
+      window.dispatchEvent(new CustomEvent('memcut-theme-changed', { detail: { theme: themeMode } }));
     } catch {
       // Ignore storage error
     }

@@ -343,24 +343,24 @@ export const LandingPage: React.FC<LandingPageProps> = ({ initialAuthMode }) => 
             <footer
                 style={{
                     padding: '16px 24px 22px',
-                    borderTop: '1px solid #1e232a',
                     display: 'flex',
                     flexWrap: 'wrap',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     gap: '12px',
                     fontSize: '11.5px',
-                    color: '#94a3b8',
-                    background: '#000000',
+                    color: 'rgba(203, 213, 225, 0.9)',
+                    background: 'rgba(13, 15, 18, 0.85)',
+                    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
                 }}
             >
                 <span>Memcut (memcut.com) · Bydgoszcz, Poland (EU)</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '16px' }}>
-                    <Link to="/terms" style={{ color: '#cbd5e1', textDecoration: 'none' }}>Terms of Service</Link>
-                    <Link to="/privacy" style={{ color: '#cbd5e1', textDecoration: 'none' }}>Privacy Policy</Link>
-                    <Link to="/cookies" style={{ color: '#cbd5e1', textDecoration: 'none' }}>Cookie Policy</Link>
-                    <Link to="/dpa" style={{ color: '#cbd5e1', textDecoration: 'none' }}>DPA</Link>
-                    <Link to="/acceptable-use" style={{ color: '#cbd5e1', textDecoration: 'none' }}>Acceptable Use</Link>
+                    <Link to="/terms" style={{ color: 'inherit', textDecoration: 'none' }}>Terms of Service</Link>
+                    <Link to="/privacy" style={{ color: 'inherit', textDecoration: 'none' }}>Privacy Policy</Link>
+                    <Link to="/cookies" style={{ color: 'inherit', textDecoration: 'none' }}>Cookie Policy</Link>
+                    <Link to="/dpa" style={{ color: 'inherit', textDecoration: 'none' }}>DPA</Link>
+                    <Link to="/acceptable-use" style={{ color: 'inherit', textDecoration: 'none' }}>Acceptable Use</Link>
                     <ObfuscatedEmail preset="plasticin-support" label="Contact" />
                 </div>
             </footer>

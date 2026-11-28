@@ -525,7 +525,7 @@ export const JournalPage: React.FC = () => {
 
                                     {organizations.length > 0 && (
                                         <div style={{ padding: '6px 8px', borderTop: '1px solid #21262d', borderBottom: '1px solid #21262d', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                            <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#78716c', padding: '0 4px' }}>
+                                            <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.5px', color: '#78716c', padding: '0 4px' }}>
                                                 Organization
                                             </span>
                                             {organizations.map((org) => {

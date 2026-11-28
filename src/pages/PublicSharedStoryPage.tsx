@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { hydrateStoryProvenance } from '../lib/journalStoryService';
-import { Play, Pause, Volume2, VolumeX, Repeat, X, Loader2 } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Repeat, X, Loader2, Flag } from 'lucide-react';
+import { ObfuscatedEmail } from '../components/legal/ObfuscatedEmail';
 import '../components/SharedStoryPlayerModal.css';
 
 export const PublicSharedStoryPage: React.FC = () => {
@@ -398,6 +399,19 @@ export const PublicSharedStoryPage: React.FC = () => {
                             onChange={handleVolumeChange}
                             className="shared-player-volume-slider"
                             title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
+                        />
+                    </div>
+
+                    <div
+                        className="shared-player-ctrl-btn"
+                        style={{ marginLeft: 'auto', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        title="Report Story (EU DSA Notice-and-Action)"
+                    >
+                        <Flag size={14} />
+                        <ObfuscatedEmail
+                            preset="plasticin-support"
+                            subjectHint={`DSA Report Shared Story: ${slug || story?.id || ''}`}
+                            label="Report Story"
                         />
                     </div>
                 </div>

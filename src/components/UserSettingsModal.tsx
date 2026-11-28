@@ -17,11 +17,14 @@ import React, { useState, useEffect } from 'react';
 import { 
     User, Lock, X, Check, AlertCircle, Loader2, ArrowLeft,
     SlidersHorizontal, Mic, Volume2, Video, Key, Eye, EyeOff,
-    ExternalLink, Sparkles, Brain, Ear, Save, LogOut, CheckCircle2
+    ExternalLink, Sparkles, Brain, Ear, Save, LogOut, CheckCircle2,
+    Download, Trash2, ShieldAlert
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, supabaseAuth } from '../lib/supabase';
 import { safeJsonParse } from '../lib/jsonHelper';
+import { loadLocalByokKeys, saveLocalByokKeys, purgeLocalByokKeys } from '../lib/localByokVault';
+import { getAllLocalJournalRecordings, deleteLocalJournalRecording } from '../lib/journalLocalStorage';
 import {
     VIDEO_RESOLUTION_OPTIONS,
     AUDIO_BITRATE_OPTIONS,
@@ -56,6 +59,10 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ onClose })
     const [confirmPassword, setConfirmPassword] = useState('');
     const [userLoading, setUserLoading] = useState(false);
     const [userStatusMsg, setUserStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [isExportingData, setIsExportingData] = useState(false);
+    const [isDeletingData, setIsDeletingData] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
     // ── Tab 2: Media State (Audio top, Video bottom) ────────────────────────
     const initialMedia = getMediaSettingsFromProfile(profile?.settings);
@@ -71,19 +78,19 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ onClose })
     const initialTranscription = getTranscriptionSettingsFromProfile(profile?.settings);
     const [thinkProvider, setThinkProvider] = useState<string>(initialTranscription.ai_provider || '');
     const [thinkModel, setThinkModel] = useState<string>(initialTranscription.ai_model || '');
-    const [thinkApiKey, setThinkApiKey] = useState<string>(initialTranscription.custom_api_key || '');
+    const [thinkApiKey, setThinkApiKey] = useState<string>('');
     const [showThinkKey, setShowThinkKey] = useState<boolean>(false);
 
     const [listenProvider, setListenProvider] = useState<string>(initialTranscription.transcription_engine || 'browser');
     const [listenModel, setListenModel] = useState<string>(initialTranscription.transcription_model || 'native');
-    const [listenApiKey, setListenApiKey] = useState<string>(initialTranscription.deepgram_api_key || '');
+    const [listenApiKey, setListenApiKey] = useState<string>('');
     const [showListenKey, setShowListenKey] = useState<boolean>(false);
 
     const [isSavingTranscription, setIsSavingTranscription] = useState(false);
     const [transcriptionSaveSuccess, setTranscriptionSaveSuccess] = useState(false);
     const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
 
-    // Keep fields updated if profile changes
+    // Keep fields updated if profile changes and hydrate/migrate BYOK secrets to encrypted on-device vault
     useEffect(() => {
         if (profile?.username) {
             setUsername(profile.username);
@@ -99,19 +106,56 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ onClose })
             const t = getTranscriptionSettingsFromProfile(profile.settings);
             setThinkProvider(t.ai_provider || '');
             setThinkModel(t.ai_model || '');
-            setThinkApiKey(t.custom_api_key || '');
             setListenProvider(t.transcription_engine || 'browser');
             setListenModel(t.transcription_model || 'native');
-            setListenApiKey(t.deepgram_api_key || '');
         }
-    }, [profile]);
 
-    // Mask API keys for security
-    const maskApiKey = (key: string) => {
-        if (!key) return '';
-        if (key.length <= 8) return '*'.repeat(key.length);
-        return `${key.slice(0, 5)}${'*'.repeat(key.length - 8)}${key.slice(-3)}`;
-    };
+        if (!user?.id) return;
+        let cancelled = false;
+
+        const syncLocalByokKeys = async () => {
+            try {
+                const vaultKeys = await loadLocalByokKeys(user.id);
+                const t = getTranscriptionSettingsFromProfile(profile?.settings);
+                const legacyThink = (t.custom_api_key || '').trim();
+                const legacyListen = (t.deepgram_api_key || '').trim();
+
+                const resolvedThink = vaultKeys.customApiKey || legacyThink;
+                const resolvedListen = vaultKeys.deepgramApiKey || legacyListen;
+
+                if (legacyThink || legacyListen) {
+                    await saveLocalByokKeys(user.id, {
+                        customApiKey: resolvedThink,
+                        deepgramApiKey: resolvedListen,
+                    });
+                    const rawSettings = safeJsonParse(profile?.settings, {});
+                    await supabase
+                        .from('profiles')
+                        .update({
+                            settings: {
+                                ...rawSettings,
+                                custom_api_key: '',
+                                deepgram_api_key: '',
+                            },
+                            updated_at: new Date().toISOString(),
+                        })
+                        .eq('id', user.id);
+                }
+
+                if (!cancelled) {
+                    setThinkApiKey(resolvedThink);
+                    setListenApiKey(resolvedListen);
+                }
+            } catch (err) {
+                console.warn('[Settings] Failed to load or migrate encrypted BYOK vault:', err);
+            }
+        };
+
+        syncLocalByokKeys();
+        return () => {
+            cancelled = true;
+        };
+    }, [profile, user?.id]);
 
     // ── Tab 1 Handlers: Username & Password ─────────────────────────────────
     const handleSaveUsername = async (e: React.FormEvent) => {
@@ -198,6 +242,128 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ onClose })
         }
     };
 
+    const handleExportData = async () => {
+        if (!user?.id) return;
+        setIsExportingData(true);
+        setUserStatusMsg(null);
+        try {
+            const [profileRes, entriesRes, clipsRes, storiesRes, localTakes] = await Promise.all([
+                supabase.from('profiles').select('id, username, updated_at, settings').eq('id', user.id).maybeSingle(),
+                supabase.from('journal_entries').select('*').eq('user_id', user.id),
+                supabase.from('journal_clips').select('*').eq('user_id', user.id),
+                supabase.from('shared_stories').select('*').eq('user_id', user.id),
+                getAllLocalJournalRecordings(user.id),
+            ]);
+
+            const rawSettings = safeJsonParse(profileRes.data?.settings, {} as Record<string, any>);
+            const sanitizedSettings = { ...rawSettings };
+            delete sanitizedSettings.custom_api_key;
+            delete sanitizedSettings.deepgram_api_key;
+
+            const localFriends = safeJsonParse(
+                localStorage.getItem('memcut_friends_list') || localStorage.getItem('yolofuck_friends_list'),
+                []
+            );
+
+            const exportBundle = {
+                exportedAt: new Date().toISOString(),
+                service: 'Memcut (plasticin ecosystem)',
+                gdprArticle: 'Article 20 - Right to Data Portability',
+                account: {
+                    userId: user.id,
+                    email: user.email || null,
+                    username: profileRes.data?.username || profile?.username || null,
+                    updatedAt: profileRes.data?.updated_at || null,
+                },
+                settings: sanitizedSettings,
+                localSecurityState: {
+                    encryptedByokVaultPresent: Boolean(thinkApiKey || listenApiKey),
+                },
+                journalEntries: entriesRes.data || [],
+                journalClips: clipsRes.data || [],
+                sharedStories: storiesRes.data || [],
+                localDeviceRecordingsMetadata: localTakes.map((t) => ({
+                    id: t.id,
+                    title: t.title,
+                    durationMs: t.durationMs,
+                    transcription: t.transcription || '',
+                    createdAt: t.createdAt,
+                })),
+                localFriends,
+            };
+
+            const blob = new Blob([JSON.stringify(exportBundle, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = `memcut-gdpr-export-${user.id.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
+
+            setUserStatusMsg({ type: 'success', text: 'Your Memcut GDPR data archive has been downloaded.' });
+        } catch (err: any) {
+            setUserStatusMsg({ type: 'error', text: err?.message || 'Failed to export Memcut data.' });
+        } finally {
+            setIsExportingData(false);
+        }
+    };
+
+    const handleDeleteMemcutData = async () => {
+        if (!user?.id) return;
+        if (deleteConfirmText.trim().toLowerCase() !== 'delete') {
+            setUserStatusMsg({ type: 'error', text: 'Type delete to confirm permanent erasure of your Memcut data.' });
+            return;
+        }
+
+        setIsDeletingData(true);
+        setUserStatusMsg(null);
+        try {
+            const { error: storiesErr } = await supabase.from('shared_stories').delete().eq('user_id', user.id);
+            if (storiesErr) throw storiesErr;
+
+            const { error: clipsErr } = await supabase.from('journal_clips').delete().eq('user_id', user.id);
+            if (clipsErr) throw clipsErr;
+
+            const { error: entriesErr } = await supabase.from('journal_entries').delete().eq('user_id', user.id);
+            if (entriesErr) throw entriesErr;
+
+            const { error: profileErr } = await supabase
+                .from('profiles')
+                .update({ settings: {}, updated_at: new Date().toISOString() })
+                .eq('id', user.id);
+            if (profileErr) throw profileErr;
+
+            await purgeLocalByokKeys(user.id);
+            const localTakes = await getAllLocalJournalRecordings(user.id);
+            await Promise.all(localTakes.map((take) => deleteLocalJournalRecording(take.id)));
+
+            [
+                'memcut_friends_list',
+                'yolofuck_friends_list',
+                'memcut_organizations',
+                'memcut_active_org_id',
+                'memcut_active_workspace_id',
+                'memcut_active_workspace_name',
+                'memcut_local_owner_id',
+                'yolofuck_local_owner_id',
+            ].forEach((k) => localStorage.removeItem(k));
+
+            setThinkApiKey('');
+            setListenApiKey('');
+            setShowDeleteConfirm(false);
+            setDeleteConfirmText('');
+
+            await signOut();
+            onClose();
+        } catch (err: any) {
+            setUserStatusMsg({ type: 'error', text: err?.message || 'Failed to delete Memcut data.' });
+        } finally {
+            setIsDeletingData(false);
+        }
+    };
+
     // ── Tab 2 Handlers: Save Media Settings ─────────────────────────────────
     const handleSaveMediaSettings = async () => {
         if (!user?.id) return;
@@ -260,6 +426,11 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ onClose })
 
         setIsSavingTranscription(true);
         try {
+            await saveLocalByokKeys(user.id, {
+                customApiKey: thinkApiKey.trim(),
+                deepgramApiKey: listenApiKey.trim(),
+            });
+
             const { data: currentProfile } = await supabase
                 .from('profiles')
                 .select('settings')
@@ -271,10 +442,10 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ onClose })
                 ...existing,
                 ai_provider: thinkProvider,
                 ai_model: thinkModel,
-                custom_api_key: thinkApiKey.trim(),
+                custom_api_key: '',
                 transcription_engine: listenProvider,
                 transcription_model: listenModel,
-                deepgram_api_key: listenApiKey.trim(),
+                deepgram_api_key: '',
             };
 
             const { error } = await supabase
@@ -434,6 +605,80 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ onClose })
                                     <span className="yolofuck-meta-label">User ID</span>
                                     <span className="yolofuck-meta-value mono">{user?.id || 'N/A'}</span>
                                 </div>
+                            </div>
+
+                            {/* Privacy & GDPR Data Controls */}
+                            <div className="yolofuck-settings-clean-card details">
+                                <label className="yolofuck-settings-label">Privacy & GDPR Data Controls</label>
+                                <p className="yolofuck-field-hint" style={{ margin: '0 0 10px 0' }}>
+                                    Export your Memcut cloud records and local clip metadata in JSON format (GDPR Art. 20), or erase your Memcut workspace data and on-device encrypted keys (GDPR Art. 17). For full cross-ecosystem Plasticin ID account deletion, manage your identity at{' '}
+                                    <a
+                                        href="https://id.plasticin.com"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="yolofuck-inline-link"
+                                    >
+                                        id.plasticin.com <ExternalLink size={12} />
+                                    </a>.
+                                </p>
+                                <button
+                                    type="button"
+                                    className="yolofuck-neumorphic-btn full"
+                                    onClick={handleExportData}
+                                    disabled={isExportingData || isDeletingData}
+                                >
+                                    {isExportingData ? <Loader2 size={16} className="spin" /> : <Download size={16} />}
+                                    <span>{isExportingData ? 'Exporting Data…' : 'Export My Data (JSON)'}</span>
+                                </button>
+
+                                {!showDeleteConfirm ? (
+                                    <button
+                                        type="button"
+                                        className="yolofuck-neumorphic-btn danger full"
+                                        style={{ marginTop: 8 }}
+                                        onClick={() => setShowDeleteConfirm(true)}
+                                        disabled={isDeletingData}
+                                    >
+                                        <Trash2 size={16} />
+                                        <span>Delete Memcut Data</span>
+                                    </button>
+                                ) : (
+                                    <div style={{ marginTop: 10, padding: 12, borderRadius: 10, background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.28)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                        <span style={{ fontSize: 12, color: '#fca5a5', lineHeight: 1.4 }}>
+                                            This permanently deletes your Memcut cloud entries, video clips, shared stories, local IndexedDB recordings, and encrypted BYOK keys. Type <code>delete</code> below to confirm.
+                                        </span>
+                                        <input
+                                            type="text"
+                                            className="yolofuck-settings-text-input"
+                                            value={deleteConfirmText}
+                                            onChange={(e) => setDeleteConfirmText(e.target.value)}
+                                            placeholder="Type delete to confirm"
+                                            disabled={isDeletingData}
+                                        />
+                                        <div style={{ display: 'flex', gap: 8 }}>
+                                            <button
+                                                type="button"
+                                                className="yolofuck-neumorphic-btn full"
+                                                onClick={() => {
+                                                    setShowDeleteConfirm(false);
+                                                    setDeleteConfirmText('');
+                                                }}
+                                                disabled={isDeletingData}
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="yolofuck-neumorphic-btn danger full"
+                                                onClick={handleDeleteMemcutData}
+                                                disabled={isDeletingData || deleteConfirmText.trim().toLowerCase() !== 'delete'}
+                                            >
+                                                {isDeletingData ? <Loader2 size={15} className="spin" /> : <Trash2 size={15} />}
+                                                <span>{isDeletingData ? 'Erasing…' : 'Confirm Erase'}</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Sign Out */}
@@ -690,7 +935,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ onClose })
                                                 <input
                                                     type={showThinkKey ? 'text' : 'password'}
                                                     className="yolofuck-settings-text-input key"
-                                                    value={showThinkKey ? thinkApiKey : (thinkApiKey ? maskApiKey(thinkApiKey) : '')}
+                                                    value={thinkApiKey}
                                                     onChange={(e) => setThinkApiKey(e.target.value)}
                                                     placeholder={`Paste your ${activeThinkProvider?.name} API key…`}
                                                     autoComplete="off"
@@ -726,7 +971,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ onClose })
                                                 >
                                                     {activeThinkProvider?.name} Console <ExternalLink size={12} />
                                                 </a>
-                                                . Your key is stored securely with database-level isolation.
+                                                . Your key is encrypted on-device with WebCrypto AES-256-GCM and is never stored in plaintext on Plasticin or Memcut servers.
                                             </span>
                                         </div>
                                     </>
@@ -763,10 +1008,26 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ onClose })
                                             <option key={p.id} value={p.id}>{p.name}</option>
                                         ))}
                                     </select>
-                                    {listenProvider === 'browser' && (
+                                    {listenProvider === 'browser' ? (
                                         <div className="yolofuck-feature-badge success">
                                             <Sparkles size={14} />
-                                            <span>Native Browser dictation is active — zero keys required and 100% private.</span>
+                                            <span>Native Browser dictation uses your browser&apos;s built-in speech engine — zero keys required.</span>
+                                        </div>
+                                    ) : (
+                                        <div
+                                            className="yolofuck-settings-alert"
+                                            style={{
+                                                marginTop: 8,
+                                                background: 'rgba(245, 158, 11, 0.12)',
+                                                border: '1px solid rgba(245, 158, 11, 0.3)',
+                                                color: '#fcd34d',
+                                            }}
+                                        >
+                                            <ShieldAlert size={15} />
+                                            <span>
+                                                <strong>Cloud Audio Transmission Notice:</strong> Selecting{' '}
+                                                {activeListenProvider?.name || listenProvider} sends live or recorded spoken audio from your browser directly to that external provider using your BYOK key. Offline ONNX Whisper is not bundled in this web build.
+                                            </span>
                                         </div>
                                     )}
                                 </div>
@@ -793,7 +1054,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ onClose })
                                             <input
                                                 type={showListenKey ? 'text' : 'password'}
                                                 className="yolofuck-settings-text-input key"
-                                                value={showListenKey ? listenApiKey : (listenApiKey ? maskApiKey(listenApiKey) : '')}
+                                                value={listenApiKey}
                                                 onChange={(e) => setListenApiKey(e.target.value)}
                                                 placeholder={`Paste your ${activeListenProvider.name} API key…`}
                                                 autoComplete="off"
@@ -829,7 +1090,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({ onClose })
                                             >
                                                 {activeListenProvider.name} Console <ExternalLink size={12} />
                                             </a>
-                                            . Your key is stored securely with database-level isolation.
+                                            . Your key is encrypted on-device with WebCrypto AES-256-GCM and is never stored in plaintext on Plasticin or Memcut servers.
                                         </span>
                                     </div>
                                 )}

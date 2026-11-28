@@ -102,14 +102,14 @@ export const TermsOfServicePage: React.FC = () => {
           <span className="memcut-legal-num">05.</span> Spoken-Word Listen STT &amp; Think AI BYOK Integrations
         </h2>
         <p>
-          Background speech-to-text transcription and AI search analysis support either native browser speech recognition (Native Browser Web Speech API) or customer-supplied <strong>Bring Your Own Key (BYOK)</strong> credentials for:
+          Background speech-to-text transcription and AI search analysis support either native browser speech recognition (Native Browser Web Speech API, executed locally/via your OS browser without storing third-party Memcut API keys) or customer-supplied <strong>Bring Your Own Key (BYOK)</strong> cloud credentials (explicit microphone/audio transmission opt-in to external vendor endpoints) for:
         </p>
         <ul>
-          <li><strong>Listen (Speech-to-Text):</strong> Deepgram (<code>nova-2</code>), OpenAI Whisper, Groq Whisper, Gladia, and AssemblyAI.</li>
+          <li><strong>Listen (Speech-to-Text):</strong> Deepgram (<code>nova-2</code>), OpenAI Whisper, Groq Whisper, Gladia, and AssemblyAI (the web build does not execute local ONNX Whisper weights offline; select Native Browser Web Speech for zero third-party BYOK billing).</li>
           <li><strong>Think (AI Reasoning):</strong> Groq, Google Gemini, DeepSeek, and OpenRouter.</li>
         </ul>
         <p>
-          Memcut never uses private user journals to train foundation models. Where you supply external BYOK keys, your separate contractual terms, fees, and API rate limits with those vendors govern inference execution. AI-generated summaries or transcripts may contain transcription inaccuracies and require human verification before legal or business reliance.
+          Memcut never uses private user journals to train foundation models. Where you supply external BYOK keys, keys are encrypted locally on your device via WebCrypto AES-256-GCM (never persisted plaintext in cloud <code>profiles.settings</code>), and your separate contractual terms, fees, and API rate limits with those vendors govern inference execution. AI-generated summaries or transcripts may contain transcription inaccuracies and require human verification before legal or business reliance.
         </p>
       </section>
 
@@ -119,11 +119,11 @@ export const TermsOfServicePage: React.FC = () => {
         </h2>
         <ul>
           <li>
-            <strong>Organization Directory &amp; Embedded Chat (`chat.plasticin.com`):</strong> Organization members may exchange messages and attachments across Management and Workspace chat rooms governed by our{' '}
+            <strong>Organization Directory &amp; Embedded Chat (<code>chat.plasticin.com</code>):</strong> Organization members may exchange messages and attachments across Management and Workspace chat rooms governed by our{' '}
             <Link to="/acceptable-use" className="memcut-legal-inline-link">Acceptable Use Policy</Link>.
           </li>
           <li>
-            <strong>NanCat Short-Form Pipeline (`nancat.com`):</strong> Users may export or bridge selected journal takes into NanCat for editing and distribution under NanCat&apos;s publishing terms.
+            <strong>NanCat Short-Form Pipeline (<code>nancat.com</code>):</strong> Users may export or bridge selected journal takes into NanCat for editing and distribution under NanCat&apos;s publishing terms.
           </li>
           <li>
             <strong>External AI Agents via Central MCP Gateway:</strong> If you enable Memcut scopes inside Plasticin&apos;s Central MCP Gateway, external AI assistants (Claude, ChatGPT, Sesame, etc.) access your authorized recordings/transcripts at your sole risk, including third-party retention or automated prompt-injection actions.
